@@ -38,9 +38,21 @@
       "types": "./dist/client.d.ts",
       "import": "./dist/client.js"
     },
+    "./error-boundary": {
+      "types": "./dist/error-boundary.d.ts",
+      "import": "./dist/error-boundary.js"
+    },
     "./server": {
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js"
+    },
+    "./middleware": {
+      "types": "./dist/middleware.d.ts",
+      "import": "./dist/middleware.js"
+    },
+    "./instrumentation": {
+      "types": "./dist/instrumentation.d.ts",
+      "import": "./dist/instrumentation.js"
     }
   },
   "sideEffects": false,
@@ -63,7 +75,8 @@
   },
   "peerDependencies": {
     "next": ">=14.0.0",
-    "react": ">=18.0.0"
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
   },
   "dependencies": {
     "@volatodev/core": "workspace:*",
@@ -72,10 +85,15 @@
     "prompts": "^2.4.2"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.1.0",
+    "@types/node": "^24.0.0",
     "@types/prompts": "^2.4.9",
     "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "happy-dom": "^15.11.7",
     "next": "^15.0.0",
     "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
