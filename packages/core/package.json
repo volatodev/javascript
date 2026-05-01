@@ -1,0 +1,58 @@
+{
+  "name": "@volatodev/core",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Wire format schemas and DSN parser shared between Volato SDKs and ingestion.",
+  "license": "MIT",
+  "author": "Wrenchy SASU",
+  "homepage": "https://github.com/volatodev/javascript#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/volatodev/javascript.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/volatodev/javascript/issues"
+  },
+  "keywords": [
+    "volato",
+    "error-tracking",
+    "wire-format",
+    "zod",
+    "dsn"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
