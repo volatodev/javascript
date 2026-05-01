@@ -1,9 +1,6 @@
 export type ParsedDSN = {
-  protocol: "http" | "https";
-  publicKey: string;
-  host: string;
-  port?: number;
-  projectId: string;
+  origin: string;
+  secret: string;
 };
 
 export class InvalidDSNError extends Error {
@@ -22,29 +19,31 @@ export function parseDSN(dsn: string): ParsedDSN {
   }
 
   if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new InvalidDSNError(`protocol must be http or https, got ${url.protocol}`);
+    throw new InvalidDSNError(
+      `protocol must be http or https, got ${url.protocol}`,
+    );
   }
 
-  if (!url.username) {
-    throw new InvalidDSNError("missing public key (username)");
-  }
-
-  const projectId = url.pathname.replace(/^\/+/, "").split("/")[0] ?? "";
-  if (!projectId) {
-    throw new InvalidDSNError("missing project id (path)");
+  const secret = url.pathname.replace(/^\/+/, "").trim();
+  if (!secret) {
+    throw new InvalidDSNError("missing secret in DSN path");
   }
 
   return {
-    protocol: url.protocol === "https:" ? "https" : "http",
-    publicKey: url.username,
-    host: url.hostname,
-    port: url.port ? Number(url.port) : undefined,
-    projectId,
+    origin: url.origin,
+    secret,
   };
 }
 
 export function dsnToIngestUrl(dsn: string | ParsedDSN): string {
   const parsed = typeof dsn === "string" ? parseDSN(dsn) : dsn;
-  const port = parsed.port ? `:${parsed.port}` : "";
-  return `${parsed.protocol}://${parsed.host}${port}/api/ingest/${parsed.projectId}`;
+  return `${parsed.origin}/api/ingest`;
+}
+
+export function dsnSecret(dsn: string): string | null {
+  try {
+    return parseDSN(dsn).secret;
+  } catch {
+    return null;
+  }
 }
