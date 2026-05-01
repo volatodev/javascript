@@ -1,0 +1,33 @@
+{
+  "name": "volato-sdks-js",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Volato JavaScript SDKs monorepo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/volatodev/javascript.git"
+  },
+  "license": "MIT",
+  "author": "Wrenchy SASU",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "turbo run build --filter=./packages/* && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.10",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  }
+}
