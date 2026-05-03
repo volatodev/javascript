@@ -1,16 +1,15 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig([
+  // Server-side entries — no "use client" directive needed.
   {
     entry: {
       index: "src/index.ts",
-      client: "src/client.tsx",
-      "error-boundary": "src/error-boundary.tsx",
       server: "src/server.ts",
       middleware: "src/middleware.ts",
       instrumentation: "src/instrumentation.ts",
     },
-    format: ["esm"],
+    format: ["esm", "cjs"],
     dts: true,
     sourcemap: true,
     clean: true,
@@ -20,6 +19,25 @@ export default defineConfig([
     minify: false,
     external: ["react", "react-dom", "next"],
   },
+  // Client-side entries — preserve the "use client" directive that
+  // tsup/esbuild strips during bundling.
+  {
+    entry: {
+      client: "src/client.tsx",
+      "error-boundary": "src/error-boundary.tsx",
+    },
+    format: ["esm", "cjs"],
+    dts: true,
+    sourcemap: true,
+    clean: false,
+    target: "es2022",
+    treeshake: true,
+    splitting: false,
+    minify: false,
+    external: ["react", "react-dom", "next"],
+    banner: { js: '"use client";' },
+  },
+  // CLI bundle — shebang for direct `node` execution.
   {
     entry: { cli: "src/cli.ts" },
     format: ["esm"],
