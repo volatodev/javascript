@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { withVolato } from "@volatodev/nextjs/server";
+import { withVolato } from "@volatodev/nextjs";
 
 const config: NextConfig = {
   reactStrictMode: true,
