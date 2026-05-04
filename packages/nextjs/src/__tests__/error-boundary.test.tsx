@@ -40,7 +40,7 @@ describe("VolatoErrorBoundary", () => {
 
   it("forwards caught errors to captureClientError with componentStack", () => {
     initClient({
-      dsn: "https://volato.dev/secret_abc",
+      dsn: "https://pk_test_abc@volato.dev/11111111-2222-3333-4444-555555555555",
       environment: "production",
     });
 
@@ -88,7 +88,7 @@ describe("captureFromErrorBoundary (Next.js error.tsx file boundary)", () => {
 
   it("forwards Next.js error.digest so client/server captures correlate", () => {
     initClient({
-      dsn: "https://volato.dev/secret_abc",
+      dsn: "https://pk_test_abc@volato.dev/11111111-2222-3333-4444-555555555555",
       environment: "production",
     });
 
@@ -108,7 +108,7 @@ describe("captureFromErrorBoundary (Next.js error.tsx file boundary)", () => {
 
   it("accepts an optional componentStack passthrough", () => {
     initClient({
-      dsn: "https://volato.dev/secret_abc",
+      dsn: "https://pk_test_abc@volato.dev/11111111-2222-3333-4444-555555555555",
       environment: "production",
     });
 

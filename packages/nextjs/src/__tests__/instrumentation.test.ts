@@ -10,7 +10,8 @@ import {
 
 import { onRequestError, register } from "../instrumentation";
 
-const DSN = "https://volato.dev/secret_abc";
+const DSN =
+  "https://pk_test_abc@volato.dev/11111111-2222-3333-4444-555555555555";
 
 describe("onRequestError (Next.js 15 instrumentation hook)", () => {
   let fetchMock: Mock;

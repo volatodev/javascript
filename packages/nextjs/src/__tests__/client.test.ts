@@ -41,17 +41,18 @@ function makeMockWindow(): {
   return { window, listeners };
 }
 
-const DSN = "https://volato.dev/secret_abc";
+const PROJECT_ID = "11111111-2222-3333-4444-555555555555";
+const DSN = `https://pk_test_abc@volato.dev/${PROJECT_ID}`;
 
 describe("dsnToIngestUrl", () => {
   it("maps a DSN to the /api/ingest endpoint on the same origin", () => {
     expect(dsnToIngestUrl(DSN)).toBe("https://volato.dev/api/ingest");
   });
 
-  it("strips any path/secret from the DSN when computing the ingest URL", () => {
-    expect(dsnToIngestUrl("https://eu.volato.dev/s/nested/secret")).toBe(
-      "https://eu.volato.dev/api/ingest",
-    );
+  it("strips userinfo and projectId from the DSN when computing the ingest URL", () => {
+    expect(
+      dsnToIngestUrl(`https://pk_eu@eu.volato.dev/${PROJECT_ID}`),
+    ).toBe("https://eu.volato.dev/api/ingest");
   });
 });
 

@@ -11,7 +11,8 @@ import {
 import type { VolatoConfig } from "../index";
 import { captureException, wrapMiddleware } from "../middleware";
 
-const DSN = "https://volato.dev/secret_abc";
+const DSN =
+  "https://pk_test_abc@volato.dev/11111111-2222-3333-4444-555555555555";
 const config: VolatoConfig = { dsn: DSN };
 
 describe("captureException (middleware / Edge)", () => {

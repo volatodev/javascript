@@ -18,7 +18,8 @@ import {
   wrapRoute,
 } from "../server";
 
-const DSN = "https://volato.dev/secret_abc";
+const DSN =
+  "https://pk_test_abc@volato.dev/11111111-2222-3333-4444-555555555555";
 
 describe("captureException (server / RSC)", () => {
   let fetchMock: Mock;

@@ -1,6 +1,14 @@
+/**
+ * DSN format: `https://<publicKey>@<host>[:<port>]/<projectId>`.
+ *
+ * The `publicKey` is the auth secret sent in the `X-Volato-DSN` header. The
+ * `projectId` is the UUID of the target project — it lets ingest route the
+ * event without an extra DB lookup. Both must be present.
+ */
 export type ParsedDSN = {
   origin: string;
-  secret: string;
+  publicKey: string;
+  projectId: string;
 };
 
 export class InvalidDSNError extends Error {
@@ -24,14 +32,34 @@ export function parseDSN(dsn: string): ParsedDSN {
     );
   }
 
-  const secret = url.pathname.replace(/^\/+/, "").trim();
-  if (!secret) {
-    throw new InvalidDSNError("missing secret in DSN path");
+  const publicKey = url.username;
+  if (!publicKey) {
+    throw new InvalidDSNError(
+      "missing public key — expected https://<publicKey>@host/<projectId>",
+    );
+  }
+  if (url.password) {
+    throw new InvalidDSNError(
+      "password segment is not allowed — DSN carries only a public key",
+    );
+  }
+
+  const projectId = url.pathname.replace(/^\/+/, "").replace(/\/+$/, "").trim();
+  if (!projectId) {
+    throw new InvalidDSNError(
+      "missing projectId — expected https://<publicKey>@host/<projectId>",
+    );
+  }
+  if (projectId.includes("/")) {
+    throw new InvalidDSNError(
+      `projectId must be a single path segment, got "${projectId}"`,
+    );
   }
 
   return {
     origin: url.origin,
-    secret,
+    publicKey,
+    projectId,
   };
 }
 
@@ -40,9 +68,17 @@ export function dsnToIngestUrl(dsn: string | ParsedDSN): string {
   return `${parsed.origin}/api/ingest`;
 }
 
-export function dsnSecret(dsn: string): string | null {
+export function dsnPublicKey(dsn: string): string | null {
   try {
-    return parseDSN(dsn).secret;
+    return parseDSN(dsn).publicKey;
+  } catch {
+    return null;
+  }
+}
+
+export function dsnProjectId(dsn: string): string | null {
+  try {
+    return parseDSN(dsn).projectId;
   } catch {
     return null;
   }
