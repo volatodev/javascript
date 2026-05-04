@@ -11,6 +11,8 @@ import {
   patchEnvLocal,
   patchInstrumentation,
   patchLayout,
+  patchNextConfig,
+  patchTunnelRoute,
   type PatchOutcome,
   type PatchStatus,
 } from "./patch";
@@ -94,6 +96,8 @@ export async function runInit(options: InitOptions): Promise<void> {
     patchInstrumentation(project.instrumentationPath, project.language),
   );
   outcomes.push(patchLayout(project.layoutPath));
+  outcomes.push(patchNextConfig(project.nextConfigPath));
+  outcomes.push(patchTunnelRoute(project.tunnelRoutePath, project.language));
 
   for (const o of outcomes) printOutcome(cwd, o);
   process.stdout.write("\n");

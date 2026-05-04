@@ -13,6 +13,8 @@ import {
   patchEnvLocal,
   patchInstrumentation,
   patchLayout,
+  patchNextConfig,
+  patchTunnelRoute,
 } from "../cli/patch";
 
 let cwd: string;
@@ -211,5 +213,74 @@ describe("buildMiddlewareSnippet", () => {
     );
     expect(snippet).toContain("wrapMiddleware(");
     expect(snippet).toContain("process.env.VOLATO_DSN");
+  });
+});
+
+describe("patchNextConfig", () => {
+  it("returns manual when next.config is missing", () => {
+    const out = patchNextConfig(null);
+    expect(out.status).toBe("manual");
+  });
+
+  it("wraps an `export default { ... }` config and prepends the import", () => {
+    const path = join(cwd, "next.config.ts");
+    writeFileSync(path, "export default { reactStrictMode: true };\n");
+
+    const out = patchNextConfig(path);
+    expect(out.status).toBe("updated");
+    const next = readFileSync(path, "utf8");
+    expect(next).toContain('import { withVolato } from "@volatodev/nextjs"');
+    expect(next).toContain(
+      "export default withVolato({ reactStrictMode: true })",
+    );
+  });
+
+  it("is idempotent — second call is a no-op skip", () => {
+    const path = join(cwd, "next.config.ts");
+    writeFileSync(path, "export default { x: 1 };\n");
+    patchNextConfig(path);
+    const out = patchNextConfig(path);
+    expect(out.status).toBe("skipped");
+  });
+
+  it("returns manual on `module.exports = …` shape", () => {
+    const path = join(cwd, "next.config.js");
+    writeFileSync(path, "module.exports = { x: 1 };\n");
+    const out = patchNextConfig(path);
+    expect(out.status).toBe("manual");
+  });
+});
+
+describe("patchTunnelRoute", () => {
+  it("creates app/monitoring/route.ts with createTunnelHandler", () => {
+    const path = join(cwd, "app", "monitoring", "route.ts");
+    const out = patchTunnelRoute(path, "ts");
+    expect(out.status).toBe("created");
+    const body = readFileSync(path, "utf8");
+    expect(body).toContain('from "@volatodev/nextjs/server"');
+    expect(body).toContain("export const POST = createTunnelHandler()");
+  });
+
+  it("creates the JS variant with require(...) when language is js", () => {
+    const path = join(cwd, "app", "monitoring", "route.js");
+    patchTunnelRoute(path, "js");
+    const body = readFileSync(path, "utf8");
+    expect(body).toContain('require("@volatodev/nextjs/server")');
+    expect(body).toContain("exports.POST = createTunnelHandler()");
+  });
+
+  it("is idempotent — second call skips", () => {
+    const path = join(cwd, "app", "monitoring", "route.ts");
+    patchTunnelRoute(path, "ts");
+    const out = patchTunnelRoute(path, "ts");
+    expect(out.status).toBe("skipped");
+  });
+
+  it("returns manual when the file exists but lacks the marker", () => {
+    const path = join(cwd, "app", "monitoring", "route.ts");
+    mkdirSync(join(cwd, "app", "monitoring"), { recursive: true });
+    writeFileSync(path, "export const POST = () => new Response();\n");
+    const out = patchTunnelRoute(path, "ts");
+    expect(out.status).toBe("manual");
   });
 });

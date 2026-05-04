@@ -186,3 +186,83 @@ export default wrapMiddleware(async (req) => {
   // your existing middleware logic
 }, { dsn: process.env.VOLATO_DSN! });`;
 }
+
+/**
+ * Wrap the user's `next.config.{ts,js,mjs,cjs}` export with `withVolato()`.
+ * Idempotent — bails with `skipped` if `withVolato` is already imported.
+ *
+ * Strategy: regex-rewrite `export default <expr>` → `export default
+ * withVolato(<expr>)`, and prepend the import. Falls back to `manual` for
+ * config files using `module.exports = …` or unusual shapes.
+ */
+export function patchNextConfig(path: string | null): PatchOutcome {
+  if (!path) {
+    return {
+      path: "next.config",
+      status: "manual",
+      detail:
+        "next.config not found — create one and wrap your config with `withVolato`",
+    };
+  }
+
+  const original = readIfExists(path);
+  if (original === null) {
+    return {
+      path,
+      status: "manual",
+      detail: "next.config disappeared between detection and patch",
+    };
+  }
+  if (original.includes("withVolato")) {
+    return { path, status: "skipped", detail: "already wraps withVolato" };
+  }
+
+  const exportRegex = /export\s+default\s+([\s\S]+?)(;?\s*)$/;
+  const match = original.match(exportRegex);
+  if (!match) {
+    return {
+      path,
+      status: "manual",
+      detail:
+        'no `export default` found — wrap your export manually with `withVolato(...)`',
+    };
+  }
+
+  const importLine = `import { withVolato } from "@volatodev/nextjs";\n`;
+  const wrapped = `export default withVolato(${match[1]!.trim()})${match[2] ?? ""}`;
+  const replaced = original.replace(exportRegex, wrapped);
+  const withImport = original.includes(importLine)
+    ? replaced
+    : insertAfterLastImport(replaced, importLine);
+
+  writeFileSync(path, withImport, "utf8");
+  return { path, status: "updated", detail: "wrapped export default" };
+}
+
+/**
+ * Create the same-origin tunnel route at `app/monitoring/route.ts`. The
+ * SDK's browser transport posts to `/monitoring` by default.
+ */
+export function patchTunnelRoute(
+  path: string,
+  language: "ts" | "js",
+): PatchOutcome {
+  const existing = readIfExists(path);
+  if (existing && existing.includes("createTunnelHandler")) {
+    return { path, status: "skipped", detail: "tunnel handler already present" };
+  }
+  if (existing) {
+    return {
+      path,
+      status: "manual",
+      detail: 'route.ts exists — add `export const POST = createTunnelHandler()` manually',
+    };
+  }
+  ensureDir(path);
+  const body =
+    language === "ts"
+      ? `import { createTunnelHandler } from "@volatodev/nextjs/server";\n\nexport const POST = createTunnelHandler();\n`
+      : `const { createTunnelHandler } = require("@volatodev/nextjs/server");\n\nexports.POST = createTunnelHandler();\n`;
+  writeFileSync(path, body, "utf8");
+  return { path, status: "created" };
+}

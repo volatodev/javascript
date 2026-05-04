@@ -14,6 +14,10 @@ export type ProjectShape = {
   layoutPath: string;
   instrumentationPath: string;
   middlewarePath: string | null;
+  /** Absolute path to the existing next.config.{ts,mjs,js,cjs}, or null. */
+  nextConfigPath: string | null;
+  /** Absolute path where the tunnel route should live (app/monitoring/route.{ts,js}). */
+  tunnelRoutePath: string;
   language: "ts" | "js";
 };
 
@@ -105,12 +109,31 @@ export function detectProject(cwd: string): ProjectShape {
   const middlewarePath =
     middlewareCandidates.find((p) => existsSync(p)) ?? null;
 
+  const nextConfigCandidates = [
+    join(cwd, "next.config.ts"),
+    join(cwd, "next.config.mjs"),
+    join(cwd, "next.config.js"),
+    join(cwd, "next.config.cjs"),
+  ];
+  const nextConfigPath =
+    nextConfigCandidates.find((p) => existsSync(p)) ?? null;
+
+  const tunnelRouteExt = language === "ts" ? "ts" : "js";
+  const tunnelRoutePath = join(
+    cwd,
+    appDir,
+    "monitoring",
+    `route.${tunnelRouteExt}`,
+  );
+
   return {
     cwd,
     appDir,
     layoutPath: layout.path,
     instrumentationPath,
     middlewarePath,
+    nextConfigPath,
+    tunnelRoutePath,
     language,
   };
 }

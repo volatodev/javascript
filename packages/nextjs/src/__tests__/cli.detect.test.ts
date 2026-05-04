@@ -131,4 +131,46 @@ describe("detectProject", () => {
 
     expect(() => detectProject(cwd)).toThrow(/App Router/);
   });
+
+  it("locates next.config.ts and computes the tunnel route path", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "app"));
+    writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
+    writeFileSync(join(cwd, "next.config.ts"), "export default {};");
+
+    const project = detectProject(cwd);
+    expect(project.nextConfigPath).toBe(join(cwd, "next.config.ts"));
+    expect(project.tunnelRoutePath).toBe(
+      join(cwd, "app", "monitoring", "route.ts"),
+    );
+  });
+
+  it("falls back to next.config.mjs / .js / .cjs in priority order", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "app"));
+    writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
+    writeFileSync(join(cwd, "next.config.js"), "module.exports = {};");
+
+    const project = detectProject(cwd);
+    expect(project.nextConfigPath).toBe(join(cwd, "next.config.js"));
+  });
+
+  it("returns null nextConfigPath when no config file exists", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "app"));
+    writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
+
+    expect(detectProject(cwd).nextConfigPath).toBeNull();
+  });
+
+  it("uses the right extension for the tunnel route in JS projects", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "app"));
+    writeFileSync(join(cwd, "app", "layout.jsx"), "export default () => null;");
+
+    const project = detectProject(cwd);
+    expect(project.tunnelRoutePath).toBe(
+      join(cwd, "app", "monitoring", "route.js"),
+    );
+  });
 });
