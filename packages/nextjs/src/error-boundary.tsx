@@ -31,6 +31,7 @@ export class VolatoErrorBoundary extends Component<Props, State> {
   override componentDidCatch(error: Error, info: ErrorInfo): void {
     captureClientError(error, {
       componentStack: info.componentStack ?? undefined,
+      capturedVia: "error_boundary",
     });
   }
 
@@ -63,5 +64,5 @@ export function captureFromErrorBoundary(
   error: unknown,
   extra?: { componentStack?: string },
 ): void {
-  captureClientError(error, extra);
+  captureClientError(error, { ...extra, capturedVia: "error_boundary" });
 }

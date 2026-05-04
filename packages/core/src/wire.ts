@@ -9,6 +9,44 @@ export const RuntimeSchema = z.enum([
 ]);
 export type Runtime = z.infer<typeof RuntimeSchema>;
 
+/**
+ * Which SDK code path captured this event. Lets the agent (and the
+ * dashboard, if anyone ever needs it) tell apart "thrown by user code
+ * inside wrapAction" from "leaked into onRequestError" from "rejected
+ * a promise nobody handled". Useful when the same bug manifests
+ * differently depending on the boundary it crossed.
+ */
+export const CapturedViaSchema = z.enum([
+  "wrap_action",
+  "wrap_route",
+  "wrap_middleware",
+  "on_request_error",
+  "window_error",
+  "unhandled_rejection",
+  "error_boundary",
+  "console",
+  "manual",
+]);
+export type CapturedVia = z.infer<typeof CapturedViaSchema>;
+
+/**
+ * The HTTP request that triggered this event, if there was one. Bodies
+ * are NEVER captured — too much PII risk. The agent gets the URL and
+ * (string-coerced) query params so it can reproduce the request shape;
+ * if the user wants the full body they reproduce locally.
+ */
+export const RequestInputSchema = z
+  .object({
+    method: z.string(),
+    url: z.string(),
+    pathname: z.string().optional(),
+    searchParams: z
+      .record(z.string(), z.union([z.string(), z.array(z.string())]))
+      .optional(),
+  })
+  .passthrough();
+export type RequestInput = z.infer<typeof RequestInputSchema>;
+
 export const LevelSchema = z.enum([
   "fatal",
   "error",
@@ -128,6 +166,9 @@ export const ErrorEventSchema = z
     linkedErrors: z.array(LinkedErrorSchema).optional(),
     sdk: SdkSchema.optional(),
     extra: z.record(z.string(), z.unknown()).optional(),
+
+    capturedVia: CapturedViaSchema.optional(),
+    request: RequestInputSchema.optional(),
   })
   .passthrough();
 export type ErrorEvent = z.infer<typeof ErrorEventSchema>;

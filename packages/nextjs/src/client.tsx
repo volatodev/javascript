@@ -42,6 +42,7 @@ export type ClientErrorPayload = {
   release?: string;
   environment?: string;
   dist?: string;
+  capturedVia?: ClientCapturedVia;
 };
 
 let activeConfig: VolatoConfig | null = null;
@@ -59,6 +60,14 @@ function isEnabled(config: VolatoConfig | null): config is VolatoConfig {
   return resolveEnvironment(config) !== "development";
 }
 
+type ClientCapturedVia =
+  | "window_error"
+  | "unhandled_rejection"
+  | "error_boundary"
+  | "wrap_action"
+  | "console"
+  | "manual";
+
 type ClientCaptureExtra = {
   componentStack?: string;
   filename?: string;
@@ -66,6 +75,7 @@ type ClientCaptureExtra = {
   colno?: number;
   digest?: string;
   actionName?: string;
+  capturedVia?: ClientCapturedVia;
 };
 
 type CoercedError = {
@@ -146,6 +156,7 @@ function serialize(
   if (typeof extra?.colno === "number") payload.colno = extra.colno;
   if (extra?.digest) payload.digest = extra.digest;
   if (extra?.actionName) payload.actionName = extra.actionName;
+  if (extra?.capturedVia) payload.capturedVia = extra.capturedVia;
   const chain = unwrapCauseChain(error);
   if (chain.length > 0) payload.linkedErrors = chain;
   const target = payload as unknown as Record<string, unknown>;
@@ -255,6 +266,7 @@ export function initClient(config: VolatoConfig): void {
         filename: event.filename || undefined,
         lineno: typeof event.lineno === "number" ? event.lineno : undefined,
         colno: typeof event.colno === "number" ? event.colno : undefined,
+        capturedVia: "window_error",
       }),
     );
   });
@@ -262,7 +274,10 @@ export function initClient(config: VolatoConfig): void {
     "unhandledrejection",
     (event: PromiseRejectionEvent) => {
       if (!isEnabled(activeConfig)) return;
-      post(activeConfig, serialize(event.reason));
+      post(
+        activeConfig,
+        serialize(event.reason, { capturedVia: "unhandled_rejection" }),
+      );
     },
   );
 }
@@ -388,7 +403,7 @@ export function wrapClientAction<T extends (...args: any[]) => any>(
     } catch (err) {
       const inferred = (action as { name?: string }).name;
       const actionName = opts?.name ?? (inferred ? inferred : undefined);
-      captureClientError(err, { actionName });
+      captureClientError(err, { actionName, capturedVia: "wrap_action" });
       throw err;
     }
   };
@@ -482,7 +497,7 @@ export function instrumentConsole(
             args[0] instanceof Error
               ? args[0]
               : Object.assign(new Error(message), { name: syntheticName });
-          post(activeConfig, serialize(synthetic));
+          post(activeConfig, serialize(synthetic, { capturedVia: "console" }));
         }
       } catch {
         // Capturing console output must never break the host app.

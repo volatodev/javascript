@@ -55,6 +55,17 @@ function buildHeaders(
   return h;
 }
 
+function buildRequestSummary(
+  request: NextRequestInfo | undefined,
+): { method: string; url: string; pathname?: string } | undefined {
+  if (!request) return undefined;
+  return {
+    method: request.method,
+    url: request.path,
+    pathname: request.path,
+  };
+}
+
 /**
  * Next.js 15 `onRequestError` handler. Forwards every server-side error
  * Next.js intercepts to Volato. Re-export verbatim from `instrumentation.ts`.
@@ -68,6 +79,8 @@ export async function onRequestError(
     runtime: mapRuntime(context.routeType),
     route: context.routePath ?? request?.path,
     headers: buildHeaders(request?.headers),
+    capturedVia: "on_request_error",
+    request: buildRequestSummary(request),
   });
 }
 

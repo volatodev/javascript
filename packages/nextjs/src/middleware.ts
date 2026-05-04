@@ -41,7 +41,27 @@ export type EdgeErrorPayload = {
   release?: string;
   environment?: string;
   dist?: string;
+  capturedVia?: "wrap_middleware";
+  request?: { method: string; url: string; pathname?: string; searchParams?: Record<string, string | string[]> };
 };
+
+function summarizeEdgeRequest(req: Request): EdgeErrorPayload["request"] {
+  let pathname: string | undefined;
+  let searchParams: Record<string, string | string[]> | undefined;
+  try {
+    const u = new URL(req.url);
+    pathname = u.pathname;
+    const sp: Record<string, string | string[]> = {};
+    for (const key of new Set(u.searchParams.keys())) {
+      const all = u.searchParams.getAll(key);
+      sp[key] = all.length > 1 ? all : all[0]!;
+    }
+    if (Object.keys(sp).length > 0) searchParams = sp;
+  } catch {
+    // Malformed URL — keep raw req.url, no path.
+  }
+  return { method: req.method, url: req.url, pathname, searchParams };
+}
 
 /**
  * Send an Edge-runtime error to Volato. Uses `fetch` with `keepalive: true`
@@ -62,6 +82,8 @@ export async function captureException(
       method: req.method,
       runtime: "middleware",
       timestamp: Date.now(),
+      capturedVia: "wrap_middleware",
+      request: summarizeEdgeRequest(req),
     };
     const chain = unwrapCauseChain(err);
     if (chain.length > 0) payload.linkedErrors = chain;

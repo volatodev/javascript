@@ -65,10 +65,27 @@ export type ServerRuntime =
   | "route_handler"
   | "middleware";
 
+export type CapturedVia =
+  | "wrap_action"
+  | "wrap_route"
+  | "wrap_middleware"
+  | "on_request_error"
+  | "error_boundary"
+  | "manual";
+
+export type RequestSummary = {
+  method: string;
+  url: string;
+  pathname?: string;
+  searchParams?: Record<string, string | string[]>;
+};
+
 export type ServerCaptureContext = {
   route?: string;
   headers?: Headers;
   runtime?: ServerRuntime;
+  capturedVia?: CapturedVia;
+  request?: Request | RequestSummary;
 };
 
 export type ServerErrorPayload = {
@@ -83,7 +100,32 @@ export type ServerErrorPayload = {
   release?: string;
   environment?: string;
   dist?: string;
+  capturedVia?: CapturedVia;
+  request?: RequestSummary;
 };
+
+function summarizeRequest(input: Request | RequestSummary): RequestSummary {
+  if ("method" in input && typeof (input as Request).headers === "undefined") {
+    // Plain RequestSummary already.
+    return input as RequestSummary;
+  }
+  const req = input as Request;
+  let pathname: string | undefined;
+  let searchParams: Record<string, string | string[]> | undefined;
+  try {
+    const url = new URL(req.url);
+    pathname = url.pathname;
+    const sp: Record<string, string | string[]> = {};
+    for (const key of new Set(url.searchParams.keys())) {
+      const all = url.searchParams.getAll(key);
+      sp[key] = all.length > 1 ? all : all[0]!;
+    }
+    if (Object.keys(sp).length > 0) searchParams = sp;
+  } catch {
+    // Malformed URL — keep raw `req.url`, no path/searchParams.
+  }
+  return { method: req.method, url: req.url, pathname, searchParams };
+}
 
 function whitelist(headers: Headers | undefined): Record<string, string> {
   const out: Record<string, string> = {};
@@ -108,6 +150,8 @@ function serialize(
     runtime: ctx?.runtime ?? "rsc",
     timestamp: Date.now(),
   };
+  if (ctx?.capturedVia) payload.capturedVia = ctx.capturedVia;
+  if (ctx?.request) payload.request = summarizeRequest(ctx.request);
 
   if (err instanceof Error) {
     payload.type = err.constructor.name || "Error";
@@ -216,7 +260,11 @@ export function wrapAction<T extends (...args: any[]) => any>(
       } catch (err) {
         const inferred = (action as { name?: string }).name;
         const route = opts?.name ?? (inferred ? inferred : undefined);
-        await captureException(err, { runtime: "server_action", route });
+        await captureException(err, {
+          runtime: "server_action",
+          route,
+          capturedVia: "wrap_action",
+        });
         throw err;
       }
     });
@@ -236,6 +284,7 @@ export async function reportActionError(
   await captureException(err, {
     runtime: "server_action",
     route: opts?.name,
+    capturedVia: "wrap_action",
   });
 }
 
@@ -261,6 +310,8 @@ function wrapResponseStream(res: Response, req: Request): Response {
       runtime: "route_handler",
       route,
       headers: req.headers,
+      capturedVia: "wrap_route",
+      request: req,
     });
   });
 
@@ -296,6 +347,8 @@ export function wrapRoute<
           runtime: "route_handler",
           route: pathnameOf(req),
           headers: req.headers,
+          capturedVia: "wrap_route",
+          request: req,
         });
         throw err;
       }
