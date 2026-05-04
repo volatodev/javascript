@@ -122,9 +122,16 @@ export function patchInstrumentation(
 /**
  * Patch `app/layout.tsx`:
  *
- *   1. Add two imports: VolatoBootstrap + VolatoErrorBoundary.
- *   2. Wrap the first `{children}` occurrence with `<VolatoErrorBoundary>`
- *      and a sibling `<VolatoBootstrap dsn={...} />`.
+ *   1. Add one import: VolatoBootstrap.
+ *   2. Insert `<VolatoBootstrap dsn={...} />` next to `{children}`.
+ *
+ * `<VolatoBootstrap>` is a client component that renders nothing (it
+ * just mounts the browser SDK). Next.js allows client components to
+ * render inside server components, so this works whether or not the
+ * layout is `"use client"`. The render-phase error boundary belongs in
+ * `app/error.tsx` / `app/global-error.tsx` — App Router's file-system
+ * mechanism — not wrapped around the layout: that path is incompatible
+ * with server layouts and competes with Next's own error handling.
  *
  * Falls back to `manual` when the layout shape is unusual.
  */
@@ -153,16 +160,18 @@ export function patchLayout(path: string): PatchOutcome {
       detail:
         childrenOccurrences === 0
           ? "no `{children}` found in layout"
-          : "multiple `{children}` usages — wrap the right one manually",
+          : "multiple `{children}` usages — insert <VolatoBootstrap /> manually",
     };
   }
 
-  const importBlock = `import { VolatoBootstrap } from "@volatodev/nextjs/client";\nimport { VolatoErrorBoundary } from "@volatodev/nextjs/error-boundary";\n`;
-  const wrapped =
-    "<VolatoErrorBoundary>\n        <VolatoBootstrap dsn={process.env.NEXT_PUBLIC_VOLATO_DSN!} />\n        {children}\n      </VolatoErrorBoundary>";
+  const importBlock = `import { VolatoBootstrap } from "@volatodev/nextjs/client";\n`;
+  // Sibling, not wrapper — keeps the patch compatible with server
+  // layouts (the default for app/layout.tsx in Next 15).
+  const insertion =
+    '<VolatoBootstrap dsn={process.env.NEXT_PUBLIC_VOLATO_DSN!} />\n        {children}';
 
-  const withWrap = original.replace("{children}", wrapped);
-  const withImports = insertAfterLastImport(withWrap, importBlock);
+  const withInsertion = original.replace("{children}", insertion);
+  const withImports = insertAfterLastImport(withInsertion, importBlock);
 
   writeFileSync(path, withImports, "utf8");
   return { path, status: "updated" };

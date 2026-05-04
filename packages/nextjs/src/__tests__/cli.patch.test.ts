@@ -152,7 +152,7 @@ export default function RootLayout({
     return path;
   }
 
-  it("adds imports and wraps `{children}`", () => {
+  it("inserts <VolatoBootstrap /> as a sibling of {children} (no wrapper)", () => {
     const path = writeLayout(STARTER_LAYOUT);
 
     const out = patchLayout(path);
@@ -162,19 +162,17 @@ export default function RootLayout({
     expect(contents).toContain(
       'import { VolatoBootstrap } from "@volatodev/nextjs/client";',
     );
-    expect(contents).toContain(
-      'import { VolatoErrorBoundary } from "@volatodev/nextjs/error-boundary";',
-    );
-    expect(contents).toContain("<VolatoErrorBoundary>");
     expect(contents).toContain("<VolatoBootstrap");
-    expect(contents).toContain("</VolatoErrorBoundary>");
+    // No wrapper: VolatoErrorBoundary must NOT appear (it's a client
+    // class component and would break the default-server layout).
+    expect(contents).not.toContain("VolatoErrorBoundary");
     expect(contents).toContain('import type { Metadata } from "next";');
     expect(contents).toContain('import "./globals.css";');
   });
 
   it("skips a layout that already references Volato", () => {
     const path = writeLayout(
-      'import { VolatoErrorBoundary } from "@volatodev/nextjs/error-boundary";\n' +
+      'import { VolatoBootstrap } from "@volatodev/nextjs/client";\n' +
         STARTER_LAYOUT,
     );
 
