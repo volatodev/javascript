@@ -37,6 +37,30 @@ export type VolatoConfig = {
    * or test gating ("don't send during e2e runs").
    */
   beforeSend?: (event: Record<string, unknown>) => Record<string, unknown> | null;
+  /**
+   * Drop events whose `type` or `message` matches any of these patterns.
+   * Strings match by substring; RegExp by `.test()`. Cheap pre-filter to
+   * silence well-known noise (third-party SDK warnings, browser quirks).
+   */
+  ignoreErrors?: ReadonlyArray<string | RegExp>;
+  /**
+   * Drop events whose `url`, `filename`, or stack contains any of these
+   * patterns. Use to suppress errors raised by browser extensions or
+   * untrusted third-party scripts.
+   */
+  denyUrls?: ReadonlyArray<string | RegExp>;
+  /**
+   * If set, ONLY keep events whose `url`, `filename`, or stack matches one
+   * of these patterns. Used to scope reporting to your own domain when
+   * embedded in a larger page.
+   */
+  allowUrls?: ReadonlyArray<string | RegExp>;
+  /**
+   * Random sampling: drop a fraction of events. `1.0` keeps everything,
+   * `0.0` keeps nothing, `0.25` keeps roughly one in four. Applied after
+   * `ignoreErrors` / `denyUrls` / `allowUrls` and before `beforeSend`.
+   */
+  sampleRate?: number;
 };
 
 /**

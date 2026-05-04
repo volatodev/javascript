@@ -23,6 +23,7 @@ import {
 } from "./internal/hub-node";
 import { unwrapCauseChain } from "./internal/linked-errors";
 import { runBeforeSend } from "./internal/before-send";
+import { shouldKeep } from "./internal/filters";
 import type { VolatoConfig } from "./index";
 import type { LinkedError } from "@volatodev/core";
 
@@ -65,11 +66,10 @@ export async function captureException(
     if (config.release) payload.release = config.release;
     if (config.environment) payload.environment = config.environment;
     if (config.dist) payload.dist = config.dist;
-    getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
-    const filtered = runBeforeSend(
-      config.beforeSend,
-      payload as unknown as Record<string, unknown>,
-    );
+    const asEvent = payload as unknown as Record<string, unknown>;
+    getCurrentScope().applyTo(asEvent);
+    if (!shouldKeep(asEvent, config)) return;
+    const filtered = runBeforeSend(config.beforeSend, asEvent);
     if (filtered === null) return;
     await fetch(dsnToIngestUrl(config.dsn), {
       method: "POST",

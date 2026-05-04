@@ -23,12 +23,20 @@ import {
 import { unwrapCauseChain } from "./internal/linked-errors";
 import { applyReleaseTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
+import { shouldKeep } from "./internal/filters";
 import type { LinkedError } from "@volatodev/core";
 import type { VolatoConfig } from "./index";
 
 type ServerExtras = Pick<
   VolatoConfig,
-  "beforeSend" | "release" | "environment" | "dist"
+  | "beforeSend"
+  | "release"
+  | "environment"
+  | "dist"
+  | "ignoreErrors"
+  | "denyUrls"
+  | "allowUrls"
+  | "sampleRate"
 >;
 let serverExtras: ServerExtras = {};
 
@@ -144,10 +152,9 @@ export async function captureException(
   }
 
   const payload = serialize(err, ctx);
-  const filtered = runBeforeSend(
-    serverExtras.beforeSend,
-    payload as unknown as Record<string, unknown>,
-  );
+  const asEvent = payload as unknown as Record<string, unknown>;
+  if (!shouldKeep(asEvent, serverExtras)) return;
+  const filtered = runBeforeSend(serverExtras.beforeSend, asEvent);
   if (filtered === null) return;
 
   try {
