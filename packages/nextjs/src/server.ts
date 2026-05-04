@@ -7,7 +7,19 @@
  * fingerprinting happens on the server at `/api/ingest`.
  */
 
-import { dsnToIngestUrl, VOLATO_DSN_HEADER } from "@volatodev/core";
+import {
+  dsnToIngestUrl,
+  VOLATO_DSN_HEADER,
+  type Breadcrumb,
+  type Level,
+  type User,
+} from "@volatodev/core";
+import {
+  __resetHubForTests as __resetHub,
+  getCurrentScope,
+  runWithScope,
+  withScope,
+} from "./internal/hub-node";
 
 const WHITELISTED_HEADERS = [
   "user-agent",
@@ -75,6 +87,7 @@ function serialize(
     }
   }
 
+  getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
   return payload;
 }
 
@@ -132,14 +145,16 @@ export function wrapAction<T extends (...args: any[]) => any>(
     this: unknown,
     ...args: Parameters<T>
   ): Promise<Awaited<ReturnType<T>>> {
-    try {
-      return await action.apply(this, args);
-    } catch (err) {
-      const inferred = (action as { name?: string }).name;
-      const route = opts?.name ?? (inferred ? inferred : undefined);
-      await captureException(err, { runtime: "server_action", route });
-      throw err;
-    }
+    return runWithScope(getCurrentScope().clone(), async () => {
+      try {
+        return await action.apply(this, args);
+      } catch (err) {
+        const inferred = (action as { name?: string }).name;
+        const route = opts?.name ?? (inferred ? inferred : undefined);
+        await captureException(err, { runtime: "server_action", route });
+        throw err;
+      }
+    });
   };
   return wrapped as unknown as T;
 }
@@ -194,6 +209,10 @@ function wrapResponseStream(res: Response, req: Request): Response {
 /**
  * Wrap a Next.js Route Handler so any thrown error is reported to Volato
  * before being re-thrown. Also observes the returned Response's body stream.
+ *
+ * Each wrapped invocation runs inside a forked AsyncLocalStorage scope so
+ * that `setUser` / `setTag` / `addBreadcrumb` calls made during the request
+ * don't leak into other concurrent requests.
  */
 export function wrapRoute<
   T extends (req: Request, ctx?: any) => Promise<Response> | Response,
@@ -203,17 +222,63 @@ export function wrapRoute<
     req: Request,
     ctx?: unknown,
   ): Promise<Response> {
-    try {
-      const res = await handler.call(this, req, ctx);
-      return wrapResponseStream(res, req);
-    } catch (err) {
-      await captureException(err, {
-        runtime: "route_handler",
-        route: pathnameOf(req),
-        headers: req.headers,
-      });
-      throw err;
-    }
+    return runWithScope(getCurrentScope().clone(), async () => {
+      try {
+        const res = await handler.call(this, req, ctx);
+        return wrapResponseStream(res, req);
+      } catch (err) {
+        await captureException(err, {
+          runtime: "route_handler",
+          route: pathnameOf(req),
+          headers: req.headers,
+        });
+        throw err;
+      }
+    });
   };
   return wrapped as unknown as T;
+}
+
+/* ───────────────────────── Scope public API ───────────────────────── */
+
+export { withScope, getCurrentScope };
+
+export function setUser(user: User | null): void {
+  getCurrentScope().setUser(user);
+}
+
+export function setTag(key: string, value: string): void {
+  getCurrentScope().setTag(key, value);
+}
+
+export function setTags(tags: Record<string, string>): void {
+  getCurrentScope().setTags(tags);
+}
+
+export function setContext(
+  key: string,
+  ctx: Record<string, unknown> | null,
+): void {
+  getCurrentScope().setContext(key, ctx);
+}
+
+export function setExtra(key: string, value: unknown): void {
+  getCurrentScope().setExtra(key, value);
+}
+
+export function setLevel(level: Level): void {
+  getCurrentScope().setLevel(level);
+}
+
+export function setFingerprint(fingerprint: string[]): void {
+  getCurrentScope().setFingerprint(fingerprint);
+}
+
+export function addBreadcrumb(crumb: Partial<Breadcrumb>): void {
+  getCurrentScope().addBreadcrumb(crumb);
+}
+
+/** Test-only — reset hub root scope. */
+export function __resetHubForTests(): void {
+  __resetHub();
 }

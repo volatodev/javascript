@@ -1,7 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import { dsnToIngestUrl, VOLATO_DSN_HEADER } from "@volatodev/core";
+import {
+  dsnToIngestUrl,
+  VOLATO_DSN_HEADER,
+  type Breadcrumb,
+  type Level,
+  type User,
+} from "@volatodev/core";
+import {
+  __resetHubForTests as __resetHub,
+  getCurrentScope,
+  withScope,
+} from "./internal/hub-browser";
 import type { VolatoConfig } from "./index";
 
 export type ClientErrorPayload = {
@@ -122,6 +133,7 @@ function serialize(
   if (typeof extra?.colno === "number") payload.colno = extra.colno;
   if (extra?.digest) payload.digest = extra.digest;
   if (extra?.actionName) payload.actionName = extra.actionName;
+  getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
   return payload;
 }
 
@@ -387,4 +399,44 @@ export function __resetActiveConfigForTests(): void {
     }
     consoleOriginals = null;
   }
+  __resetHub();
+}
+
+/* ───────────────────────── Scope public API ───────────────────────── */
+
+export { withScope, getCurrentScope };
+
+export function setUser(user: User | null): void {
+  getCurrentScope().setUser(user);
+}
+
+export function setTag(key: string, value: string): void {
+  getCurrentScope().setTag(key, value);
+}
+
+export function setTags(tags: Record<string, string>): void {
+  getCurrentScope().setTags(tags);
+}
+
+export function setContext(
+  key: string,
+  ctx: Record<string, unknown> | null,
+): void {
+  getCurrentScope().setContext(key, ctx);
+}
+
+export function setExtra(key: string, value: unknown): void {
+  getCurrentScope().setExtra(key, value);
+}
+
+export function setLevel(level: Level): void {
+  getCurrentScope().setLevel(level);
+}
+
+export function setFingerprint(fingerprint: string[]): void {
+  getCurrentScope().setFingerprint(fingerprint);
+}
+
+export function addBreadcrumb(crumb: Partial<Breadcrumb>): void {
+  getCurrentScope().addBreadcrumb(crumb);
 }
