@@ -16,6 +16,10 @@ import {
 import { unwrapCauseChain } from "./internal/linked-errors";
 import { applyReleaseTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
+import {
+  __resetDedupeForTests as __resetDedupe,
+  shouldSend,
+} from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
 import type { VolatoConfig } from "./index";
 
@@ -156,6 +160,7 @@ function post(config: VolatoConfig, payload: ClientErrorPayload): void {
   if (typeof fetch === "undefined") return;
   const asEvent = payload as unknown as Record<string, unknown>;
   if (!shouldKeep(asEvent, config)) return;
+  if (!shouldSend(asEvent)) return;
   const filtered = runBeforeSend(config.beforeSend, asEvent);
   if (filtered === null) return;
   try {
@@ -419,6 +424,7 @@ export function __resetActiveConfigForTests(): void {
     consoleOriginals = null;
   }
   __resetHub();
+  __resetDedupe();
 }
 
 /* ───────────────────────── Scope public API ───────────────────────── */

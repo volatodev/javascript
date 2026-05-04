@@ -23,6 +23,7 @@ import {
 import { unwrapCauseChain } from "./internal/linked-errors";
 import { applyReleaseTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
+import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
 import type { LinkedError } from "@volatodev/core";
 import type { VolatoConfig } from "./index";
@@ -154,6 +155,7 @@ export async function captureException(
   const payload = serialize(err, ctx);
   const asEvent = payload as unknown as Record<string, unknown>;
   if (!shouldKeep(asEvent, serverExtras)) return;
+  if (!shouldSend(asEvent)) return;
   const filtered = runBeforeSend(serverExtras.beforeSend, asEvent);
   if (filtered === null) return;
 

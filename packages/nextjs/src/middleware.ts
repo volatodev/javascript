@@ -23,6 +23,7 @@ import {
 } from "./internal/hub-node";
 import { unwrapCauseChain } from "./internal/linked-errors";
 import { runBeforeSend } from "./internal/before-send";
+import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
 import type { VolatoConfig } from "./index";
 import type { LinkedError } from "@volatodev/core";
@@ -69,6 +70,7 @@ export async function captureException(
     const asEvent = payload as unknown as Record<string, unknown>;
     getCurrentScope().applyTo(asEvent);
     if (!shouldKeep(asEvent, config)) return;
+    if (!shouldSend(asEvent)) return;
     const filtered = runBeforeSend(config.beforeSend, asEvent);
     if (filtered === null) return;
     await fetch(dsnToIngestUrl(config.dsn), {
