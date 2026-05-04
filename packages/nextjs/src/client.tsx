@@ -276,8 +276,22 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
       return originalFetch!(input, init);
     }
 
+    const startedAt = Date.now();
     try {
       const res = await originalFetch!(input, init);
+      if (shouldCapture(url) && isEnabled(activeConfig)) {
+        getCurrentScope().addBreadcrumb({
+          category: "fetch",
+          type: "http",
+          level: res.status >= 400 ? "error" : "info",
+          data: {
+            url,
+            method,
+            status: res.status,
+            duration_ms: Date.now() - startedAt,
+          },
+        });
+      }
       if (
         res.status >= captureStatusFrom &&
         shouldCapture(url) &&
@@ -290,6 +304,17 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
       return res;
     } catch (err) {
       if (shouldCapture(url) && isEnabled(activeConfig)) {
+        getCurrentScope().addBreadcrumb({
+          category: "fetch",
+          type: "http",
+          level: "error",
+          data: {
+            url,
+            method,
+            duration_ms: Date.now() - startedAt,
+            error: err instanceof Error ? err.message : String(err),
+          },
+        });
         const reason = err instanceof Error ? err.message : String(err);
         const synthetic = new Error(
           `Network failure ${method} ${url}: ${reason}`,
@@ -347,6 +372,15 @@ export type ConsoleLevel = "error" | "warn";
 export type InstrumentConsoleOptions = {
   levels?: ReadonlyArray<ConsoleLevel>;
   ignore?: readonly RegExp[];
+  /**
+   * - `"breadcrumb"` (default): each captured `console.*` call adds a
+   *   breadcrumb to the active scope. Future captured events carry it
+   *   in `breadcrumbs[]`. Cheap, no network traffic.
+   * - `"event"`: each call also generates a standalone error event sent
+   *   immediately to ingest. Use sparingly — `console.error` in a render
+   *   loop generates one event per call.
+   */
+  mode?: "breadcrumb" | "event";
 };
 
 let consoleOriginals:
@@ -366,8 +400,9 @@ function consoleArgsToMessage(args: readonly unknown[]): string {
 }
 
 /**
- * Monkey-patch `console.error` (and optionally `console.warn`) to forward
- * their first argument to Volato. Opt-in. Idempotent.
+ * Monkey-patch `console.error` (and optionally `console.warn`) so each
+ * call is recorded as a breadcrumb (default) or — when `mode: "event"` —
+ * captured as a standalone event. Idempotent.
  */
 export function instrumentConsole(
   options: InstrumentConsoleOptions = {},
@@ -378,6 +413,7 @@ export function instrumentConsole(
 
   const levels: ReadonlyArray<ConsoleLevel> = options.levels ?? ["error"];
   const ignore = options.ignore ?? DEFAULT_CONSOLE_IGNORE;
+  const mode = options.mode ?? "breadcrumb";
   consoleOriginals = {};
 
   for (const level of levels) {
@@ -390,18 +426,139 @@ export function instrumentConsole(
         if (!message) return;
         if (ignore.some((re) => re.test(message))) return;
         if (!isEnabled(activeConfig)) return;
-        const syntheticName =
-          level === "error" ? "ConsoleError" : "ConsoleWarning";
-        const synthetic =
-          args[0] instanceof Error
-            ? args[0]
-            : Object.assign(new Error(message), { name: syntheticName });
-        post(activeConfig, serialize(synthetic));
+
+        getCurrentScope().addBreadcrumb({
+          category: "console",
+          level: level === "error" ? "error" : "warning",
+          message,
+          data: { arguments: args.length },
+        });
+
+        if (mode === "event") {
+          const syntheticName =
+            level === "error" ? "ConsoleError" : "ConsoleWarning";
+          const synthetic =
+            args[0] instanceof Error
+              ? args[0]
+              : Object.assign(new Error(message), { name: syntheticName });
+          post(activeConfig, serialize(synthetic));
+        }
       } catch {
         // Capturing console output must never break the host app.
       }
     };
   }
+}
+
+/* ─────────────────── Auto breadcrumbs: navigation ─────────────────── */
+
+let navigationOriginals: {
+  pushState?: typeof history.pushState;
+  replaceState?: typeof history.replaceState;
+  popHandler?: () => void;
+} | null = null;
+
+function recordNavigation(from: string, to: string): void {
+  if (from === to) return;
+  getCurrentScope().addBreadcrumb({
+    category: "navigation",
+    type: "navigation",
+    data: { from, to },
+  });
+}
+
+/**
+ * Wrap `history.pushState` / `replaceState` and listen for `popstate` so
+ * client-side navigations land in `breadcrumbs[]` as
+ * `{ category: "navigation", data: { from, to } }`. Idempotent.
+ */
+export function instrumentNavigation(): void {
+  if (typeof window === "undefined") return;
+  if (navigationOriginals) return;
+  if (!isEnabled(activeConfig)) return;
+
+  const origPush = history.pushState.bind(history);
+  const origReplace = history.replaceState.bind(history);
+  navigationOriginals = { pushState: origPush, replaceState: origReplace };
+
+  history.pushState = function (
+    data: unknown,
+    unused: string,
+    url?: string | URL | null,
+  ): void {
+    const from = location.href;
+    origPush(data, unused, url ?? null);
+    recordNavigation(from, location.href);
+  };
+  history.replaceState = function (
+    data: unknown,
+    unused: string,
+    url?: string | URL | null,
+  ): void {
+    const from = location.href;
+    origReplace(data, unused, url ?? null);
+    recordNavigation(from, location.href);
+  };
+
+  let lastUrl = location.href;
+  const popHandler = (): void => {
+    const from = lastUrl;
+    lastUrl = location.href;
+    recordNavigation(from, lastUrl);
+  };
+  navigationOriginals.popHandler = popHandler;
+  window.addEventListener("popstate", popHandler);
+}
+
+/* ────────────────────── Auto breadcrumbs: clicks ────────────────────── */
+
+const INTERACTIVE_TAGS = new Set([
+  "BUTTON",
+  "A",
+  "INPUT",
+  "SELECT",
+  "TEXTAREA",
+  "SUMMARY",
+]);
+
+let clickHandler: ((ev: Event) => void) | null = null;
+
+function describeTarget(el: Element): string {
+  const tag = el.tagName.toLowerCase();
+  const id = el.id ? `#${el.id}` : "";
+  const cls =
+    el.classList && el.classList.length > 0
+      ? `.${Array.from(el.classList).slice(0, 3).join(".")}`
+      : "";
+  return `${tag}${id}${cls}`;
+}
+
+/**
+ * Add a breadcrumb each time the user clicks an interactive element
+ * (button, link, form input). Records the element selector, not the text
+ * inside — text often contains user-typed PII.
+ */
+export function instrumentClicks(): void {
+  if (typeof window === "undefined") return;
+  if (clickHandler) return;
+  if (!isEnabled(activeConfig)) return;
+
+  clickHandler = (ev: Event) => {
+    try {
+      let node: Element | null = ev.target as Element | null;
+      while (node && !INTERACTIVE_TAGS.has(node.tagName)) {
+        node = node.parentElement;
+      }
+      if (!node) return;
+      getCurrentScope().addBreadcrumb({
+        category: "ui.click",
+        message: describeTarget(node),
+      });
+    } catch {
+      // never break the host app on a breadcrumb path
+    }
+  };
+  window.addEventListener("click", clickHandler, { capture: true });
 }
 
 /** Test-only reset. Not exported from the package entrypoint. */
@@ -416,6 +573,26 @@ export function __resetActiveConfigForTests(): void {
       console[level as ConsoleLevel] = fn!;
     }
     consoleOriginals = null;
+  }
+  if (navigationOriginals) {
+    if (typeof history !== "undefined" && typeof window !== "undefined") {
+      if (navigationOriginals.pushState) {
+        history.pushState = navigationOriginals.pushState;
+      }
+      if (navigationOriginals.replaceState) {
+        history.replaceState = navigationOriginals.replaceState;
+      }
+      if (navigationOriginals.popHandler) {
+        window.removeEventListener("popstate", navigationOriginals.popHandler);
+      }
+    }
+    navigationOriginals = null;
+  }
+  if (clickHandler) {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("click", clickHandler, { capture: true });
+    }
+    clickHandler = null;
   }
   __resetHub();
   __resetDedupe();

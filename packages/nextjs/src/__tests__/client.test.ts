@@ -13,9 +13,12 @@ import {
 
 import {
   __resetActiveConfigForTests,
+  getCurrentScope,
   initClient,
+  instrumentClicks,
   instrumentConsole,
   instrumentFetch,
+  instrumentNavigation,
   wrapClientAction,
 } from "../client";
 import { dsnToIngestUrl } from "@volatodev/core";
@@ -477,40 +480,42 @@ describe("instrumentConsole", () => {
     vi.restoreAllMocks();
   });
 
-  it("captures console.error with type=ConsoleError by default", () => {
+  it("default mode adds a breadcrumb but does not POST an event", () => {
     initClient({ dsn: DSN, environment: "production" });
     instrumentConsole({ ignore: [] });
 
     console.error("something broke");
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(
-      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
-    ) as Record<string, unknown>;
-    expect(body.type).toBe("ConsoleError");
-    expect(body.message).toBe("something broke");
-    expect(body.runtime).toBe("client");
+    expect(fetchMock).not.toHaveBeenCalled();
+    const crumbs = getCurrentScope().breadcrumbs;
+    expect(crumbs.length).toBe(1);
+    expect(crumbs[0]).toMatchObject({
+      category: "console",
+      level: "error",
+      message: "something broke",
+    });
   });
 
-  it("does not capture console.warn unless explicitly enabled", () => {
+  it("does not record console.warn breadcrumbs unless levels includes 'warn'", () => {
     initClient({ dsn: DSN, environment: "production" });
     instrumentConsole({ ignore: [] });
 
     console.warn("just a warning");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(getCurrentScope().breadcrumbs.length).toBe(0);
   });
 
-  it("captures console.warn when levels=['error','warn']", () => {
+  it("records console.warn as a breadcrumb when levels=['error','warn']", () => {
     initClient({ dsn: DSN, environment: "production" });
     instrumentConsole({ levels: ["error", "warn"], ignore: [] });
 
     console.warn("interesting warning");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(
-      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
-    ) as Record<string, unknown>;
-    expect(body.type).toBe("ConsoleWarning");
-    expect(body.message).toBe("interesting warning");
+    const crumbs = getCurrentScope().breadcrumbs;
+    expect(crumbs.length).toBe(1);
+    expect(crumbs[0]).toMatchObject({
+      category: "console",
+      level: "warning",
+      message: "interesting warning",
+    });
   });
 
   it("filters out React key warnings via the default ignore list", () => {
@@ -521,15 +526,17 @@ describe("instrumentConsole", () => {
       'Warning: Each child in a list should have a unique "key" prop.',
     );
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(getCurrentScope().breadcrumbs.length).toBe(0);
   });
 
-  it("forwards Error instances with their original stack", () => {
+  it("mode='event' POSTs a synthetic ConsoleError and also records the breadcrumb", () => {
     initClient({ dsn: DSN, environment: "production" });
-    instrumentConsole({ ignore: [] });
+    instrumentConsole({ ignore: [], mode: "event" });
 
     const e = new TypeError("boom from console");
     console.error(e);
 
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse(
       (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
     ) as Record<string, unknown>;
@@ -537,6 +544,8 @@ describe("instrumentConsole", () => {
     expect(body.message).toBe("boom from console");
     expect(typeof body.stack).toBe("string");
     expect((body.stack as string).length).toBeGreaterThan(0);
+    // breadcrumb is also added in event mode (kept for context on the next event)
+    expect(getCurrentScope().breadcrumbs.length).toBe(1);
   });
 
   it("still calls the underlying console method (does not swallow output)", () => {
