@@ -194,11 +194,19 @@ export function captureClientError(
   post(activeConfig, serialize(error, extra));
 }
 
+let globalListenersAttached = false;
+
 /**
  * Attach `error` + `unhandledrejection` listeners to `window` and forward any
  * captured error to `/api/ingest`. Safe to call from module top-level: no-ops
  * in SSR (`window === undefined`), without a DSN, or when the resolved
  * environment is `"development"`.
+ *
+ * Idempotent: a second `initClient` call (e.g. user calls it manually
+ * AND ships `<VolatoBootstrap>`, or React Strict Mode double-mounts the
+ * bootstrap) refreshes `activeConfig` but does NOT re-attach the
+ * window listeners — otherwise every error would be sent twice (or
+ * N times for N inits).
  */
 export function initClient(config: VolatoConfig): void {
   if (typeof window === "undefined") return;
@@ -213,9 +221,13 @@ export function initClient(config: VolatoConfig): void {
     return;
   }
 
+  if (globalListenersAttached) return;
+  globalListenersAttached = true;
+
   window.addEventListener("error", (event: ErrorEvent) => {
+    if (!isEnabled(activeConfig)) return;
     post(
-      config,
+      activeConfig,
       serialize(event.error ?? event.message, {
         filename: event.filename || undefined,
         lineno: typeof event.lineno === "number" ? event.lineno : undefined,
@@ -226,7 +238,8 @@ export function initClient(config: VolatoConfig): void {
   window.addEventListener(
     "unhandledrejection",
     (event: PromiseRejectionEvent) => {
-      post(config, serialize(event.reason));
+      if (!isEnabled(activeConfig)) return;
+      post(activeConfig, serialize(event.reason));
     },
   );
 }
@@ -606,6 +619,7 @@ export function __resetActiveConfigForTests(): void {
   }
   __resetHub();
   __resetDedupe();
+  globalListenersAttached = false;
 }
 
 /* ───────────────────────── Scope public API ───────────────────────── */
