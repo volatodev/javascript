@@ -14,6 +14,7 @@ import {
   withScope,
 } from "./internal/hub-browser";
 import { unwrapCauseChain } from "./internal/linked-errors";
+import { applyReleaseTo } from "./internal/release";
 import type { VolatoConfig } from "./index";
 
 export type ClientErrorPayload = {
@@ -31,6 +32,9 @@ export type ClientErrorPayload = {
   digest?: string;
   actionName?: string;
   linkedErrors?: ReturnType<typeof unwrapCauseChain>;
+  release?: string;
+  environment?: string;
+  dist?: string;
 };
 
 let activeConfig: VolatoConfig | null = null;
@@ -137,7 +141,12 @@ function serialize(
   if (extra?.actionName) payload.actionName = extra.actionName;
   const chain = unwrapCauseChain(error);
   if (chain.length > 0) payload.linkedErrors = chain;
-  getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
+  const target = payload as unknown as Record<string, unknown>;
+  if (activeConfig?.release) target.release = activeConfig.release;
+  if (activeConfig?.dist) target.dist = activeConfig.dist;
+  if (activeConfig?.environment) target.environment = activeConfig.environment;
+  applyReleaseTo(target);
+  getCurrentScope().applyTo(target);
   return payload;
 }
 

@@ -21,6 +21,7 @@ import {
   withScope,
 } from "./internal/hub-node";
 import { unwrapCauseChain } from "./internal/linked-errors";
+import { applyReleaseTo } from "./internal/release";
 import type { LinkedError } from "@volatodev/core";
 
 const WHITELISTED_HEADERS = [
@@ -50,6 +51,9 @@ export type ServerErrorPayload = {
   runtime: ServerRuntime;
   timestamp: number;
   linkedErrors?: LinkedError[];
+  release?: string;
+  environment?: string;
+  dist?: string;
 };
 
 function whitelist(headers: Headers | undefined): Record<string, string> {
@@ -92,6 +96,7 @@ function serialize(
 
   const chain = unwrapCauseChain(err);
   if (chain.length > 0) payload.linkedErrors = chain;
+  applyReleaseTo(payload as unknown as Record<string, unknown>);
   getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
   return payload;
 }

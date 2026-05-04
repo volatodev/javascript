@@ -34,6 +34,9 @@ export type EdgeErrorPayload = {
   runtime: "middleware";
   timestamp: number;
   linkedErrors?: LinkedError[];
+  release?: string;
+  environment?: string;
+  dist?: string;
 };
 
 /**
@@ -58,6 +61,9 @@ export async function captureException(
     };
     const chain = unwrapCauseChain(err);
     if (chain.length > 0) payload.linkedErrors = chain;
+    if (config.release) payload.release = config.release;
+    if (config.environment) payload.environment = config.environment;
+    if (config.dist) payload.dist = config.dist;
     getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
     await fetch(dsnToIngestUrl(config.dsn), {
       method: "POST",

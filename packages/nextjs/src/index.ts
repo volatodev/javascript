@@ -14,6 +14,18 @@ export type VolatoConfig = {
    * when unset, and falls back to `"production"` if no `NODE_ENV` is present.
    */
   environment?: string;
+  /**
+   * Release identifier — usually a Git SHA or a semver tag. Auto-detected on
+   * client + server from `VOLATO_RELEASE` (and `NEXT_PUBLIC_VOLATO_RELEASE`
+   * for the browser bundle). Pass explicitly to override or to populate the
+   * Edge runtime, where env auto-detection is disabled.
+   */
+  release?: string;
+  /**
+   * Build distribution identifier — opaque, user-defined. Auto-detected
+   * from `VOLATO_DIST` on client + server; pass explicitly for Edge.
+   */
+  dist?: string;
 };
 
 /**
