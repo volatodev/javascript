@@ -99,7 +99,7 @@ describe("initClient", () => {
     const { window, listeners } = makeMockWindow();
     vi.stubGlobal("window", window);
 
-    initClient({ dsn: DSN, environment: "production" });
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
 
     const errorListener = listeners.get("error")?.[0];
     expect(errorListener).toBeTypeOf("function");
@@ -320,7 +320,7 @@ describe("instrumentFetch", () => {
       return new Response(null, { status: 503 });
     });
 
-    initClient({ dsn: DSN, environment: "production" });
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
     instrumentFetch();
 
     const res = await getWindowFetch()("https://api.example.com/users");
@@ -337,7 +337,7 @@ describe("instrumentFetch", () => {
       async () => new Response(null, { status: 404 }),
     );
 
-    initClient({ dsn: DSN, environment: "production" });
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
     instrumentFetch();
 
     await getWindowFetch()("https://api.example.com/x");
@@ -357,7 +357,7 @@ describe("instrumentFetch", () => {
       throw new TypeError("Failed to fetch");
     });
 
-    initClient({ dsn: DSN, environment: "production" });
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
     instrumentFetch();
 
     await expect(
@@ -375,7 +375,7 @@ describe("instrumentFetch", () => {
       async () => new Response(null, { status: 503 }),
     );
 
-    initClient({ dsn: DSN, environment: "production" });
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
     instrumentFetch();
 
     await getWindowFetch()("https://volato.dev/api/ingest", {
@@ -385,7 +385,7 @@ describe("instrumentFetch", () => {
   });
 
   it("is idempotent (second call does not stack-wrap)", () => {
-    initClient({ dsn: DSN, environment: "production" });
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
     instrumentFetch();
     const firstWrap = getWindowFetch();
     instrumentFetch();

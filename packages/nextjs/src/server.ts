@@ -26,6 +26,7 @@ import { runBeforeSend } from "./internal/before-send";
 import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
 import { sendEnvelope } from "./internal/transport";
+export { createTunnelHandler, type TunnelOptions } from "./tunnel";
 import type { LinkedError } from "@volatodev/core";
 import type { VolatoConfig } from "./index";
 

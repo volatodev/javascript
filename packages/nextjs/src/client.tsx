@@ -157,6 +157,15 @@ function serialize(
   return payload;
 }
 
+const DEFAULT_TUNNEL_PATH = "/monitoring";
+
+function resolveTransportUrl(config: VolatoConfig): string {
+  if (config.tunnel === false) return dsnToIngestUrl(config.dsn);
+  const path = typeof config.tunnel === "string" ? config.tunnel : DEFAULT_TUNNEL_PATH;
+  if (typeof location === "undefined") return dsnToIngestUrl(config.dsn);
+  return `${location.origin}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 function post(config: VolatoConfig, payload: ClientErrorPayload): void {
   if (typeof fetch === "undefined") return;
   const asEvent = payload as unknown as Record<string, unknown>;
@@ -165,7 +174,7 @@ function post(config: VolatoConfig, payload: ClientErrorPayload): void {
   const filtered = runBeforeSend(config.beforeSend, asEvent);
   if (filtered === null) return;
   void sendEnvelope(
-    dsnToIngestUrl(config.dsn),
+    resolveTransportUrl(config),
     { [VOLATO_DSN_HEADER]: config.dsn },
     JSON.stringify(filtered),
     { keepalive: true },
@@ -271,7 +280,8 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
     if (
       activeConfig &&
       activeConfig.dsn &&
-      url.startsWith(dsnToIngestUrl(activeConfig.dsn))
+      (url.startsWith(dsnToIngestUrl(activeConfig.dsn)) ||
+        url.startsWith(resolveTransportUrl(activeConfig)))
     ) {
       return originalFetch!(input, init);
     }

@@ -61,6 +61,17 @@ export type VolatoConfig = {
    * `ignoreErrors` / `denyUrls` / `allowUrls` and before `beforeSend`.
    */
   sampleRate?: number;
+  /**
+   * Same-origin tunnel route. When set, browser captures POST to this
+   * path on the host's own origin instead of going straight to the
+   * ingest endpoint — sidesteps adblockers that filter requests to
+   * `*.ingest.*` domains. Defaults to `"/monitoring"`. Set `false` to
+   * disable and send straight to ingest.
+   *
+   * The server-side route handler is provided by
+   * `createTunnelHandler()` from `@volatodev/nextjs/server`.
+   */
+  tunnel?: string | false;
 };
 
 /**
