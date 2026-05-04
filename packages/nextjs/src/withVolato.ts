@@ -49,6 +49,17 @@ export type WithVolatoOptions = {
 
 const MAX_MAP_BYTES = 10 * 1024 * 1024; // 10 MB hard cap; bigger = skip
 
+// Directories under the build output that must NOT be walked for map
+// uploads. `cache/` is webpack's persistent build cache — full of
+// `.map` files from previous compilations that are not part of the
+// served bundle. Walking them would upload thousands of stale,
+// useless source maps every build.
+const SKIP_DIRS = new Set([
+  "cache",
+  ".cache",
+  "node_modules",
+]);
+
 function* walkMapFiles(root: string): Iterable<string> {
   let entries: string[];
   try {
@@ -65,6 +76,7 @@ function* walkMapFiles(root: string): Iterable<string> {
       continue;
     }
     if (s.isDirectory()) {
+      if (SKIP_DIRS.has(entry)) continue;
       yield* walkMapFiles(full);
     } else if (s.isFile() && full.endsWith(".map")) {
       yield full;
