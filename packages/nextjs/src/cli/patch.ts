@@ -214,9 +214,16 @@ export default wrapMiddleware(async (req) => {
  * Wrap the user's `next.config.{ts,js,mjs,cjs}` export with `withVolato()`.
  * Idempotent — bails with `skipped` if `withVolato` is already imported.
  *
- * Strategy: regex-rewrite `export default <expr>` → `export default
- * withVolato(<expr>)`, and prepend the import. Falls back to `manual` for
- * config files using `module.exports = …` or unusual shapes.
+ * Strategy: locate `export default`, walk forward through the value
+ * expression with balanced bracket counting until the statement
+ * terminator (`;` or end-of-file), wrap that exact slice. Falls back to
+ * `manual` for `module.exports = …` shapes, missing exports, or any
+ * config the walker can't parse confidently.
+ *
+ * The previous regex (`/export\s+default\s+([\s\S]+?)(;?\s*)$/`) was
+ * non-greedy paired with `$`, which forces a match to EOF — eating any
+ * subsequent `export const runtime = ...` adjacent to the default
+ * export. The bracket walker stops at the actual statement boundary.
  */
 export function patchNextConfig(path: string | null): PatchOutcome {
   if (!path) {
@@ -240,26 +247,168 @@ export function patchNextConfig(path: string | null): PatchOutcome {
     return { path, status: "skipped", detail: "already wraps withVolato" };
   }
 
-  const exportRegex = /export\s+default\s+([\s\S]+?)(;?\s*)$/;
-  const match = original.match(exportRegex);
-  if (!match) {
+  const located = findExportDefaultExpression(original);
+  if (!located) {
     return {
       path,
       status: "manual",
       detail:
-        'no `export default` found — wrap your export manually with `withVolato(...)`',
+        'no parseable `export default` — wrap your export manually with `withVolato(...)`',
     };
   }
 
   const importLine = `import { withVolato } from "@volatodev/nextjs";\n`;
-  const wrapped = `export default withVolato(${match[1]!.trim()})${match[2] ?? ""}`;
-  const replaced = original.replace(exportRegex, wrapped);
+  const wrappedSlice = `export default withVolato(${located.expression.trim()})`;
+  const replaced =
+    original.slice(0, located.startIndex) +
+    wrappedSlice +
+    original.slice(located.endIndex);
   const withImport = original.includes(importLine)
     ? replaced
     : insertAfterLastImport(replaced, importLine);
 
   writeFileSync(path, withImport, "utf8");
   return { path, status: "updated", detail: "wrapped export default" };
+}
+
+type ExportDefaultLocation = {
+  startIndex: number;
+  endIndex: number;
+  expression: string;
+};
+
+/**
+ * Find `export default <expr>` in `source` and return the absolute
+ * indices spanning the entire statement (from `export` to the
+ * terminating `;` or just past the expression at EOF).
+ *
+ * Walks the expression with bracket counting so an object literal,
+ * call, or arrow function with internal commas is captured intact.
+ * Returns `null` if no `export default` is found, or if the walker
+ * runs into a shape it can't handle confidently (e.g. an unclosed
+ * string).
+ */
+function findExportDefaultExpression(
+  source: string,
+): ExportDefaultLocation | null {
+  const exportMatch = /(?:^|\n)\s*export\s+default\s+/.exec(source);
+  if (!exportMatch) return null;
+
+  const startIndex = exportMatch.index + exportMatch[0].search(/export/);
+  const exprStart = exportMatch.index + exportMatch[0].length;
+
+  let i = exprStart;
+  let depthRound = 0;
+  let depthSquare = 0;
+  let depthCurly = 0;
+  let inSingle = false;
+  let inDouble = false;
+  let inBacktick = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  while (i < source.length) {
+    const ch = source[i]!;
+    const next = source[i + 1] ?? "";
+
+    if (inLineComment) {
+      if (ch === "\n") inLineComment = false;
+      i += 1;
+      continue;
+    }
+    if (inBlockComment) {
+      if (ch === "*" && next === "/") {
+        inBlockComment = false;
+        i += 2;
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+    if (inSingle) {
+      if (ch === "\\") {
+        i += 2;
+        continue;
+      }
+      if (ch === "'") inSingle = false;
+      i += 1;
+      continue;
+    }
+    if (inDouble) {
+      if (ch === "\\") {
+        i += 2;
+        continue;
+      }
+      if (ch === '"') inDouble = false;
+      i += 1;
+      continue;
+    }
+    if (inBacktick) {
+      if (ch === "\\") {
+        i += 2;
+        continue;
+      }
+      if (ch === "`") inBacktick = false;
+      i += 1;
+      continue;
+    }
+
+    if (ch === "/" && next === "/") {
+      inLineComment = true;
+      i += 2;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      inBlockComment = true;
+      i += 2;
+      continue;
+    }
+    if (ch === "'") {
+      inSingle = true;
+      i += 1;
+      continue;
+    }
+    if (ch === '"') {
+      inDouble = true;
+      i += 1;
+      continue;
+    }
+    if (ch === "`") {
+      inBacktick = true;
+      i += 1;
+      continue;
+    }
+
+    if (ch === "(") depthRound += 1;
+    else if (ch === ")") depthRound -= 1;
+    else if (ch === "[") depthSquare += 1;
+    else if (ch === "]") depthSquare -= 1;
+    else if (ch === "{") depthCurly += 1;
+    else if (ch === "}") depthCurly -= 1;
+
+    const atTopLevel =
+      depthRound === 0 && depthSquare === 0 && depthCurly === 0;
+
+    if (atTopLevel && (ch === ";" || ch === "\n")) {
+      const expression = source.slice(exprStart, i).trim();
+      if (expression.length === 0) return null;
+      // Include the `;` in the slice we replace; otherwise stop just
+      // before the newline (no trailing semicolon to swallow).
+      const endIndex = ch === ";" ? i + 1 : i;
+      return { startIndex, endIndex, expression };
+    }
+
+    i += 1;
+  }
+
+  // EOF without a `;`/newline at top level — accept what we have if
+  // the brackets balanced.
+  if (depthRound === 0 && depthSquare === 0 && depthCurly === 0) {
+    const expression = source.slice(exprStart).trim();
+    if (expression.length === 0) return null;
+    return { startIndex, endIndex: source.length, expression };
+  }
+  return null;
 }
 
 /**

@@ -249,6 +249,55 @@ describe("patchNextConfig", () => {
     const out = patchNextConfig(path);
     expect(out.status).toBe("manual");
   });
+
+  it("preserves an adjacent `export const runtime` after the default export", () => {
+    const path = join(cwd, "next.config.ts");
+    writeFileSync(
+      path,
+      "export default { reactStrictMode: true };\nexport const runtime = 'nodejs';\n",
+    );
+    const out = patchNextConfig(path);
+    expect(out.status).toBe("updated");
+    const next = readFileSync(path, "utf8");
+    expect(next).toContain(
+      "export default withVolato({ reactStrictMode: true })",
+    );
+    // The runtime export must survive verbatim.
+    expect(next).toContain("export const runtime = 'nodejs';");
+    // ... and must NOT have been swallowed into the withVolato call.
+    expect(next).not.toContain("withVolato({ reactStrictMode: true };");
+  });
+
+  it("captures balanced parens / braces inside the export expression", () => {
+    const path = join(cwd, "next.config.ts");
+    writeFileSync(
+      path,
+      "import withMDX from '@next/mdx';\nexport default withMDX({ extension: /\\.mdx?$/ })({ reactStrictMode: true });\n",
+    );
+    const out = patchNextConfig(path);
+    expect(out.status).toBe("updated");
+    const next = readFileSync(path, "utf8");
+    // The full call expression — including both invocations — is wrapped.
+    expect(next).toContain(
+      "export default withVolato(withMDX({ extension: /\\.mdx?$/ })({ reactStrictMode: true }))",
+    );
+  });
+
+  it("ignores `export default` inside a string literal", () => {
+    const path = join(cwd, "next.config.ts");
+    writeFileSync(
+      path,
+      "const docs = `the README says: export default {};`;\nexport default { reactStrictMode: true };\n",
+    );
+    const out = patchNextConfig(path);
+    expect(out.status).toBe("updated");
+    const next = readFileSync(path, "utf8");
+    // The string literal is untouched; only the real export was wrapped.
+    expect(next).toContain("`the README says: export default {};`");
+    expect(next).toContain(
+      "export default withVolato({ reactStrictMode: true })",
+    );
+  });
 });
 
 describe("patchTunnelRoute", () => {
