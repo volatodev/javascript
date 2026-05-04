@@ -74,11 +74,4 @@ export type VolatoConfig = {
   tunnel?: string | false;
 };
 
-/**
- * No-op stub for the package skeleton. Returns the config as-is. Real
- * `next.config` integration (instrumentation hook injection, edge wrapping)
- * lands in a future ticket.
- */
-export function withVolato<T = VolatoConfig>(config: T): T {
-  return config;
-}
+export { withVolato, type WithVolatoOptions } from "./withVolato";

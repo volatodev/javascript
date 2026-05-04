@@ -1,0 +1,194 @@
+/**
+ * `withVolato(nextConfig, options)` — wraps a Next.js config to:
+ *
+ *   1. Force-enable production browser source maps so a real stack can be
+ *      symbolicated.
+ *   2. Inject a webpack plugin that, after build, POSTs every `.map` file
+ *      under the build output to the project's source-map upload endpoint.
+ *   3. Optionally delete the `.map` files from the served output so they
+ *      don't ship to end users (`hideSourceMaps: true`).
+ *
+ * Server-side only: this module imports `node:fs` / `node:path` and is
+ * meant to live in `next.config.{js,ts}`. Never import it from
+ * client-side code or middleware.
+ */
+
+import { readdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
+import { join, relative } from "node:path";
+import { dsnToIngestUrl, parseDSN } from "@volatodev/core";
+
+export type WithVolatoOptions = {
+  /**
+   * DSN to attach to uploaded source maps. Defaults to
+   * `process.env.VOLATO_DSN`. The webpack plugin runs at build time so
+   * `process.env` is the natural place to read it from.
+   */
+  dsn?: string;
+  /**
+   * Release identifier the maps belong to. Defaults to
+   * `process.env.VOLATO_RELEASE`. Source-map symbolication keys on this.
+   */
+  release?: string;
+  /**
+   * Delete `.map` files from the build output after upload so they
+   * aren't served to end users. Default `true` for production builds.
+   */
+  hideSourceMaps?: boolean;
+  /**
+   * Skip the upload entirely (still emits maps). Useful for local dev
+   * loops where you don't want every `next build` to hit the network.
+   * Default `false`.
+   */
+  disableUpload?: boolean;
+  /**
+   * Override the upload endpoint. Defaults to
+   * `${ingest_origin}/api/sourcemaps`.
+   */
+  uploadUrl?: string;
+};
+
+const MAX_MAP_BYTES = 10 * 1024 * 1024; // 10 MB hard cap; bigger = skip
+
+function* walkMapFiles(root: string): Iterable<string> {
+  let entries: string[];
+  try {
+    entries = readdirSync(root);
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const full = join(root, entry);
+    let s;
+    try {
+      s = statSync(full);
+    } catch {
+      continue;
+    }
+    if (s.isDirectory()) {
+      yield* walkMapFiles(full);
+    } else if (s.isFile() && full.endsWith(".map")) {
+      yield full;
+    }
+  }
+}
+
+async function uploadMap(
+  uploadUrl: string,
+  dsn: string,
+  release: string | undefined,
+  filename: string,
+  content: string,
+): Promise<void> {
+  try {
+    await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Volato-DSN": dsn,
+        ...(release ? { "X-Volato-Release": release } : {}),
+      },
+      body: JSON.stringify({ filename, content }),
+    });
+  } catch {
+    // Build must never fail because of a sourcemap upload error.
+  }
+}
+
+class VolatoSourceMapsPlugin {
+  constructor(private readonly opts: WithVolatoOptions) {}
+
+  apply(compiler: {
+    options: { output?: { path?: string } };
+    hooks: {
+      afterEmit: { tapPromise: (name: string, cb: () => Promise<void>) => void };
+    };
+  }): void {
+    compiler.hooks.afterEmit.tapPromise(
+      "VolatoSourceMapsPlugin",
+      async () => {
+        const dsn = this.opts.dsn ?? process.env.VOLATO_DSN;
+        if (!dsn) return;
+        try {
+          parseDSN(dsn);
+        } catch {
+          return;
+        }
+        const release = this.opts.release ?? process.env.VOLATO_RELEASE;
+        const uploadUrl =
+          this.opts.uploadUrl ?? `${dsnToIngestUrl(dsn).replace(/\/api\/ingest$/, "")}/api/sourcemaps`;
+        const outputRoot = compiler.options.output?.path;
+        if (!outputRoot) return;
+
+        const hide = this.opts.hideSourceMaps ?? true;
+
+        for (const mapPath of walkMapFiles(outputRoot)) {
+          let content: string;
+          try {
+            const stat = statSync(mapPath);
+            if (stat.size > MAX_MAP_BYTES) continue;
+            content = readFileSync(mapPath, "utf8");
+          } catch {
+            continue;
+          }
+          const rel = relative(outputRoot, mapPath);
+          await uploadMap(uploadUrl, dsn, release, rel, content);
+          if (hide) {
+            try {
+              unlinkSync(mapPath);
+            } catch {
+              // best-effort
+            }
+          }
+        }
+      },
+    );
+  }
+}
+
+type NextConfigLike = {
+  productionBrowserSourceMaps?: boolean;
+  webpack?: (config: unknown, ctx: unknown) => unknown;
+  [k: string]: unknown;
+};
+
+/**
+ * Wrap a Next.js config to enable production browser source maps and
+ * upload them to Volato at build time.
+ *
+ *   // next.config.ts
+ *   import { withVolato } from "@volatodev/nextjs";
+ *   export default withVolato({ reactStrictMode: true });
+ */
+export function withVolato<T extends NextConfigLike = NextConfigLike>(
+  nextConfig: T,
+  options: WithVolatoOptions = {},
+): T {
+  if (options.disableUpload) {
+    return { ...nextConfig, productionBrowserSourceMaps: true };
+  }
+
+  const userWebpack = nextConfig.webpack;
+  return {
+    ...nextConfig,
+    productionBrowserSourceMaps: true,
+    webpack(
+      config: { plugins?: unknown[] } & Record<string, unknown>,
+      ctx: { isServer?: boolean },
+    ) {
+      const next = userWebpack ? userWebpack(config, ctx) : config;
+      // Source maps for the browser bundle only — server-side maps live
+      // in the user's own infra and don't need symbolication.
+      if (
+        !ctx.isServer &&
+        typeof next === "object" &&
+        next !== null &&
+        "plugins" in next
+      ) {
+        const plugins = (next as { plugins?: unknown[] }).plugins ?? [];
+        plugins.push(new VolatoSourceMapsPlugin(options));
+        (next as { plugins?: unknown[] }).plugins = plugins;
+      }
+      return next;
+    },
+  } as T;
+}
