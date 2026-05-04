@@ -166,6 +166,29 @@ function resolveTransportUrl(config: VolatoConfig): string {
   return `${location.origin}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/**
+ * True iff `url` points at one of Volato's own ingest paths — used by
+ * the fetch instrumenter to bypass its own POSTs (no infinite loop, no
+ * self-breadcrumb spam).
+ *
+ * Match is exact OR followed by a path delimiter (`/`, `?`, `#`) so a
+ * tunnel of `/monitoring` doesn't also swallow a user `/monitoring-data`
+ * route on the same origin.
+ */
+function isVolatoOwnUrl(url: string, config: VolatoConfig): boolean {
+  const candidates = [dsnToIngestUrl(config.dsn), resolveTransportUrl(config)];
+  for (const target of candidates) {
+    if (url === target) return true;
+    if (url.startsWith(target)) {
+      const next = url[target.length];
+      if (next === "/" || next === "?" || next === "#" || next === undefined) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function post(config: VolatoConfig, payload: ClientErrorPayload): void {
   if (typeof fetch === "undefined") return;
   const asEvent = payload as unknown as Record<string, unknown>;
@@ -290,12 +313,7 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
     const method = (init?.method ?? "GET").toUpperCase();
     const url = typeof input === "string" ? input : (input as Request).url;
 
-    if (
-      activeConfig &&
-      activeConfig.dsn &&
-      (url.startsWith(dsnToIngestUrl(activeConfig.dsn)) ||
-        url.startsWith(resolveTransportUrl(activeConfig)))
-    ) {
+    if (activeConfig?.dsn && isVolatoOwnUrl(url, activeConfig)) {
       return originalFetch!(input, init);
     }
 
