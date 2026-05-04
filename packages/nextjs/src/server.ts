@@ -139,7 +139,22 @@ function serialize(
  * Send a server-side (RSC) error to Volato. Reads DSN from
  * `process.env.VOLATO_DSN`. No-ops with a `console.warn` when the env var
  * is unset — by design, a missing DSN must never crash the host app.
+ *
+ * Fire-and-forget: the network POST is started but NOT awaited. The
+ * function returns as soon as the local pipeline (filter / dedupe /
+ * beforeSend) decides to ship. This matters for `wrapAction` /
+ * `wrapRoute` / `onRequestError` where the user-facing 500 was
+ * previously delayed by the ingest round-trip (~250 ms typical).
+ *
+ * Caveat for serverless / Edge: the request may be torn down before
+ * the in-flight POST resolves. Hosts that need guaranteed delivery
+ * should wrap their handler in their platform's `waitUntil` /
+ * `event.waitUntil` and surface the returned promise from
+ * `__pendingFlushPromiseForTests` if they really need to await — but
+ * the design choice is: a delivered 500 page beats a dropped event.
  */
+let lastInflight: Promise<void> | null = null;
+
 export async function captureException(
   err: unknown,
   ctx?: ServerCaptureContext,
@@ -161,11 +176,19 @@ export async function captureException(
   const filtered = runBeforeSend(serverExtras.beforeSend, asEvent);
   if (filtered === null) return;
 
-  await sendEnvelope(
+  lastInflight = sendEnvelope(
     dsnToIngestUrl(dsn),
     { [VOLATO_DSN_HEADER]: dsn },
     JSON.stringify(filtered),
   );
+}
+
+/**
+ * Test-only handle on the most recent in-flight send. Lets tests await
+ * the network call without making the public API block on it.
+ */
+export function __pendingFlushPromiseForTests(): Promise<void> | null {
+  return lastInflight;
 }
 
 /** Alias matching the user-facing convention from the package spec. */
