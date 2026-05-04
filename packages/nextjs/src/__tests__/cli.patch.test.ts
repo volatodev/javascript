@@ -91,14 +91,16 @@ describe("patchInstrumentation", () => {
     );
   });
 
-  it("creates a JS instrumentation file when language is js", () => {
+  it("creates an ESM instrumentation.js with a type:module reminder", () => {
     const path = join(cwd, "instrumentation.js");
 
-    patchInstrumentation(path, "js");
+    const out = patchInstrumentation(path, "js");
 
     expect(readFileSync(path, "utf8")).toContain(
-      'require("@volatodev/nextjs/instrumentation")',
+      'export { onRequestError } from "@volatodev/nextjs/instrumentation"',
     );
+    expect(readFileSync(path, "utf8")).not.toContain("require(");
+    expect(out.detail).toMatch(/type.*module/);
   });
 
   it("skips when the file already wires Volato", () => {

@@ -70,9 +70,18 @@ export function patchEnvLocal(cwd: string, dsn: string): PatchOutcome {
 }
 
 /**
- * Create `instrumentation.ts` (or `.js`) re-exporting the SDK hook. If the
- * file already exists with a Volato marker, skip; if it exists without one,
- * return `manual` so the orchestrator can warn the user.
+ * Create `instrumentation.ts` (or `.js`) re-exporting the SDK hook.
+ *
+ * Both .ts and .js variants emit ESM `export { onRequestError }` —
+ * `@volatodev/nextjs` is `"type": "module"` and cannot be required
+ * from CJS without a top-level await. For JS projects without
+ * `"type": "module"` in their own package.json, a CJS-style file
+ * would either fail to parse (Node ESM) or fail at runtime (`require`
+ * an ESM-only export). We emit ESM and document the project-side
+ * requirement when called via the CLI.
+ *
+ * If the file already exists with a Volato marker → skip; if it
+ * exists without one → `manual` so the orchestrator warns the user.
  */
 export function patchInstrumentation(
   path: string,
@@ -91,18 +100,23 @@ export function patchInstrumentation(
       path,
       status: "manual",
       detail:
-        'instrumentation.ts exists — add `export { onRequestError } from "@volatodev/nextjs/instrumentation"` manually',
+        'instrumentation file exists — add `export { onRequestError } from "@volatodev/nextjs/instrumentation"` manually',
     };
   }
 
   ensureDir(path);
-  const body =
-    language === "ts"
-      ? `export { onRequestError } from "@volatodev/nextjs/instrumentation";\n`
-      : `// instrumentation.js — Volato hook\nmodule.exports = require("@volatodev/nextjs/instrumentation");\n`;
+  // Same ESM body for both .ts and .js. Next.js is happy to load ESM
+  // instrumentation.js when the project's package.json has
+  // `"type": "module"`. If it doesn't, the JS variant requires the
+  // user to opt in — flagged via the `detail` field below.
+  const body = `export { onRequestError } from "@volatodev/nextjs/instrumentation";\n`;
   writeFileSync(path, body, "utf8");
 
-  return { path, status: "created" };
+  const detail =
+    language === "js"
+      ? 'created (requires "type": "module" in your package.json — switch to TypeScript or set the field if your project is CJS)'
+      : undefined;
+  return { path, status: "created", ...(detail ? { detail } : {}) };
 }
 
 /**
