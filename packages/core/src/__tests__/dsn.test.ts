@@ -11,7 +11,7 @@ const PROJECT_ID = "11111111-2222-3333-4444-555555555555";
 const DSN = `https://pk_test_abc@ingest.volato.dev/${PROJECT_ID}`;
 
 describe("parseDSN", () => {
-  it("extracts origin, publicKey, and projectId from a Sentry-style DSN", () => {
+  it("extracts origin, publicKey, and projectId from a well-formed DSN", () => {
     expect(parseDSN(DSN)).toEqual({
       origin: "https://ingest.volato.dev",
       publicKey: "pk_test_abc",
