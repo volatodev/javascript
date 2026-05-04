@@ -17,6 +17,14 @@ export class Scope {
   breadcrumbs: Breadcrumb[] = [];
   fingerprint?: string[];
   level?: Level;
+  /**
+   * When `true`, `addBreadcrumb` is a no-op. The hub sets this on the
+   * server / edge "root" scope so a long-lived process can't accumulate
+   * breadcrumbs across unrelated requests (privacy-adjacent leak).
+   * Per-request scopes (cloned via `withScope` / `runWithScope`) inherit
+   * `false` and behave normally.
+   */
+  rejectsBreadcrumbs = false;
 
   setUser(user: User | null): this {
     if (user === null) delete this.user;
@@ -56,6 +64,7 @@ export class Scope {
   }
 
   addBreadcrumb(crumb: Partial<Breadcrumb>): this {
+    if (this.rejectsBreadcrumbs) return this;
     const full: Breadcrumb = {
       timestamp: crumb.timestamp ?? Date.now(),
       ...crumb,
@@ -80,6 +89,9 @@ export class Scope {
 
   clone(): Scope {
     const next = new Scope();
+    // Cloned scopes are per-request and DO accept breadcrumbs even
+    // when the source was the breadcrumb-rejecting root scope.
+    next.rejectsBreadcrumbs = false;
     if (this.user) next.user = { ...this.user };
     next.tags = { ...this.tags };
     next.contexts = {};

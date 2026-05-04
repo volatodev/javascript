@@ -19,6 +19,11 @@ import { Scope } from "./scope";
 
 const als = new AsyncLocalStorage<Scope>();
 const rootScope = new Scope();
+// Tag the root so breadcrumbs added outside of a per-request frame are
+// silently dropped — otherwise background timers and top-level captures
+// would accumulate breadcrumbs that bleed into every later event from
+// every later request.
+rootScope.rejectsBreadcrumbs = true;
 
 export function getCurrentScope(): Scope {
   return als.getStore() ?? rootScope;
