@@ -21,7 +21,9 @@ import {
   runWithScope,
   withScope,
 } from "./internal/hub-node";
+import { unwrapCauseChain } from "./internal/linked-errors";
 import type { VolatoConfig } from "./index";
+import type { LinkedError } from "@volatodev/core";
 
 export type EdgeErrorPayload = {
   type: string;
@@ -31,6 +33,7 @@ export type EdgeErrorPayload = {
   method: string;
   runtime: "middleware";
   timestamp: number;
+  linkedErrors?: LinkedError[];
 };
 
 /**
@@ -53,6 +56,8 @@ export async function captureException(
       runtime: "middleware",
       timestamp: Date.now(),
     };
+    const chain = unwrapCauseChain(err);
+    if (chain.length > 0) payload.linkedErrors = chain;
     getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
     await fetch(dsnToIngestUrl(config.dsn), {
       method: "POST",

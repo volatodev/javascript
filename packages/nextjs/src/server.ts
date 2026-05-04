@@ -20,6 +20,8 @@ import {
   runWithScope,
   withScope,
 } from "./internal/hub-node";
+import { unwrapCauseChain } from "./internal/linked-errors";
+import type { LinkedError } from "@volatodev/core";
 
 const WHITELISTED_HEADERS = [
   "user-agent",
@@ -47,6 +49,7 @@ export type ServerErrorPayload = {
   headers: Record<string, string>;
   runtime: ServerRuntime;
   timestamp: number;
+  linkedErrors?: LinkedError[];
 };
 
 function whitelist(headers: Headers | undefined): Record<string, string> {
@@ -87,6 +90,8 @@ function serialize(
     }
   }
 
+  const chain = unwrapCauseChain(err);
+  if (chain.length > 0) payload.linkedErrors = chain;
   getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
   return payload;
 }

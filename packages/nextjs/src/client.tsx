@@ -13,6 +13,7 @@ import {
   getCurrentScope,
   withScope,
 } from "./internal/hub-browser";
+import { unwrapCauseChain } from "./internal/linked-errors";
 import type { VolatoConfig } from "./index";
 
 export type ClientErrorPayload = {
@@ -29,6 +30,7 @@ export type ClientErrorPayload = {
   colno?: number;
   digest?: string;
   actionName?: string;
+  linkedErrors?: ReturnType<typeof unwrapCauseChain>;
 };
 
 let activeConfig: VolatoConfig | null = null;
@@ -133,6 +135,8 @@ function serialize(
   if (typeof extra?.colno === "number") payload.colno = extra.colno;
   if (extra?.digest) payload.digest = extra.digest;
   if (extra?.actionName) payload.actionName = extra.actionName;
+  const chain = unwrapCauseChain(error);
+  if (chain.length > 0) payload.linkedErrors = chain;
   getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
   return payload;
 }
