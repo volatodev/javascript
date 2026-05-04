@@ -15,6 +15,7 @@ import {
 } from "./internal/hub-browser";
 import { unwrapCauseChain } from "./internal/linked-errors";
 import { applyReleaseTo } from "./internal/release";
+import { runBeforeSend } from "./internal/before-send";
 import type { VolatoConfig } from "./index";
 
 export type ClientErrorPayload = {
@@ -152,10 +153,15 @@ function serialize(
 
 function post(config: VolatoConfig, payload: ClientErrorPayload): void {
   if (typeof fetch === "undefined") return;
+  const filtered = runBeforeSend(
+    config.beforeSend,
+    payload as unknown as Record<string, unknown>,
+  );
+  if (filtered === null) return;
   try {
     void fetch(dsnToIngestUrl(config.dsn), {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(filtered),
       keepalive: true,
       headers: {
         "Content-Type": "application/json",

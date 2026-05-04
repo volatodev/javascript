@@ -22,6 +22,7 @@ import {
   withScope,
 } from "./internal/hub-node";
 import { unwrapCauseChain } from "./internal/linked-errors";
+import { runBeforeSend } from "./internal/before-send";
 import type { VolatoConfig } from "./index";
 import type { LinkedError } from "@volatodev/core";
 
@@ -65,6 +66,11 @@ export async function captureException(
     if (config.environment) payload.environment = config.environment;
     if (config.dist) payload.dist = config.dist;
     getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
+    const filtered = runBeforeSend(
+      config.beforeSend,
+      payload as unknown as Record<string, unknown>,
+    );
+    if (filtered === null) return;
     await fetch(dsnToIngestUrl(config.dsn), {
       method: "POST",
       keepalive: true,
@@ -72,7 +78,7 @@ export async function captureException(
         "Content-Type": "application/json",
         [VOLATO_DSN_HEADER]: config.dsn,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(filtered),
     });
   } catch {
     // swallow: never break the user request via our instrumentation

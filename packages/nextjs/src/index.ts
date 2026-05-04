@@ -26,6 +26,17 @@ export type VolatoConfig = {
    * from `VOLATO_DIST` on client + server; pass explicitly for Edge.
    */
   dist?: string;
+  /**
+   * Synchronous mutation/filter hook called once per event right before it
+   * is sent to the ingest endpoint. Return the event (mutated or not) to
+   * keep it, or `null` to drop it on the floor. Throwing inside this hook
+   * is caught and the event is sent through unchanged — the host app must
+   * never crash because of a buggy `beforeSend`.
+   *
+   * Use it for PII scrubbing, allow/deny lists that need full event access,
+   * or test gating ("don't send during e2e runs").
+   */
+  beforeSend?: (event: Record<string, unknown>) => Record<string, unknown> | null;
 };
 
 /**

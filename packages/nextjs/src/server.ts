@@ -22,7 +22,25 @@ import {
 } from "./internal/hub-node";
 import { unwrapCauseChain } from "./internal/linked-errors";
 import { applyReleaseTo } from "./internal/release";
+import { runBeforeSend } from "./internal/before-send";
 import type { LinkedError } from "@volatodev/core";
+import type { VolatoConfig } from "./index";
+
+type ServerExtras = Pick<
+  VolatoConfig,
+  "beforeSend" | "release" | "environment" | "dist"
+>;
+let serverExtras: ServerExtras = {};
+
+/**
+ * Configure server-side capture extras: `beforeSend` hook, explicit
+ * `release` / `environment` / `dist` overrides. Idempotent — call from
+ * the `register()` hook in `instrumentation.ts`. The DSN itself still
+ * comes from `process.env.VOLATO_DSN`.
+ */
+export function initServer(config: ServerExtras): void {
+  serverExtras = { ...serverExtras, ...config };
+}
 
 const WHITELISTED_HEADERS = [
   "user-agent",
@@ -96,8 +114,13 @@ function serialize(
 
   const chain = unwrapCauseChain(err);
   if (chain.length > 0) payload.linkedErrors = chain;
-  applyReleaseTo(payload as unknown as Record<string, unknown>);
-  getCurrentScope().applyTo(payload as unknown as Record<string, unknown>);
+  const target = payload as unknown as Record<string, unknown>;
+  if (serverExtras.release && !target.release) target.release = serverExtras.release;
+  if (serverExtras.environment && !target.environment)
+    target.environment = serverExtras.environment;
+  if (serverExtras.dist && !target.dist) target.dist = serverExtras.dist;
+  applyReleaseTo(target);
+  getCurrentScope().applyTo(target);
   return payload;
 }
 
@@ -121,11 +144,16 @@ export async function captureException(
   }
 
   const payload = serialize(err, ctx);
+  const filtered = runBeforeSend(
+    serverExtras.beforeSend,
+    payload as unknown as Record<string, unknown>,
+  );
+  if (filtered === null) return;
 
   try {
     await fetch(dsnToIngestUrl(dsn), {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(filtered),
       headers: {
         "Content-Type": "application/json",
         [VOLATO_DSN_HEADER]: dsn,
