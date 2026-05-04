@@ -25,6 +25,7 @@ const MAX_BACKOFF_MS = 30_000;
 const MAX_INFLIGHT = 50;
 
 let inflight = 0;
+let warnedInflight = false;
 let warnedUsage = false;
 let warnedReason: string | null = null;
 
@@ -92,7 +93,15 @@ export async function sendEnvelope(
   opts: SendOptions = {},
 ): Promise<void> {
   if (typeof fetch === "undefined") return;
-  if (inflight >= MAX_INFLIGHT) return;
+  if (inflight >= MAX_INFLIGHT) {
+    if (!warnedInflight && typeof console !== "undefined" && console.warn) {
+      warnedInflight = true;
+      console.warn(
+        `[Volato] Backpressure: ${MAX_INFLIGHT} ingest requests in flight, dropping new events. Likely a hot loop or a stalled network. Subsequent drops are silent.`,
+      );
+    }
+    return;
+  }
 
   const maxRetries = opts.maxRetries ?? DEFAULT_MAX_RETRIES;
   const base = opts.baseBackoffMs ?? DEFAULT_BASE_BACKOFF_MS;
@@ -157,6 +166,7 @@ export async function sendEnvelope(
 /** Test-only — reset transport counters/warnings between tests. */
 export function __resetTransportForTests(): void {
   inflight = 0;
+  warnedInflight = false;
   warnedUsage = false;
   warnedReason = null;
 }

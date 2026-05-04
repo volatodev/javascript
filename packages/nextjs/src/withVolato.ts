@@ -120,12 +120,16 @@ class VolatoSourceMapsPlugin {
         if (!outputRoot) return;
 
         const hide = this.opts.hideSourceMaps ?? true;
+        const skipped: string[] = [];
 
         for (const mapPath of walkMapFiles(outputRoot)) {
           let content: string;
           try {
             const stat = statSync(mapPath);
-            if (stat.size > MAX_MAP_BYTES) continue;
+            if (stat.size > MAX_MAP_BYTES) {
+              skipped.push(`${relative(outputRoot, mapPath)} (${Math.round(stat.size / 1024)}KB)`);
+              continue;
+            }
             content = readFileSync(mapPath, "utf8");
           } catch {
             continue;
@@ -139,6 +143,12 @@ class VolatoSourceMapsPlugin {
               // best-effort
             }
           }
+        }
+
+        if (skipped.length > 0 && typeof console !== "undefined") {
+          console.warn(
+            `[Volato] Skipped ${skipped.length} source map(s) larger than ${MAX_MAP_BYTES / 1024 / 1024}MB — these are exactly the bundles you'd most want symbolicated. Consider splitting your chunks. First few skipped:\n  - ${skipped.slice(0, 5).join("\n  - ")}`,
+          );
         }
       },
     );
