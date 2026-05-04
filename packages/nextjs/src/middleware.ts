@@ -25,6 +25,7 @@ import { unwrapCauseChain } from "./internal/linked-errors";
 import { runBeforeSend } from "./internal/before-send";
 import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
+import { sendEnvelope } from "./internal/transport";
 import type { VolatoConfig } from "./index";
 import type { LinkedError } from "@volatodev/core";
 
@@ -73,15 +74,12 @@ export async function captureException(
     if (!shouldSend(asEvent)) return;
     const filtered = runBeforeSend(config.beforeSend, asEvent);
     if (filtered === null) return;
-    await fetch(dsnToIngestUrl(config.dsn), {
-      method: "POST",
-      keepalive: true,
-      headers: {
-        "Content-Type": "application/json",
-        [VOLATO_DSN_HEADER]: config.dsn,
-      },
-      body: JSON.stringify(filtered),
-    });
+    await sendEnvelope(
+      dsnToIngestUrl(config.dsn),
+      { [VOLATO_DSN_HEADER]: config.dsn },
+      JSON.stringify(filtered),
+      { keepalive: true },
+    );
   } catch {
     // swallow: never break the user request via our instrumentation
   }

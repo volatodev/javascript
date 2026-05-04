@@ -21,6 +21,7 @@ import {
   shouldSend,
 } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
+import { sendEnvelope } from "./internal/transport";
 import type { VolatoConfig } from "./index";
 
 export type ClientErrorPayload = {
@@ -163,19 +164,12 @@ function post(config: VolatoConfig, payload: ClientErrorPayload): void {
   if (!shouldSend(asEvent)) return;
   const filtered = runBeforeSend(config.beforeSend, asEvent);
   if (filtered === null) return;
-  try {
-    void fetch(dsnToIngestUrl(config.dsn), {
-      method: "POST",
-      body: JSON.stringify(filtered),
-      keepalive: true,
-      headers: {
-        "Content-Type": "application/json",
-        [VOLATO_DSN_HEADER]: config.dsn,
-      },
-    });
-  } catch {
-    // Transport errors must never crash the host app.
-  }
+  void sendEnvelope(
+    dsnToIngestUrl(config.dsn),
+    { [VOLATO_DSN_HEADER]: config.dsn },
+    JSON.stringify(filtered),
+    { keepalive: true },
+  );
 }
 
 /**

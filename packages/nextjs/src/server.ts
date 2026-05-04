@@ -25,6 +25,7 @@ import { applyReleaseTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
 import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
+import { sendEnvelope } from "./internal/transport";
 import type { LinkedError } from "@volatodev/core";
 import type { VolatoConfig } from "./index";
 
@@ -159,18 +160,11 @@ export async function captureException(
   const filtered = runBeforeSend(serverExtras.beforeSend, asEvent);
   if (filtered === null) return;
 
-  try {
-    await fetch(dsnToIngestUrl(dsn), {
-      method: "POST",
-      body: JSON.stringify(filtered),
-      headers: {
-        "Content-Type": "application/json",
-        [VOLATO_DSN_HEADER]: dsn,
-      },
-    });
-  } catch {
-    // Transport errors must never crash the host app.
-  }
+  await sendEnvelope(
+    dsnToIngestUrl(dsn),
+    { [VOLATO_DSN_HEADER]: dsn },
+    JSON.stringify(filtered),
+  );
 }
 
 /** Alias matching the user-facing convention from the package spec. */
