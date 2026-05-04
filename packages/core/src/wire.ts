@@ -112,14 +112,6 @@ export const ContextsSchema = z.record(
 );
 export type Contexts = z.infer<typeof ContextsSchema>;
 
-export const SdkSchema = z
-  .object({
-    name: z.string(),
-    version: z.string(),
-  })
-  .passthrough();
-export type Sdk = z.infer<typeof SdkSchema>;
-
 /**
  * Wire format for a single error event. Existing fields
  * (type/message/runtime/timestamp/...) are preserved so older SDK builds
@@ -164,7 +156,6 @@ export const ErrorEventSchema = z
     fingerprint: z.array(z.string()).optional(),
     breadcrumbs: z.array(BreadcrumbSchema).optional(),
     linkedErrors: z.array(LinkedErrorSchema).optional(),
-    sdk: SdkSchema.optional(),
     extra: z.record(z.string(), z.unknown()).optional(),
 
     capturedVia: CapturedViaSchema.optional(),

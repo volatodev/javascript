@@ -6,7 +6,6 @@ export type {
 
 export type VolatoConfig = {
   dsn: string;
-  projectId?: string;
   /**
    * Explicit environment override. When `"development"` the SDK no-ops (no
    * network traffic). When `"production"` the SDK always ships events, even if
@@ -41,26 +40,14 @@ export type VolatoConfig = {
    * Drop events whose `type` or `message` matches any of these patterns.
    * Strings match by substring; RegExp by `.test()`. Cheap pre-filter to
    * silence well-known noise (third-party SDK warnings, browser quirks).
+   *
+   * (Sampling — random drop of a fraction of events — is a server-side
+   * concern: pricing already commits to sampling above the included
+   * volume. Drop knobs scoped to URL/origin (allowUrls/denyUrls) belong
+   * to dashboard culture; without one, ignoreErrors covers the only
+   * legitimate need: silencing noisy third-party messages.)
    */
   ignoreErrors?: ReadonlyArray<string | RegExp>;
-  /**
-   * Drop events whose `url`, `filename`, or stack contains any of these
-   * patterns. Use to suppress errors raised by browser extensions or
-   * untrusted third-party scripts.
-   */
-  denyUrls?: ReadonlyArray<string | RegExp>;
-  /**
-   * If set, ONLY keep events whose `url`, `filename`, or stack matches one
-   * of these patterns. Used to scope reporting to your own domain when
-   * embedded in a larger page.
-   */
-  allowUrls?: ReadonlyArray<string | RegExp>;
-  /**
-   * Random sampling: drop a fraction of events. `1.0` keeps everything,
-   * `0.0` keeps nothing, `0.25` keeps roughly one in four. Applied after
-   * `ignoreErrors` / `denyUrls` / `allowUrls` and before `beforeSend`.
-   */
-  sampleRate?: number;
   /**
    * Same-origin tunnel route. When set, browser captures POST to this
    * path on the host's own origin instead of going straight to the

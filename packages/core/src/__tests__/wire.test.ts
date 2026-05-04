@@ -133,14 +133,6 @@ describe("ErrorEventSchema (extended context)", () => {
     expect(parsed.linkedErrors?.[0]?.type).toBe("DBError");
   });
 
-  it("accepts sdk identification", () => {
-    const parsed = ErrorEventSchema.parse({
-      ...baseEvent,
-      sdk: { name: "@volatodev/nextjs", version: "0.0.0" },
-    });
-    expect(parsed.sdk?.name).toBe("@volatodev/nextjs");
-  });
-
   it("accepts free-form extra blob", () => {
     const parsed = ErrorEventSchema.parse({
       ...baseEvent,

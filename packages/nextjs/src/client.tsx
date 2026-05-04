@@ -299,7 +299,7 @@ export function VolatoBootstrap(props: VolatoConfig): null {
   useEffect(() => {
     if (!props.dsn) return;
     initClient(props);
-  }, [props.dsn, props.environment, props.projectId]);
+  }, [props.dsn, props.environment]);
   return null;
 }
 
@@ -434,15 +434,6 @@ export type ConsoleLevel = "error" | "warn";
 export type InstrumentConsoleOptions = {
   levels?: ReadonlyArray<ConsoleLevel>;
   ignore?: readonly RegExp[];
-  /**
-   * - `"breadcrumb"` (default): each captured `console.*` call adds a
-   *   breadcrumb to the active scope. Future captured events carry it
-   *   in `breadcrumbs[]`. Cheap, no network traffic.
-   * - `"event"`: each call also generates a standalone error event sent
-   *   immediately to ingest. Use sparingly — `console.error` in a render
-   *   loop generates one event per call.
-   */
-  mode?: "breadcrumb" | "event";
 };
 
 let consoleOriginals:
@@ -475,7 +466,6 @@ export function instrumentConsole(
 
   const levels: ReadonlyArray<ConsoleLevel> = options.levels ?? ["error"];
   const ignore = options.ignore ?? DEFAULT_CONSOLE_IGNORE;
-  const mode = options.mode ?? "breadcrumb";
   consoleOriginals = {};
 
   for (const level of levels) {
@@ -495,16 +485,6 @@ export function instrumentConsole(
           message,
           data: { arguments: args.length },
         });
-
-        if (mode === "event") {
-          const syntheticName =
-            level === "error" ? "ConsoleError" : "ConsoleWarning";
-          const synthetic =
-            args[0] instanceof Error
-              ? args[0]
-              : Object.assign(new Error(message), { name: syntheticName });
-          post(activeConfig, serialize(synthetic, { capturedVia: "console" }));
-        }
       } catch {
         // Capturing console output must never break the host app.
       }
@@ -572,57 +552,6 @@ export function instrumentNavigation(): void {
   window.addEventListener("popstate", popHandler);
 }
 
-/* ────────────────────── Auto breadcrumbs: clicks ────────────────────── */
-
-const INTERACTIVE_TAGS = new Set([
-  "BUTTON",
-  "A",
-  "INPUT",
-  "SELECT",
-  "TEXTAREA",
-  "SUMMARY",
-]);
-
-let clickHandler: ((ev: Event) => void) | null = null;
-
-function describeTarget(el: Element): string {
-  const tag = el.tagName.toLowerCase();
-  const id = el.id ? `#${el.id}` : "";
-  const cls =
-    el.classList && el.classList.length > 0
-      ? `.${Array.from(el.classList).slice(0, 3).join(".")}`
-      : "";
-  return `${tag}${id}${cls}`;
-}
-
-/**
- * Add a breadcrumb each time the user clicks an interactive element
- * (button, link, form input). Records the element selector, not the text
- * inside — text often contains user-typed PII.
- */
-export function instrumentClicks(): void {
-  if (typeof window === "undefined") return;
-  if (clickHandler) return;
-  if (!isEnabled(activeConfig)) return;
-
-  clickHandler = (ev: Event) => {
-    try {
-      let node: Element | null = ev.target as Element | null;
-      while (node && !INTERACTIVE_TAGS.has(node.tagName)) {
-        node = node.parentElement;
-      }
-      if (!node) return;
-      getCurrentScope().addBreadcrumb({
-        category: "ui.click",
-        message: describeTarget(node),
-      });
-    } catch {
-      // never break the host app on a breadcrumb path
-    }
-  };
-  window.addEventListener("click", clickHandler, { capture: true });
-}
-
 /** Test-only reset. Not exported from the package entrypoint. */
 export function __resetActiveConfigForTests(): void {
   activeConfig = null;
@@ -649,12 +578,6 @@ export function __resetActiveConfigForTests(): void {
       }
     }
     navigationOriginals = null;
-  }
-  if (clickHandler) {
-    if (typeof window !== "undefined") {
-      window.removeEventListener("click", clickHandler, { capture: true });
-    }
-    clickHandler = null;
   }
   __resetHub();
   __resetDedupe();

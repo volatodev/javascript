@@ -1,20 +1,17 @@
 /**
- * Pre-send filters: ignoreErrors / denyUrls / allowUrls / sampleRate.
+ * Pre-send filter: ignoreErrors only.
  *
- * Order:
- *   1. ignoreErrors (type / message match)
- *   2. denyUrls     (url / filename / stack match)
- *   3. allowUrls    (must match if set)
- *   4. sampleRate   (random gate)
+ * Returns `true` to keep the event, `false` to drop. Never throws.
  *
- * Returns `true` to keep the event, `false` to drop. Filters never throw.
+ * Sampling, allowUrls, denyUrls were removed in the post-audit cuts:
+ * sampling is a server-side decision (pricing commits to it), and
+ * allow/denyUrls is dashboard-culture noise. ignoreErrors is the only
+ * legitimate client-side filter — silencing well-known third-party
+ * messages.
  */
 
 export type FilterConfig = {
   ignoreErrors?: ReadonlyArray<string | RegExp>;
-  denyUrls?: ReadonlyArray<string | RegExp>;
-  allowUrls?: ReadonlyArray<string | RegExp>;
-  sampleRate?: number;
 };
 
 function matches(haystack: string, pattern: string | RegExp): boolean {
@@ -26,24 +23,6 @@ function matches(haystack: string, pattern: string | RegExp): boolean {
   }
 }
 
-function anyMatch(
-  haystack: string,
-  patterns: ReadonlyArray<string | RegExp>,
-): boolean {
-  for (const p of patterns) {
-    if (matches(haystack, p)) return true;
-  }
-  return false;
-}
-
-function urlSurface(event: Record<string, unknown>): string {
-  const parts: string[] = [];
-  if (typeof event.url === "string") parts.push(event.url);
-  if (typeof event.filename === "string") parts.push(event.filename);
-  if (typeof event.stack === "string") parts.push(event.stack);
-  return parts.join("\n");
-}
-
 function errorSurface(event: Record<string, unknown>): string {
   const t = typeof event.type === "string" ? event.type : "";
   const m = typeof event.message === "string" ? event.message : "";
@@ -53,21 +32,12 @@ function errorSurface(event: Record<string, unknown>): string {
 export function shouldKeep(
   event: Record<string, unknown>,
   config: FilterConfig,
-  random: () => number = Math.random,
 ): boolean {
-  if (config.ignoreErrors && config.ignoreErrors.length > 0) {
-    if (anyMatch(errorSurface(event), config.ignoreErrors)) return false;
-  }
-  if (config.denyUrls && config.denyUrls.length > 0) {
-    if (anyMatch(urlSurface(event), config.denyUrls)) return false;
-  }
-  if (config.allowUrls && config.allowUrls.length > 0) {
-    if (!anyMatch(urlSurface(event), config.allowUrls)) return false;
-  }
-  if (typeof config.sampleRate === "number") {
-    const r = config.sampleRate;
-    if (r <= 0) return false;
-    if (r < 1 && random() >= r) return false;
+  const patterns = config.ignoreErrors;
+  if (!patterns || patterns.length === 0) return true;
+  const surface = errorSurface(event);
+  for (const p of patterns) {
+    if (matches(surface, p)) return false;
   }
   return true;
 }

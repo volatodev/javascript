@@ -32,14 +32,7 @@ import type { VolatoConfig } from "./index";
 
 type ServerExtras = Pick<
   VolatoConfig,
-  | "beforeSend"
-  | "release"
-  | "environment"
-  | "dist"
-  | "ignoreErrors"
-  | "denyUrls"
-  | "allowUrls"
-  | "sampleRate"
+  "beforeSend" | "release" | "environment" | "dist" | "ignoreErrors"
 >;
 let serverExtras: ServerExtras = {};
 

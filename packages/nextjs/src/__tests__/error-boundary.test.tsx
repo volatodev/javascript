@@ -9,63 +9,7 @@ import {
 } from "vitest";
 
 import { __resetActiveConfigForTests, initClient } from "../client";
-import {
-  VolatoErrorBoundary,
-  captureFromErrorBoundary,
-} from "../error-boundary";
-
-describe("VolatoErrorBoundary", () => {
-  let fetchMock: Mock;
-
-  beforeEach(() => {
-    __resetActiveConfigForTests();
-    fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
-    vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("window", { addEventListener: vi.fn() });
-    vi.stubGlobal("location", { href: "https://app.example.com/page" });
-    vi.stubGlobal("navigator", { userAgent: "vitest-agent/1.0" });
-    vi.stubEnv("NODE_ENV", "production");
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
-  });
-
-  it("sets hasError to true when a render throws (static lifecycle)", () => {
-    const next = VolatoErrorBoundary.getDerivedStateFromError();
-    expect(next).toEqual({ hasError: true });
-  });
-
-  it("forwards caught errors to captureClientError with componentStack", () => {
-    initClient({
-      dsn: "https://pk_test_abc@volato.dev/11111111-2222-3333-4444-555555555555",
-      environment: "production",
-    });
-
-    const boundary = new VolatoErrorBoundary({ children: null });
-    const error = new Error("render-broke");
-    boundary.componentDidCatch(error, {
-      componentStack: "\n    at App\n    at Root",
-    });
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(options.body as string) as Record<string, unknown>;
-    expect(body.message).toBe("render-broke");
-    expect(body.componentStack).toBe("\n    at App\n    at Root");
-    expect(body.runtime).toBe("client");
-  });
-
-  it("does not send when the SDK has not been initialised", () => {
-    const boundary = new VolatoErrorBoundary({ children: null });
-    boundary.componentDidCatch(new Error("uninit"), {
-      componentStack: "",
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-});
+import { captureFromErrorBoundary } from "../error-boundary";
 
 describe("captureFromErrorBoundary (Next.js error.tsx file boundary)", () => {
   let fetchMock: Mock;

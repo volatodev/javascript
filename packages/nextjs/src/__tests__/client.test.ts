@@ -15,10 +15,8 @@ import {
   __resetActiveConfigForTests,
   getCurrentScope,
   initClient,
-  instrumentClicks,
   instrumentConsole,
   instrumentFetch,
-  instrumentNavigation,
   wrapClientAction,
 } from "../client";
 import { dsnToIngestUrl } from "@volatodev/core";
@@ -529,23 +527,17 @@ describe("instrumentConsole", () => {
     expect(getCurrentScope().breadcrumbs.length).toBe(0);
   });
 
-  it("mode='event' POSTs a synthetic ConsoleError and also records the breadcrumb", () => {
+  it("records an Error instance as a breadcrumb with its message", () => {
     initClient({ dsn: DSN, environment: "production" });
-    instrumentConsole({ ignore: [], mode: "event" });
+    instrumentConsole({ ignore: [] });
 
     const e = new TypeError("boom from console");
     console.error(e);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(
-      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
-    ) as Record<string, unknown>;
-    expect(body.type).toBe("TypeError");
-    expect(body.message).toBe("boom from console");
-    expect(typeof body.stack).toBe("string");
-    expect((body.stack as string).length).toBeGreaterThan(0);
-    // breadcrumb is also added in event mode (kept for context on the next event)
-    expect(getCurrentScope().breadcrumbs.length).toBe(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+    const crumbs = getCurrentScope().breadcrumbs;
+    expect(crumbs.length).toBe(1);
+    expect(crumbs[0]?.message).toBe("boom from console");
   });
 
   it("still calls the underlying console method (does not swallow output)", () => {
