@@ -13,6 +13,7 @@ import {
   getCurrentScope,
   withScope,
 } from "./internal/hub-browser";
+import { detectBrowserContext } from "./internal/browser-context";
 import { unwrapCauseChain } from "./internal/linked-errors";
 import { applyReleaseTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
@@ -257,6 +258,11 @@ export function initClient(config: VolatoConfig): void {
 
   if (globalListenersAttached) return;
   globalListenersAttached = true;
+
+  // Set the browser context once on the root scope. Future events
+  // inherit it via Scope.applyTo without re-detecting per capture.
+  const browser = detectBrowserContext();
+  if (browser) getCurrentScope().setContext("browser", browser);
 
   window.addEventListener("error", (event: ErrorEvent) => {
     if (!isEnabled(activeConfig)) return;
