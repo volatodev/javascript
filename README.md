@@ -63,6 +63,50 @@ export default function Error({
 }
 ```
 
+## Automatic context (breadcrumbs)
+
+Once `VolatoBootstrap` is mounted, the SDK can record a trail of what happened *before* an error fires. The MCP server returns those breadcrumbs alongside the stack so the agent reads the trigger sequence, not just the crash.
+
+Three opt-in instrumentations are shipped — they are silent until you call them:
+
+```tsx
+"use client";
+
+import { useEffect } from "react";
+import {
+  instrumentConsole,
+  instrumentFetch,
+  instrumentNavigation,
+} from "@volatodev/nextjs/client";
+
+export function VolatoInstrumentations() {
+  useEffect(() => {
+    instrumentFetch();        // failed fetches → breadcrumb (fetch, status, duration)
+    instrumentNavigation();   // pushState / popstate → breadcrumb (from, to)
+    instrumentConsole();      // console.error → breadcrumb (default ignore list filters React noise)
+  }, []);
+  return null;
+}
+```
+
+Each call is idempotent (safe under StrictMode / HMR). To filter or extend behaviour:
+
+```tsx
+instrumentFetch({ captureStatusFrom: 400 });             // also surface 4xx
+instrumentConsole({ levels: ["error", "warn"] });        // include warns
+instrumentConsole({ ignore: [/Warning: deprecated/] });  // override ignore patterns
+```
+
+You can also push your own breadcrumbs at any time:
+
+```tsx
+import { addBreadcrumb } from "@volatodev/nextjs/client";
+
+addBreadcrumb({ category: "auth", message: "user signed in", data: { userId } });
+```
+
+The MCP renderer caps the rendered timeline at the 12 most-recent breadcrumbs (newest first), so noisy categories don't crowd out the relevant ones.
+
 ## MCP integration
 
 Volato exposes an MCP server so any LLM-powered IDE (Claude Code, Cursor, etc.) can query your errors directly:

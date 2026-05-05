@@ -288,6 +288,51 @@ describe("initClient", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("propagates scope breadcrumbs into the captured event payload", () => {
+    // E2E: a breadcrumb added to the scope (auto-instrumentation,
+    // user-driven addBreadcrumb, …) must end up inside the wire
+    // payload so the MCP renderer can show it to the agent. This pins
+    // the SDK ↔ wire ↔ MCP contract that whatToDo §3.B audits.
+    const { window, listeners } = makeMockWindow();
+    vi.stubGlobal("window", window);
+
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
+
+    getCurrentScope().addBreadcrumb({
+      category: "fetch",
+      level: "error",
+      data: { url: "/api/users", method: "GET", status: 500, duration_ms: 42 },
+    });
+    getCurrentScope().addBreadcrumb({
+      category: "navigation",
+      data: { from: "/", to: "/users" },
+    });
+
+    const errorListener = listeners.get("error")?.[0];
+    errorListener!({
+      error: new Error("with-crumbs"),
+      message: "with-crumbs",
+    } as ErrorEvent);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as Record<string, unknown>;
+
+    expect(Array.isArray(body.breadcrumbs)).toBe(true);
+    const crumbs = body.breadcrumbs as Array<Record<string, unknown>>;
+    expect(crumbs).toHaveLength(2);
+    expect(crumbs[0]).toMatchObject({
+      category: "fetch",
+      level: "error",
+      data: { url: "/api/users", status: 500 },
+    });
+    expect(crumbs[1]).toMatchObject({
+      category: "navigation",
+      data: { from: "/", to: "/users" },
+    });
+  });
 });
 
 describe("instrumentFetch", () => {
