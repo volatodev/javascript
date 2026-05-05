@@ -151,6 +151,76 @@ describe("sendEnvelope — non-retryable", () => {
   });
 });
 
+describe("sendEnvelope — drop visibility (painkiller contract)", () => {
+  it("warns once when retries are exhausted on persistent 500", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockResolvedValue(new Response(null, { status: 500 }));
+
+    await sendEnvelope(URL_, {}, "x", {
+      maxRetries: 1,
+      baseBackoffMs: 1,
+      sleep: fastSleep,
+    });
+    await sendEnvelope(URL_, {}, "y", {
+      maxRetries: 1,
+      baseBackoffMs: 1,
+      sleep: fastSleep,
+    });
+
+    const dropWarnings = warnSpy.mock.calls.filter((call) =>
+      String(call[0]).includes("Event dropped"),
+    );
+    expect(dropWarnings.length).toBe(1);
+    expect(String(dropWarnings[0]?.[0])).toContain("500");
+
+    warnSpy.mockRestore();
+  });
+
+  it("warns once when retries are exhausted on persistent network failure", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockRejectedValue(new TypeError("nope"));
+
+    await sendEnvelope(URL_, {}, "x", {
+      maxRetries: 1,
+      baseBackoffMs: 1,
+      sleep: fastSleep,
+    });
+    await sendEnvelope(URL_, {}, "y", {
+      maxRetries: 1,
+      baseBackoffMs: 1,
+      sleep: fastSleep,
+    });
+
+    const dropWarnings = warnSpy.mock.calls.filter((call) =>
+      String(call[0]).includes("Event dropped"),
+    );
+    expect(dropWarnings.length).toBe(1);
+    expect(String(dropWarnings[0]?.[0])).toContain("network");
+
+    warnSpy.mockRestore();
+  });
+
+  it("does not warn on transient failures that eventually succeed", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock
+      .mockResolvedValueOnce(new Response(null, { status: 500 }))
+      .mockResolvedValueOnce(new Response(null, { status: 202 }));
+
+    await sendEnvelope(URL_, {}, "x", {
+      maxRetries: 2,
+      baseBackoffMs: 1,
+      sleep: fastSleep,
+    });
+
+    const dropWarnings = warnSpy.mock.calls.filter((call) =>
+      String(call[0]).includes("Event dropped"),
+    );
+    expect(dropWarnings.length).toBe(0);
+
+    warnSpy.mockRestore();
+  });
+});
+
 describe("sendEnvelope — server-side warning headers", () => {
   it("warns once when X-Volato-Usage-Warn is present, then suppresses", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});

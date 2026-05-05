@@ -7,8 +7,12 @@
  *   console.warn — repeated headers don't spam.
  * - Refuses new sends past `MAX_INFLIGHT` so a stalled network never
  *   fills the heap with pending requests.
- * - Never throws to the caller. Errors are swallowed; the host app must
- *   not crash on a transport failure.
+ * - Drops are reported once via `console.warn` (one-shot per page load,
+ *   per drop-class: network, server_5xx, rate_limited). Painkiller
+ *   contract: never silent drops — the dev sees the first failure and
+ *   can react before the bug list goes dark.
+ * - Never throws to the caller. The host app must not crash on a
+ *   transport failure; warnings are non-fatal.
  *
  * Caller chooses whether to await the returned Promise. Browser-side
  * fire-and-forget paths just `void sendEnvelope(...)`.
@@ -28,6 +32,25 @@ let inflight = 0;
 let warnedInflight = false;
 let warnedUsage = false;
 let warnedReason: string | null = null;
+let warnedDrop = false;
+
+type DropReason = "network" | "server_5xx" | "rate_limited";
+
+function warnDropOnce(reason: DropReason, status?: number): void {
+  if (warnedDrop) return;
+  warnedDrop = true;
+  if (typeof console !== "undefined" && console.warn) {
+    const detail =
+      reason === "server_5xx"
+        ? `ingest returned ${status ?? "5xx"} after retries`
+        : reason === "rate_limited"
+          ? "ingest 429 after retries"
+          : "network failure after retries";
+    console.warn(
+      `[Volato] Event dropped: ${detail}. Subsequent drops are silent until the page reloads.`,
+    );
+  }
+}
 
 export type SendOptions = {
   keepalive?: boolean;
@@ -138,6 +161,7 @@ export async function sendEnvelope(
             await sleep(backoffMs(attempt, base, random));
             continue;
           }
+          warnDropOnce("rate_limited", res.status);
           return;
         }
         if (res.status >= 500 && res.status < 600) {
@@ -145,9 +169,12 @@ export async function sendEnvelope(
             await sleep(backoffMs(attempt, base, random));
             continue;
           }
+          warnDropOnce("server_5xx", res.status);
           return;
         }
-        // 4xx other than 429 — don't retry, drop.
+        // 4xx other than 429 — don't retry, drop. The server already
+        // surfaced the cause via X-Volato-Reason (handled by
+        // noteServerHeaders), so no extra warning here.
         return;
       }
 
@@ -156,6 +183,7 @@ export async function sendEnvelope(
         await sleep(backoffMs(attempt, base, random));
         continue;
       }
+      warnDropOnce("network");
       return;
     }
   } finally {
@@ -169,4 +197,5 @@ export function __resetTransportForTests(): void {
   warnedInflight = false;
   warnedUsage = false;
   warnedReason = null;
+  warnedDrop = false;
 }
