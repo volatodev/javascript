@@ -70,4 +70,37 @@ describe("shouldSend", () => {
     expect(shouldSend(noStack, { now: () => now })).toBe(true);
     expect(shouldSend(noStack, { now: () => now })).toBe(false);
   });
+
+  it("two errors thrown from the same frame but with different messages are independent", () => {
+    const sharedFrame = "    at fn (/chunks/foo.js:5:1)";
+    const e1: Record<string, unknown> = {
+      type: "TypeError",
+      message: "first",
+      stack: `TypeError: first\n${sharedFrame}`,
+    };
+    const e2: Record<string, unknown> = {
+      type: "TypeError",
+      message: "second",
+      stack: `TypeError: second\n${sharedFrame}`,
+    };
+    let now = 0;
+    expect(shouldSend(e1, { now: () => now })).toBe(true);
+    expect(shouldSend(e2, { now: () => now })).toBe(true);
+  });
+
+  it("same message at different frames is independent", () => {
+    const e1: Record<string, unknown> = {
+      type: "Error",
+      message: "boom",
+      stack: "Error: boom\n    at a (/chunks/a.js:1:1)",
+    };
+    const e2: Record<string, unknown> = {
+      type: "Error",
+      message: "boom",
+      stack: "Error: boom\n    at b (/chunks/b.js:2:2)",
+    };
+    let now = 0;
+    expect(shouldSend(e1, { now: () => now })).toBe(true);
+    expect(shouldSend(e2, { now: () => now })).toBe(true);
+  });
 });
