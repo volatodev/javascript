@@ -231,12 +231,30 @@ export function captureClientError(
 }
 
 let globalListenersAttached = false;
+let warnedMissingDsn = false;
+
+/**
+ * Loud, idempotent notice when an SDK entrypoint is reached without a
+ * DSN. Painkiller contract: never silently no-op — the dev who forgot
+ * `.env.local` must know within seconds, not when their first prod bug
+ * fails to show up.
+ */
+function warnMissingDsn(origin: string): void {
+  if (warnedMissingDsn) return;
+  warnedMissingDsn = true;
+  if (typeof console !== "undefined" && console.error) {
+    console.error(
+      `[Volato] ${origin} reached without a DSN — capture is disabled. Set NEXT_PUBLIC_VOLATO_DSN in .env.local (and restart the dev server).`,
+    );
+  }
+}
 
 /**
  * Attach `error` + `unhandledrejection` listeners to `window` and forward any
  * captured error to `/api/ingest`. Safe to call from module top-level: no-ops
- * in SSR (`window === undefined`), without a DSN, or when the resolved
- * environment is `"development"`.
+ * in SSR (`window === undefined`) or when the resolved environment is
+ * `"development"`. A missing DSN is reported once via `console.error`
+ * — never silent.
  *
  * Idempotent: a second `initClient` call (e.g. user calls it manually
  * AND ships `<VolatoBootstrap>`, or React Strict Mode double-mounts the
@@ -246,7 +264,10 @@ let globalListenersAttached = false;
  */
 export function initClient(config: VolatoConfig): void {
   if (typeof window === "undefined") return;
-  if (!config.dsn) return;
+  if (!config.dsn) {
+    warnMissingDsn("initClient");
+    return;
+  }
 
   activeConfig = config;
 
@@ -298,7 +319,10 @@ export function initClient(config: VolatoConfig): void {
  */
 export function VolatoBootstrap(props: VolatoConfig): null {
   useEffect(() => {
-    if (!props.dsn) return;
+    if (!props.dsn) {
+      warnMissingDsn("VolatoBootstrap");
+      return;
+    }
     initClient(props);
   }, [props.dsn, props.environment]);
   return null;
@@ -583,6 +607,7 @@ export function __resetActiveConfigForTests(): void {
   __resetHub();
   __resetDedupe();
   globalListenersAttached = false;
+  warnedMissingDsn = false;
 }
 
 /* ───────────────────────── Scope public API ───────────────────────── */

@@ -9,7 +9,11 @@ import {
 } from "vitest";
 
 import type { VolatoConfig } from "../index";
-import { captureException, wrapMiddleware } from "../middleware";
+import {
+  __resetHubForTests,
+  captureException,
+  wrapMiddleware,
+} from "../middleware";
 
 const DSN =
   "https://pk_test_abc@volato.dev/11111111-2222-3333-4444-555555555555";
@@ -79,6 +83,22 @@ describe("captureException (middleware / Edge)", () => {
     await expect(
       captureException(new Error("boom"), req, config),
     ).resolves.toBeUndefined();
+  });
+
+  it("logs a loud one-shot console.error when DSN is missing and skips the network call", async () => {
+    __resetHubForTests();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const req = new Request("https://app.test/", { method: "GET" });
+
+    await captureException(new Error("boom"), req, { dsn: "" });
+    await captureException(new Error("again"), req, { dsn: "" });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0]?.[0]).toContain("[Volato]");
+    expect(errorSpy.mock.calls[0]?.[0]).toContain("NEXT_PUBLIC_VOLATO_DSN");
+
+    errorSpy.mockRestore();
   });
 });
 

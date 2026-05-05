@@ -63,15 +63,39 @@ function summarizeEdgeRequest(req: Request): EdgeErrorPayload["request"] {
   return { method: req.method, url: req.url, pathname, searchParams };
 }
 
+let warnedMissingDsn = false;
+
+/**
+ * Loud, idempotent notice when middleware capture is reached without a
+ * DSN. The Edge runtime only inlines `NEXT_PUBLIC_*` env vars at build
+ * time, so a misconfigured snippet (or a forgotten `.env.local`) can
+ * silently disable middleware capture across every request. The dev
+ * has to know.
+ */
+function warnMissingDsn(): void {
+  if (warnedMissingDsn) return;
+  warnedMissingDsn = true;
+  if (typeof console !== "undefined" && console.error) {
+    console.error(
+      "[Volato] wrapMiddleware reached without a DSN — middleware capture is disabled. Set NEXT_PUBLIC_VOLATO_DSN and pass it as `dsn` in your wrapMiddleware config.",
+    );
+  }
+}
+
 /**
  * Send an Edge-runtime error to Volato. Uses `fetch` with `keepalive: true`
- * so the request survives the middleware's short Edge lifecycle.
+ * so the request survives the middleware's short Edge lifecycle. A missing
+ * DSN is reported once via `console.error` — never silent.
  */
 export async function captureException(
   err: unknown,
   req: Request,
   config: VolatoConfig,
 ): Promise<void> {
+  if (!config.dsn) {
+    warnMissingDsn();
+    return;
+  }
   try {
     const e = err instanceof Error ? err : new Error(String(err));
     const payload: EdgeErrorPayload = {
@@ -168,7 +192,8 @@ export function addBreadcrumb(crumb: Partial<Breadcrumb>): void {
   getCurrentScope().addBreadcrumb(crumb);
 }
 
-/** Test-only — reset hub root scope. */
+/** Test-only — reset hub root scope and missing-DSN warning latch. */
 export function __resetHubForTests(): void {
   __resetHub();
+  warnedMissingDsn = false;
 }

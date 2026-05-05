@@ -93,6 +93,21 @@ describe("initClient", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("logs a loud one-shot console.error when DSN is missing", () => {
+    const { window } = makeMockWindow();
+    vi.stubGlobal("window", window);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    initClient({ dsn: "" });
+    initClient({ dsn: "" });
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0]?.[0]).toContain("[Volato]");
+    expect(errorSpy.mock.calls[0]?.[0]).toContain("NEXT_PUBLIC_VOLATO_DSN");
+
+    errorSpy.mockRestore();
+  });
+
   it("sends the expected payload shape when a window error fires", () => {
     const { window, listeners } = makeMockWindow();
     vi.stubGlobal("window", window);
