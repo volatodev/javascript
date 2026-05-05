@@ -212,7 +212,12 @@ describe("buildMiddlewareSnippet", () => {
       'import { wrapMiddleware } from "@volatodev/nextjs/middleware"',
     );
     expect(snippet).toContain("wrapMiddleware(");
-    expect(snippet).toContain("process.env.VOLATO_DSN");
+  });
+
+  it("reads the DSN from NEXT_PUBLIC_VOLATO_DSN so it is reachable from the Edge runtime", () => {
+    const snippet = buildMiddlewareSnippet();
+    expect(snippet).toContain("process.env.NEXT_PUBLIC_VOLATO_DSN");
+    expect(snippet).not.toMatch(/process\.env\.VOLATO_DSN(?!_)/);
   });
 });
 

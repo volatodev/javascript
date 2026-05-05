@@ -201,13 +201,19 @@ function insertAfterLastImport(source: string, block: string): string {
  * Build the snippet we tell the user to paste into their existing
  * `middleware.ts`. We never auto-mutate middleware — its shape varies far
  * too much across apps for a regex patch to be safe.
+ *
+ * The DSN is read from `NEXT_PUBLIC_VOLATO_DSN` because Edge runtime does
+ * not get arbitrary `process.env.*` injected at build time — only
+ * `NEXT_PUBLIC_*` values are inlined. The DSN is a write-grant secret
+ * designed to be safe in browser bundles, so the public prefix is the
+ * correct shape for Edge too.
  */
 export function buildMiddlewareSnippet(): string {
   return `import { wrapMiddleware } from "@volatodev/nextjs/middleware";
 
 export default wrapMiddleware(async (req) => {
   // your existing middleware logic
-}, { dsn: process.env.VOLATO_DSN! });`;
+}, { dsn: process.env.NEXT_PUBLIC_VOLATO_DSN! });`;
 }
 
 /**
