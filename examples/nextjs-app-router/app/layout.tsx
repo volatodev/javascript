@@ -1,4 +1,4 @@
-import { VolatoBootstrap, VolatoErrorBoundary } from "@volatodev/nextjs/client";
+import { VolatoBootstrap } from "@volatodev/nextjs/client";
 import type { ReactNode } from "react";
 
 export const metadata = {
@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <VolatoBootstrap dsn={dsn} />
-        <VolatoErrorBoundary>{children}</VolatoErrorBoundary>
+        {children}
       </body>
     </html>
   );

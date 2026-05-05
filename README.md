@@ -23,20 +23,43 @@ NEXT_PUBLIC_VOLATO_DSN="https://<public_key>@ingest.volato.dev/<project_id>"
 VOLATO_DSN="https://<public_key>@ingest.volato.dev/<project_id>"
 ```
 
-Wrap your app with the bootstrap component:
+Mount the browser bootstrap inside your root layout:
 
 ```tsx
-import { VolatoBootstrap, VolatoErrorBoundary } from "@volatodev/nextjs/client";
+import { VolatoBootstrap } from "@volatodev/nextjs/client";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body>
         <VolatoBootstrap dsn={process.env.NEXT_PUBLIC_VOLATO_DSN!} />
-        <VolatoErrorBoundary>{children}</VolatoErrorBoundary>
+        {children}
       </body>
     </html>
   );
+}
+```
+
+Catch render-phase errors via the App Router's `app/error.tsx` file-system boundary:
+
+```tsx
+"use client";
+
+import { useEffect } from "react";
+import { captureFromErrorBoundary } from "@volatodev/nextjs/error-boundary";
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    captureFromErrorBoundary(error);
+  }, [error]);
+
+  return <button onClick={reset}>Try again</button>;
 }
 ```
 

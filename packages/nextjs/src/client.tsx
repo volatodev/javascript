@@ -218,8 +218,9 @@ function post(config: VolatoConfig, payload: ClientErrorPayload): void {
 
 /**
  * Send a client-side error through the active Volato config. Used by
- * `VolatoErrorBoundary` to forward React render errors that `window.onerror`
- * never sees. No-op when no config has been installed or the SDK is disabled.
+ * `captureFromErrorBoundary` (called from `app/error.tsx`) to forward
+ * React render errors that `window.onerror` never sees. No-op when no
+ * config has been installed or the SDK is disabled.
  */
 export function captureClientError(
   error: unknown,
