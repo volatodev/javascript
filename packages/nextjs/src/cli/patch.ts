@@ -1,7 +1,33 @@
 /**
- * Idempotent file mutations used by `volato init`. Each function returns a
- * `PatchOutcome` so the orchestrator can report "created" / "updated" /
- * "skipped" without having to read the file twice.
+ * The actual file mutations `volato init` performs. Lives apart
+ * from `init.ts` (the orchestrator) so each patch is a small,
+ * focused, idempotent function:
+ *
+ *   - `patchEnvLocal`            append the two DSN env vars
+ *   - `patchInstrumentation`     create `instrumentation.ts`
+ *   - `patchLayout`              insert `<VolatoBootstrap>` next
+ *                                to `{children}` in the root
+ *                                layout
+ *   - `patchNextConfig`          wrap `export default ...` with
+ *                                `withVolato(...)` via a
+ *                                bracket-counting walker (the
+ *                                regex version was greedy and
+ *                                ate adjacent `export const`
+ *                                lines — the walker stops at
+ *                                the right statement boundary)
+ *   - `patchTunnelRoute`         create `app/monitoring/route.ts`
+ *   - `buildMiddlewareSnippet`   the only one that doesn't write
+ *                                — middleware shapes vary too
+ *                                much for a regex patch to be
+ *                                safe, so we hand the user a
+ *                                snippet to paste themselves.
+ *
+ * Every patch returns a `PatchOutcome` with one of four
+ * statuses (`created` / `updated` / `skipped` / `manual`) so
+ * the orchestrator can render the final report without re-
+ * reading the file. `skipped` means the marker
+ * `@volatodev/nextjs` was already present — re-running
+ * `volato init` is safe.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

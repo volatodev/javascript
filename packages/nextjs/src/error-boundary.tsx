@@ -1,3 +1,15 @@
+/**
+ * The React render-phase capture helper, exposed under the
+ * `@volatodev/nextjs/error-boundary` subpath so a customer's
+ * `app/error.tsx` only pulls in the helper itself plus a thin
+ * forwarder into `client.tsx`. Splitting it out keeps the
+ * client bundle that `app/error.tsx` adds to the per-route
+ * chunk tiny — Next.js generates one chunk per error boundary
+ * file, so size matters here.
+ *
+ * The single export is `captureFromErrorBoundary`. The detailed
+ * docstring on the function explains the App Router pattern.
+ */
 "use client";
 
 import { captureClientError } from "./client";

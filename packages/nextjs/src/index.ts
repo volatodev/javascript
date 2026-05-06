@@ -1,3 +1,25 @@
+/**
+ * `@volatodev/nextjs` root export. Holds:
+ *   - the `VolatoConfig` shape (the same options object every
+ *     runtime entry point — `VolatoBootstrap`, `wrapAction`,
+ *     `wrapMiddleware` — accepts), and
+ *   - re-exports of the wire types from `@volatodev/core` so a
+ *     consumer doesn't have to depend on the core package
+ *     directly to type a payload.
+ *
+ * Per-runtime entry points live in their own subpath exports
+ * declared in `package.json`:
+ *   `/client`           browser SDK + auto-instrumentation
+ *   `/server`           RSC + route-handler + server-action wrappers
+ *   `/middleware`       Edge runtime capture
+ *   `/instrumentation`  Next.js `onRequestError` re-export
+ *   `/error-boundary`   React `error.tsx` capture helper
+ *
+ * Importing from the root pulls in the config types only — no
+ * runtime code — so a config file (e.g. `next.config.ts`) can
+ * type its `VolatoConfig` without dragging the SDK into the
+ * Next config bundle.
+ */
 export type {
   ErrorEvent,
   Runtime,

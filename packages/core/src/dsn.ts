@@ -1,9 +1,15 @@
 /**
- * DSN format: `https://<publicKey>@<host>[:<port>]/<projectId>`.
+ * DSN parser. Lives in `@volatodev/core` (rather than per-SDK)
+ * because both the SDK (constructs the auth header from a DSN)
+ * and the platform (validates incoming DSNs before resolving a
+ * project row) must agree byte-for-byte on the format.
  *
- * The `publicKey` is the auth secret sent in the `X-Volato-DSN` header. The
- * `projectId` is the UUID of the target project — it lets ingest route the
- * event without an extra DB lookup. Both must be present.
+ * DSN shape: `https://<publicKey>@<host>[:<port>]/<projectId>`.
+ *
+ * The `publicKey` is the auth secret sent in the `X-Volato-DSN`
+ * header. The `projectId` is the UUID of the target project —
+ * it lets ingest route the event without an extra DB lookup.
+ * Both must be present.
  */
 export type ParsedDSN = {
   origin: string;

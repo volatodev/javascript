@@ -1,3 +1,17 @@
+/**
+ * Wire format — the single source of truth for the JSON payload
+ * the SDK sends to `/api/ingest` and the platform validates
+ * before storing. Defined as zod schemas so both ends of the
+ * pipe share one definition; never duplicate the shape on the
+ * platform side.
+ *
+ * Every event passes through `ErrorEventSchema.passthrough()`
+ * so unknown fields survive into the stored `payload jsonb` —
+ * a new optional field can ship in the SDK and start showing
+ * up in MCP tool output without an ingest deploy. Required
+ * fields are always added as `.optional()` to keep older SDK
+ * versions backward-compatible.
+ */
 import { z } from "zod";
 
 export const RuntimeSchema = z.enum([

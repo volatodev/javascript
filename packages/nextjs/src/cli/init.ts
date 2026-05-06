@@ -1,6 +1,22 @@
 /**
- * Orchestrator for `volato init`. Owns the prompt flow, calls the patch
- * primitives, and prints a final report.
+ * Orchestrator for `volato init`. Three responsibilities:
+ *
+ *   1. Drive the interactive flow (prompt for the DSN unless
+ *      `--dsn` or `--yes` is supplied; bail cleanly on user
+ *      abort).
+ *   2. Call the pure patch primitives in `patch.ts` in the
+ *      right order, threading the detected `ProjectShape` so
+ *      each patch knows where to write.
+ *   3. Print a final report — one line per touched file with
+ *      its `created / updated / skipped / manual` outcome — so
+ *      the dev sees exactly what was modified before running
+ *      `next dev`.
+ *
+ * Why these three live in one orchestrator instead of inside
+ * commander: the orchestrator stays pure (pass `cwd`, `dsn`,
+ * `nonInteractive`) so a test can drive the full flow
+ * end-to-end against a fixture project without spawning a
+ * subprocess.
  */
 
 import pc from "picocolors";

@@ -1,6 +1,15 @@
 /**
- * Project detection. Pure functions — no I/O wrappers, just the rules — so
- * the shape can be unit-tested without touching the disk.
+ * Project detection for `volato init`. Walks a customer's
+ * Next.js project tree and figures out where the layout lives
+ * (`app/` vs `src/app/`), whether they're on TypeScript or
+ * JavaScript, where their `next.config.{ts,js,mjs,cjs}` is, and
+ * whether they already have an `instrumentation.ts` /
+ * `middleware.ts`.
+ *
+ * Lives separately from `init.ts` and `patch.ts` so each rule is
+ * a pure function with no I/O wrapper — the test suite hands it
+ * a fixture tree on disk and asserts the resulting `ProjectShape`
+ * without booting commander or prompting for a DSN.
  */
 
 import { existsSync, readFileSync } from "node:fs";

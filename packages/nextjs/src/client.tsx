@@ -1,3 +1,37 @@
+/**
+ * Browser-runtime entry point. Owns:
+ *
+ *   - `VolatoBootstrap` — the React component the user mounts in
+ *     their root layout. Initialises the SDK once per page load.
+ *   - `initClient` — the imperative version, useful when the host
+ *     wants to defer SDK boot.
+ *   - `captureClientError` — the manual capture API used by the
+ *     `error-boundary` helper and any custom user code.
+ *   - `wrapClientAction` — wraps a server-action invocation on
+ *     the client side so a rejection is captured before bubbling.
+ *   - `instrumentFetch` / `instrumentNavigation` /
+ *     `instrumentConsole` — opt-in auto-breadcrumb collectors.
+ *   - the public scope API (`setUser`, `setTag`, `addBreadcrumb`,
+ *     etc.) backed by the browser hub (single-threaded, no ALS).
+ *
+ * Why a single file: the browser SDK is the most user-visible
+ * surface and the file is the contract — every export here is
+ * something a customer's `import { ... } from "@volatodev/nextjs/client"`
+ * line can name. Splitting this would just shift the surface to
+ * a barrel re-export. The internal helpers (transport, dedupe,
+ * scope, hubs, filters) live in `./internal`.
+ *
+ * Hard rules enforced here:
+ *   - No silent drops. Missing DSN, transport-exhausted retry,
+ *     dev-mode short-circuit — each surfaces a one-shot loud
+ *     warning. (See `transport.ts` and `warnMissingDsn` below.)
+ *   - Idempotent under StrictMode + HMR. A second `initClient`
+ *     call refreshes the active config but never re-attaches
+ *     window listeners.
+ *   - No node:* imports. The bundle test (`__tests__/bundle.*`)
+ *     fails the build if a node-only module leaks in here; this
+ *     module ships verbatim into the browser bundle.
+ */
 "use client";
 
 import { useEffect } from "react";
