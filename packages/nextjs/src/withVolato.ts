@@ -169,7 +169,12 @@ class VolatoSourceMapsPlugin {
 
 type NextConfigLike = {
   productionBrowserSourceMaps?: boolean;
-  webpack?: (config: unknown, ctx: unknown) => unknown;
+  // Params widened to `any` because Next.js's own webpack callback type
+  // (WebpackConfiguration, WebpackConfigContext) -> WebpackConfiguration
+  // is invariant under TS strict mode — `unknown` params would reject
+  // every real NextConfig at the call site.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  webpack?: ((config: any, ctx: any) => any) | null;
   [k: string]: unknown;
 };
 
