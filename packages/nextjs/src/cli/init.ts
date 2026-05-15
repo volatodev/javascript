@@ -19,6 +19,8 @@
  * subprocess.
  */
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import pc from "picocolors";
 import prompts from "prompts";
 import { detectProject, DetectionError } from "./detect";
@@ -35,10 +37,6 @@ import {
 
 export type InitOptions = {
   cwd: string;
-  /** When set, skip the DSN prompt. */
-  dsn?: string;
-  /** Disable interactive prompts (e.g. CI). Requires `dsn`. */
-  nonInteractive?: boolean;
 };
 
 const STATUS_BADGE: Record<PatchStatus, string> = {
@@ -76,6 +74,63 @@ async function promptForDsn(): Promise<string> {
   return response.dsn as string;
 }
 
+/**
+ * Look for a DSN in the project's env files. We try `.env.local`
+ * first (Next.js convention for local overrides), then `.env`.
+ * Within each file the first match wins among
+ * `VOLATO_DSN` / `NEXT_PUBLIC_VOLATO_DSN`.
+ *
+ * Returns the DSN string + the file it came from for the confirm
+ * prompt, or `null` when nothing matches.
+ */
+function findDsnInEnvFiles(
+  cwd: string,
+): { dsn: string; source: string } | null {
+  const candidates = [".env.local", ".env"];
+  const keys = ["VOLATO_DSN", "NEXT_PUBLIC_VOLATO_DSN"];
+  for (const file of candidates) {
+    let content: string;
+    try {
+      content = readFileSync(join(cwd, file), "utf8");
+    } catch {
+      continue;
+    }
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq <= 0) continue;
+      const key = trimmed.slice(0, eq).trim();
+      if (!keys.includes(key)) continue;
+      let value = trimmed.slice(eq + 1).trim();
+      // Strip surrounding quotes if present (single or double).
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      if (isValidDsn(value)) return { dsn: value, source: file };
+    }
+  }
+  return null;
+}
+
+/**
+ * Build a "…d8b41" tail so the confirm prompt can identify which
+ * project the detected DSN belongs to without dumping a full
+ * 80-char URL on screen.
+ */
+function dsnTail(dsn: string): string {
+  try {
+    const url = new URL(dsn);
+    const id = url.pathname.replace(/^\/+/, "");
+    return id.length > 6 ? `…${id.slice(-6)}` : id;
+  } catch {
+    return "";
+  }
+}
+
 function relpath(cwd: string, abs: string): string {
   return abs.startsWith(cwd) ? abs.slice(cwd.length).replace(/^\//, "") : abs;
 }
@@ -101,7 +156,7 @@ export async function runInit(options: InitOptions): Promise<void> {
     throw err;
   }
 
-  const dsn = options.dsn ?? (await resolveDsn(options));
+  const dsn = await resolveDsn(options);
   if (!isValidDsn(dsn)) {
     throw new Error(`Invalid DSN: ${dsn}`);
   }
@@ -118,12 +173,104 @@ export async function runInit(options: InitOptions): Promise<void> {
   for (const o of outcomes) printOutcome(cwd, o);
   process.stdout.write("\n");
 
+  await maybeSendTestEvent(dsn);
+
   printNextSteps(project.middlewarePath, cwd);
 }
 
+/**
+ * Offer to send a test event immediately after `init` succeeds.
+ * Posts a synthetic error directly to the ingest endpoint with the
+ * resolved DSN — same wire format as the SDK so the dashboard's
+ * checklist step 3 flips green right away. The user has a "yes it
+ * actually works" moment in the same terminal session, before they
+ * even restart their dev server.
+ *
+ * The post is best-effort: a failure here doesn't abort init (the
+ * project files are already patched). We print the error so the
+ * user sees why and can debug separately.
+ */
+async function maybeSendTestEvent(dsn: string): Promise<void> {
+  const response = await prompts(
+    {
+      type: "confirm",
+      name: "send",
+      message: "Send a test error now to verify the pipe?",
+      initial: true,
+    },
+    {
+      onCancel: () => {
+        throw new Error("aborted by user");
+      },
+    },
+  );
+  if (!response.send) return;
+
+  try {
+    await sendTestEvent(dsn);
+    process.stdout.write(
+      `  ${pc.green("✓")} Test event sent — your Volato dashboard should flip to ${pc.green("Receiving")}.\n\n`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stdout.write(
+      `  ${pc.red("✗")} Could not send test event: ${pc.dim(msg)}\n` +
+        `    ${pc.dim("Your project files were still patched — fix the ingest URL / network and retry.")}\n\n`,
+    );
+  }
+}
+
+async function sendTestEvent(dsn: string): Promise<void> {
+  const url = new URL(dsn);
+  const host = `${url.protocol}//${url.host}`;
+  const event = {
+    type: "error",
+    timestamp: Date.now(),
+    message: "Volato CLI test event — delete this group once captured",
+    fingerprint: ["volato-cli-test"],
+    runtime: "server_action",
+    environment: "development",
+  };
+
+  const res = await fetch(`${host}/api/ingest`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Volato-DSN": dsn,
+    },
+    body: JSON.stringify(event),
+  });
+  if (!res.ok) {
+    let detail = `${res.status} ${res.statusText}`;
+    try {
+      const body = (await res.json()) as { error?: string };
+      if (body.error) detail = `${detail} — ${body.error}`;
+    } catch {
+      /* ignore body parse errors */
+    }
+    throw new Error(detail);
+  }
+}
+
 async function resolveDsn(options: InitOptions): Promise<string> {
-  if (options.nonInteractive) {
-    throw new Error("--yes requires --dsn (no interactive prompt available)");
+  const fromEnv = findDsnInEnvFiles(options.cwd);
+  if (fromEnv) {
+    const tail = dsnTail(fromEnv.dsn);
+    const response = await prompts(
+      {
+        type: "confirm",
+        name: "use",
+        message: `DSN detected in ${fromEnv.source}${tail ? ` (${tail})` : ""} — use it?`,
+        initial: true,
+      },
+      {
+        onCancel: () => {
+          throw new Error("aborted by user");
+        },
+      },
+    );
+    if (response.use) return fromEnv.dsn;
+    // User said no → fall through to the manual prompt.
   }
   return promptForDsn();
 }

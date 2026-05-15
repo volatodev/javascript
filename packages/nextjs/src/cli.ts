@@ -19,19 +19,9 @@ program
 program
   .command("init")
   .description("Wire @volatodev/nextjs into the current Next.js project")
-  .option("--dsn <dsn>", "Volato DSN (skips the interactive prompt)")
-  .option("--yes", "Accept all defaults; never prompt")
-  .option(
-    "--cwd <dir>",
-    "Project root to operate on (defaults to process.cwd())",
-  )
-  .action(async (opts: { dsn?: string; yes?: boolean; cwd?: string }) => {
+  .action(async () => {
     try {
-      await runInit({
-        cwd: opts.cwd ?? process.cwd(),
-        dsn: opts.dsn,
-        nonInteractive: Boolean(opts.yes),
-      });
+      await runInit({ cwd: process.cwd() });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       process.stderr.write(`volato: ${message}\n`);
