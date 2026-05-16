@@ -27,14 +27,14 @@ afterEach(() => {
 
 describe("createTunnelHandler", () => {
   it("rejects non-POST methods with 405", async () => {
-    vi.stubEnv("VOLATO_DSN", DSN);
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
     const handler = createTunnelHandler();
     const res = await handler(new Request("https://app/monitoring"));
     expect(res.status).toBe(405);
   });
 
   it("returns 500 when no DSN is configured", async () => {
-    vi.stubEnv("VOLATO_DSN", "");
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", "");
     const handler = createTunnelHandler();
     const res = await handler(
       new Request("https://app/monitoring", { method: "POST", body: "{}" }),
@@ -71,7 +71,7 @@ describe("createTunnelHandler", () => {
 
   it("synthesises the DSN header from the env DSN when the browser omitted it", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
-    vi.stubEnv("VOLATO_DSN", DSN);
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
     const handler = createTunnelHandler();
 
     await handler(

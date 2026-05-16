@@ -19,7 +19,7 @@ describe("onRequestError (Next.js 15 instrumentation hook)", () => {
   beforeEach(() => {
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("VOLATO_DSN", DSN);
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
   });
 
   afterEach(() => {
@@ -137,8 +137,8 @@ describe("onRequestError (Next.js 15 instrumentation hook)", () => {
     expect(body.headers).not.toHaveProperty("authorization");
   });
 
-  it("no-ops when VOLATO_DSN is unset", async () => {
-    vi.stubEnv("VOLATO_DSN", "");
+  it("no-ops when NEXT_PUBLIC_VOLATO_DSN is unset", async () => {
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", "");
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await onRequestError(

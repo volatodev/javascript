@@ -22,7 +22,7 @@ let envBackup: NodeJS.ProcessEnv;
 beforeEach(async () => {
   envBackup = { ...process.env };
   delete process.env.VOLATO_INGEST_TOKEN;
-  delete process.env.VOLATO_INGEST_URL;
+  delete process.env.NEXT_PUBLIC_VOLATO_DSN;
   delete process.env.VOLATO_RELEASE;
   delete process.env.NEXT_PUBLIC_VOLATO_RELEASE;
   __resetReleaseCacheForTests();
@@ -76,6 +76,28 @@ describe("runUpload — config", () => {
         stderr: () => {},
       }),
     ).rejects.toThrow(/Missing ingest endpoint/);
+  });
+
+  it("derives the endpoint from NEXT_PUBLIC_VOLATO_DSN when --endpoint is not passed", async () => {
+    process.env.NEXT_PUBLIC_VOLATO_DSN =
+      "https://abc123@ingest.volato.dev/proj_xyz";
+    await seedBuildOutput([{ path: "page-deadbeef.js.map" }]);
+    const fetchMock = vi.fn(
+      async () => new Response(null, { status: 201 }),
+    );
+
+    await runUpload({
+      token: TOKEN,
+      release: RELEASE,
+      cwd: testCwd,
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      stdout: () => {},
+      stderr: () => {},
+    });
+
+    expect(fetchMock).toHaveBeenCalled();
+    const url = fetchMock.mock.calls[0]![0] as URL;
+    expect(String(url)).toMatch(/^https:\/\/ingest\.volato\.dev\/api\/sourcemaps/);
   });
 
   it("throws when no release is set or detectable", async () => {
@@ -299,3 +321,4 @@ describe("runUpload — wire-format invariant", () => {
     expect(fd.get("map")).toBeInstanceOf(Blob);
   });
 });
+

@@ -19,7 +19,7 @@
  * subprocess.
  */
 
-import { readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import pc from "picocolors";
 import prompts from "prompts";
@@ -77,8 +77,6 @@ async function promptForDsn(): Promise<string> {
 /**
  * Look for a DSN in the project's env files. We try `.env.local`
  * first (Next.js convention for local overrides), then `.env`.
- * Within each file the first match wins among
- * `VOLATO_DSN` / `NEXT_PUBLIC_VOLATO_DSN`.
  *
  * Returns the DSN string + the file it came from for the confirm
  * prompt, or `null` when nothing matches.
@@ -87,7 +85,7 @@ function findDsnInEnvFiles(
   cwd: string,
 ): { dsn: string; source: string } | null {
   const candidates = [".env.local", ".env"];
-  const keys = ["VOLATO_DSN", "NEXT_PUBLIC_VOLATO_DSN"];
+  const keys = ["NEXT_PUBLIC_VOLATO_DSN"];
   for (const file of candidates) {
     let content: string;
     try {
@@ -173,9 +171,104 @@ export async function runInit(options: InitOptions): Promise<void> {
   for (const o of outcomes) printOutcome(cwd, o);
   process.stdout.write("\n");
 
+  await ensureGitignoreCoversEnvLocal(cwd);
+
   await maybeSendTestEvent(dsn);
 
   printNextSteps(project.middlewarePath, cwd);
+}
+
+/**
+ * Make sure `.env*.local` is gitignored before the developer pastes their
+ * `VOLATO_INGEST_TOKEN` into `.env.local`. Next.js's own create-next-app
+ * adds the entry by default, but custom-scaffolded projects often don't —
+ * and a token leaked into the first commit is a real incident.
+ *
+ * Flow:
+ *   - Read `.gitignore`. If it already covers `.env*.local` (or `.env.local`
+ *     literally), do nothing.
+ *   - Otherwise prompt the dev with the reason in plain English. On Y, append
+ *     a Volato-tagged block. On n, print a red warning and continue — we
+ *     don't block init, but we make it loud that the token will leak.
+ */
+async function ensureGitignoreCoversEnvLocal(cwd: string): Promise<void> {
+  const path = join(cwd, ".gitignore");
+  const fileExists = existsSync(path);
+  const content = fileExists ? readFileSync(path, "utf8") : "";
+
+  const lines = content
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#"));
+  const alreadyCovered = lines.some(
+    (l) => l === ".env*.local" || l === ".env.local" || l === ".env*",
+  );
+  if (alreadyCovered) return;
+
+  // Two distinct cases: the file is missing entirely, or it exists but
+  // doesn't cover `.env*.local`. Same risk in both — a `git add .` after
+  // running `volato init` would leak the ingest token — but the
+  // explanation has to match what the user is actually about to do
+  // (create a new file vs. append a line).
+  if (!fileExists) {
+    process.stdout.write(
+      `${pc.yellow("!")} ${pc.bold("No .gitignore in this project.")}\n` +
+        `  Your ${pc.cyan(
+          "VOLATO_INGEST_TOKEN",
+        )} lives in .env.local — without a .gitignore\n` +
+        `  covering it, your first ${pc.cyan(
+          "`git add .`",
+        )} will commit it. The ingest token has\n` +
+        `  write/delete access to your sourcemaps, so a leak means rotating it.\n\n`,
+    );
+  } else {
+    process.stdout.write(
+      `${pc.yellow("!")} ${pc.bold(".env.local")} ${pc.bold(
+        "is not yet gitignored in this project.",
+      )}\n` +
+        `  Your ${pc.cyan(
+          "VOLATO_INGEST_TOKEN",
+        )} lives there — committing it would expose a\n` +
+        `  secret with write/delete access to your sourcemaps. A leak means\n` +
+        `  rotating the token.\n\n`,
+    );
+  }
+
+  const response = await prompts(
+    {
+      type: "confirm",
+      name: "patch",
+      message: fileExists
+        ? "Add `.env*.local` to .gitignore?"
+        : "Create .gitignore with `.env*.local`?",
+      initial: true,
+    },
+    {
+      onCancel: () => {
+        throw new Error("aborted by user");
+      },
+    },
+  );
+
+  if (!response.patch) {
+    process.stdout.write(
+      `\n  ${pc.red(
+        "✗",
+      )} Skipped. Your token will end up in commits unless you handle this yourself.\n\n`,
+    );
+    return;
+  }
+
+  const prefix = content.length && !content.endsWith("\n") ? "\n" : "";
+  const block = `${prefix}\n# local env files (Volato CLI)\n.env*.local\n`;
+  appendFileSync(path, block, "utf8");
+  process.stdout.write(
+    `  ${pc.green("✓")} ${fileExists ? "Added" : "Created"} ${pc.cyan(
+      ".gitignore",
+    )} ${fileExists ? "rule for" : "covering"} ${pc.cyan(
+      ".env*.local",
+    )}.\n\n`,
+  );
 }
 
 /**
@@ -256,11 +349,27 @@ async function resolveDsn(options: InitOptions): Promise<string> {
   const fromEnv = findDsnInEnvFiles(options.cwd);
   if (fromEnv) {
     const tail = dsnTail(fromEnv.dsn);
+    // Why we ask: the developer probably just pasted the env var from the
+    // dashboard, but they may have several projects open. Before we patch
+    // instrumentation.ts + layout against this DSN — committing the target
+    // — give them an out to point at a different project.
+    process.stdout.write(
+      `${pc.dim("Found")} ${pc.cyan("NEXT_PUBLIC_VOLATO_DSN")} ${pc.dim(
+        `in ${fromEnv.source}`,
+      )} ${pc.dim(
+        tail
+          ? `(Volato project ${tail} — the bit after the @ in your DSN)`
+          : "",
+      )}\n` +
+        `${pc.dim(
+          "  We'll wire your SDK to send errors to this project.",
+        )}\n\n`,
+    );
     const response = await prompts(
       {
         type: "confirm",
         name: "use",
-        message: `DSN detected in ${fromEnv.source}${tail ? ` (${tail})` : ""} — use it?`,
+        message: "Wire this project as the error-capture target?",
         initial: true,
       },
       {
@@ -270,7 +379,10 @@ async function resolveDsn(options: InitOptions): Promise<string> {
       },
     );
     if (response.use) return fromEnv.dsn;
-    // User said no → fall through to the manual prompt.
+    // User said no → fall through to the manual paste.
+    process.stdout.write(
+      `${pc.dim("  OK, paste a different DSN below.")}\n\n`,
+    );
   }
   return promptForDsn();
 }

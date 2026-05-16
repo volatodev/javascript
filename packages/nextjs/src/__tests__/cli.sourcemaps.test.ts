@@ -10,7 +10,7 @@ describe("runPurge — auth and config", () => {
   beforeEach(() => {
     envBackup = { ...process.env };
     delete process.env.VOLATO_INGEST_TOKEN;
-    delete process.env.VOLATO_INGEST_URL;
+    delete process.env.NEXT_PUBLIC_VOLATO_DSN;
   });
 
   afterEach(() => {
@@ -48,8 +48,9 @@ describe("runPurge — auth and config", () => {
     expect(headers.Authorization).toBe(`Bearer ${TOKEN}`);
   });
 
-  it("falls back to VOLATO_INGEST_URL env", async () => {
-    process.env.VOLATO_INGEST_URL = ENDPOINT;
+  it("derives the endpoint from NEXT_PUBLIC_VOLATO_DSN when --endpoint is absent", async () => {
+    process.env.NEXT_PUBLIC_VOLATO_DSN =
+      "https://abc123@api.volato.dev/proj_xyz";
     const fetchImpl = vi
       .fn()
       .mockResolvedValue(

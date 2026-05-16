@@ -20,8 +20,8 @@ import { dsnToIngestUrl, parseDSN } from "@volatodev/core";
 export type WithVolatoOptions = {
   /**
    * DSN to attach to uploaded source maps. Defaults to
-   * `process.env.VOLATO_DSN`. The webpack plugin runs at build time so
-   * `process.env` is the natural place to read it from.
+   * `process.env.NEXT_PUBLIC_VOLATO_DSN`. The webpack plugin runs at
+   * build time so `process.env` is the natural place to read it from.
    */
   dsn?: string;
   /**
@@ -118,7 +118,7 @@ class VolatoSourceMapsPlugin {
     compiler.hooks.afterEmit.tapPromise(
       "VolatoSourceMapsPlugin",
       async () => {
-        const dsn = this.opts.dsn ?? process.env.VOLATO_DSN;
+        const dsn = this.opts.dsn ?? process.env.NEXT_PUBLIC_VOLATO_DSN;
         if (!dsn) return;
         try {
           parseDSN(dsn);

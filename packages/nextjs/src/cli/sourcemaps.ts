@@ -7,10 +7,9 @@
  * comes from the `VOLATO_INGEST_TOKEN` env var or the explicit
  * `--token` flag. Find it in the dashboard project detail page.
  *
- * The endpoint URL is the same host that serves `/api/ingest`. We
- * read it from `VOLATO_INGEST_URL` (or `--endpoint`) — there is no
- * default because Volato runs on customer-controlled hosts; we
- * never silently target `volato.dev`.
+ * The endpoint host is derived from `NEXT_PUBLIC_VOLATO_DSN` — the
+ * DSN already encodes the ingest origin, so there is no second URL
+ * env var to maintain. Pass `--endpoint` to override.
  *
  * Optional `--release <sha>` scopes the purge to one release.
  * Without it, every map for the project is removed (the GDPR
@@ -19,12 +18,14 @@
  * Phase D.1 of the sourcemaps work. The upload command lands in D.3.
  */
 
+import { parseDSN } from "@volatodev/core";
+
 export type PurgeOptions = {
   /** Falls back to `VOLATO_INGEST_TOKEN`. */
   token?: string;
   /**
-   * Ingest service base URL. Falls back to `VOLATO_INGEST_URL`.
-   * Example: `https://api.volato.dev`.
+   * Ingest service base URL. When omitted, derived from
+   * `NEXT_PUBLIC_VOLATO_DSN` (same host the SDK ships events to).
    */
   endpoint?: string;
   /** Optional release tag to narrow the purge. */
@@ -40,6 +41,16 @@ export type PurgeResult = {
   scope: string;
 };
 
+function deriveEndpointFromDsn(): string | undefined {
+  const dsn = process.env.NEXT_PUBLIC_VOLATO_DSN;
+  if (!dsn) return undefined;
+  try {
+    return parseDSN(dsn).origin;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function runPurge(opts: PurgeOptions): Promise<PurgeResult> {
   const token = opts.token ?? process.env.VOLATO_INGEST_TOKEN;
   if (!token) {
@@ -49,11 +60,11 @@ export async function runPurge(opts: PurgeOptions): Promise<PurgeResult> {
     );
   }
 
-  const endpoint = opts.endpoint ?? process.env.VOLATO_INGEST_URL;
+  const endpoint = opts.endpoint ?? deriveEndpointFromDsn();
   if (!endpoint) {
     throw new Error(
-      "Missing ingest endpoint. Pass --endpoint or set VOLATO_INGEST_URL " +
-        "(e.g. https://api.volato.dev).",
+      "Missing ingest endpoint. Set NEXT_PUBLIC_VOLATO_DSN (the SDK's own " +
+        "DSN already encodes the ingest host) or pass --endpoint to override.",
     );
   }
 

@@ -8,7 +8,7 @@
  *   // instrumentation.ts (project root, sibling of next.config.ts)
  *   export { onRequestError } from "@volatodev/nextjs/instrumentation";
  *
- * The SDK reads `VOLATO_DSN` from `process.env`.
+ * The SDK reads `NEXT_PUBLIC_VOLATO_DSN` from `process.env`.
  */
 
 import { captureException, type ServerRuntime } from "./server";

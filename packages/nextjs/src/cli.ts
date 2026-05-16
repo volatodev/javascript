@@ -44,7 +44,7 @@ sourcemaps
   )
   .option(
     "--endpoint <url>",
-    "Ingest service base URL (falls back to VOLATO_INGEST_URL)",
+    "Override ingest origin (default: derived from NEXT_PUBLIC_VOLATO_DSN)",
   )
   .option(
     "--release <sha>",
@@ -93,7 +93,7 @@ sourcemaps
   )
   .option(
     "--endpoint <url>",
-    "Ingest service base URL (falls back to VOLATO_INGEST_URL)",
+    "Override ingest origin (default: derived from NEXT_PUBLIC_VOLATO_DSN)",
   )
   .option("--release <sha>", "Scope the purge to one release")
   .action(

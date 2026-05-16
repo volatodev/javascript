@@ -22,13 +22,18 @@
 import { createReadStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
-import { projectFramePath } from "@volatodev/core";
+import { parseDSN, projectFramePath } from "@volatodev/core";
 import { detectRelease } from "../internal/release";
 
 export type UploadOptions = {
   /** Falls back to `VOLATO_INGEST_TOKEN`. */
   token?: string;
-  /** Falls back to `VOLATO_INGEST_URL`. */
+  /**
+   * Override the ingest origin (e.g. `https://ingest.volato.dev`).
+   * When omitted, the origin is derived from `NEXT_PUBLIC_VOLATO_DSN`
+   * — the same DSN the SDK uses at runtime, so there is no second URL
+   * to keep in sync.
+   */
   endpoint?: string;
   /** Falls back to detectRelease() — VOLATO_RELEASE / NEXT_PUBLIC_VOLATO_RELEASE. */
   release?: string;
@@ -188,6 +193,21 @@ async function uploadOne(args: {
   return "failed";
 }
 
+/**
+ * Pull the ingest origin out of `NEXT_PUBLIC_VOLATO_DSN`. The DSN encodes
+ * the host as `https://<key>@<host>/<projectId>`, so it's already the
+ * canonical "where do I send" value; no second URL env var to maintain.
+ */
+function deriveEndpointFromDsn(): string | undefined {
+  const dsn = process.env.NEXT_PUBLIC_VOLATO_DSN;
+  if (!dsn) return undefined;
+  try {
+    return parseDSN(dsn).origin;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function runUpload(opts: UploadOptions): Promise<UploadSummary> {
   const token = opts.token ?? process.env.VOLATO_INGEST_TOKEN;
   if (!token) {
@@ -197,11 +217,11 @@ export async function runUpload(opts: UploadOptions): Promise<UploadSummary> {
     );
   }
 
-  const endpoint = opts.endpoint ?? process.env.VOLATO_INGEST_URL;
+  const endpoint = opts.endpoint ?? deriveEndpointFromDsn();
   if (!endpoint) {
     throw new Error(
-      "Missing ingest endpoint. Pass --endpoint or set VOLATO_INGEST_URL " +
-        "(e.g. https://api.volato.dev).",
+      "Missing ingest endpoint. Set NEXT_PUBLIC_VOLATO_DSN (the SDK's own " +
+        "DSN already encodes the ingest host) or pass --endpoint to override.",
     );
   }
 

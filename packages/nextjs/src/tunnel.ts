@@ -11,12 +11,12 @@
  *   export const POST = createTunnelHandler();
  *
  * Defaults:
- *   - DSN comes from `process.env.VOLATO_DSN`
+ *   - DSN comes from `process.env.NEXT_PUBLIC_VOLATO_DSN` (Next.js exposes
+ *     `NEXT_PUBLIC_*` to server-side code too — same single source of
+ *     truth as the browser bundle).
  *   - Method must be POST
  *   - The forwarded request keeps the `X-Volato-DSN` header from the
- *     browser; if missing, we synthesise it from the env DSN (browser
- *     bundles using NEXT_PUBLIC_VOLATO_DSN already include it, but
- *     server-only DSN setups need the fallback).
+ *     browser; if missing, we synthesise it from the env DSN.
  */
 
 import {
@@ -27,7 +27,7 @@ import {
 
 export type TunnelOptions = {
   /**
-   * Override the ingest DSN. Defaults to `process.env.VOLATO_DSN`.
+   * Override the ingest DSN. Defaults to `process.env.NEXT_PUBLIC_VOLATO_DSN`.
    * Must be a complete `https://<publicKey>@<host>/<projectId>` string.
    */
   dsn?: string;
@@ -40,14 +40,14 @@ export function createTunnelHandler(options: TunnelOptions = {}): TunnelHandler 
     if (req.method !== "POST") {
       return new Response("Method Not Allowed", { status: 405 });
     }
-    const dsn = options.dsn ?? process.env.VOLATO_DSN;
+    const dsn = options.dsn ?? process.env.NEXT_PUBLIC_VOLATO_DSN;
     if (!dsn) {
-      return new Response("VOLATO_DSN not configured", { status: 500 });
+      return new Response("NEXT_PUBLIC_VOLATO_DSN not configured", { status: 500 });
     }
     try {
       parseDSN(dsn);
     } catch {
-      return new Response("VOLATO_DSN is malformed", { status: 500 });
+      return new Response("NEXT_PUBLIC_VOLATO_DSN is malformed", { status: 500 });
     }
 
     const headerDsn = req.headers.get(VOLATO_DSN_HEADER) ?? dsn;

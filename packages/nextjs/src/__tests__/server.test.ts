@@ -27,7 +27,7 @@ describe("captureException (server / RSC)", () => {
   beforeEach(() => {
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("VOLATO_DSN", DSN);
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
   });
 
   afterEach(() => {
@@ -107,8 +107,8 @@ describe("captureException (server / RSC)", () => {
     expect(body.stack).toBeNull();
   });
 
-  it("warns and skips the POST when VOLATO_DSN is unset", async () => {
-    vi.stubEnv("VOLATO_DSN", "");
+  it("warns and skips the POST when NEXT_PUBLIC_VOLATO_DSN is unset", async () => {
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", "");
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await captureException(new Error("ignored"));
@@ -130,7 +130,7 @@ describe("wrapAction", () => {
   beforeEach(() => {
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("VOLATO_DSN", DSN);
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
   });
 
   afterEach(() => {
@@ -190,7 +190,7 @@ describe("reportActionError", () => {
   beforeEach(() => {
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("VOLATO_DSN", DSN);
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
   });
 
   afterEach(() => {
@@ -236,7 +236,7 @@ describe("wrapRoute", () => {
   beforeEach(() => {
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("VOLATO_DSN", DSN);
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
   });
 
   afterEach(() => {
@@ -299,7 +299,7 @@ describe("wrapRoute — streamed Response error capture", () => {
   beforeEach(() => {
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubEnv("VOLATO_DSN", DSN);
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
   });
 
   afterEach(() => {

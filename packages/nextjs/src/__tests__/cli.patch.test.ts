@@ -30,39 +30,31 @@ afterEach(() => {
 const DSN = "https://abc123@volato.dev";
 
 describe("patchEnvLocal", () => {
-  it("creates `.env.local` with both keys when missing", () => {
+  it("creates `.env.local` with the public DSN when missing", () => {
     const out = patchEnvLocal(cwd, DSN);
 
     expect(out.status).toBe("created");
     const contents = readFileSync(join(cwd, ".env.local"), "utf8");
-    expect(contents).toContain(`VOLATO_DSN=${DSN}`);
     expect(contents).toContain(`NEXT_PUBLIC_VOLATO_DSN=${DSN}`);
+    // The legacy server-only twin is intentionally gone: NEXT_PUBLIC_* is
+    // readable on the server too, so a second VOLATO_DSN would be dead
+    // surface area.
+    expect(contents).not.toMatch(/^VOLATO_DSN=/m);
   });
 
-  it("appends without duplicating an existing key", () => {
+  it("does not duplicate the key when it already exists", () => {
     writeFileSync(
       join(cwd, ".env.local"),
-      "FOO=bar\nVOLATO_DSN=https://existing@volato.dev\n",
-    );
-
-    const out = patchEnvLocal(cwd, DSN);
-
-    expect(out.status).toBe("updated");
-    const contents = readFileSync(join(cwd, ".env.local"), "utf8");
-    expect(contents).toContain("VOLATO_DSN=https://existing@volato.dev");
-    expect(contents).toContain(`NEXT_PUBLIC_VOLATO_DSN=${DSN}`);
-    expect(contents.match(/^VOLATO_DSN=/gm)?.length).toBe(1);
-  });
-
-  it("skips when both keys already present", () => {
-    writeFileSync(
-      join(cwd, ".env.local"),
-      `VOLATO_DSN=${DSN}\nNEXT_PUBLIC_VOLATO_DSN=${DSN}\n`,
+      `FOO=bar\nNEXT_PUBLIC_VOLATO_DSN=https://existing@volato.dev\n`,
     );
 
     const out = patchEnvLocal(cwd, DSN);
 
     expect(out.status).toBe("skipped");
+    const contents = readFileSync(join(cwd, ".env.local"), "utf8");
+    expect(
+      contents.match(/^NEXT_PUBLIC_VOLATO_DSN=/gm)?.length,
+    ).toBe(1);
   });
 
   it("preserves missing trailing newlines on append", () => {
@@ -73,7 +65,6 @@ describe("patchEnvLocal", () => {
     const contents = readFileSync(join(cwd, ".env.local"), "utf8");
     expect(contents.split("\n").filter(Boolean)).toEqual([
       "FOO=bar",
-      `VOLATO_DSN=${DSN}`,
       `NEXT_PUBLIC_VOLATO_DSN=${DSN}`,
     ]);
   });

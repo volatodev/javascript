@@ -54,15 +54,20 @@ function readIfExists(path: string): string | null {
 }
 
 /**
- * Append the two Volato env vars to `.env.local`, preserving any existing
- * file content. Idempotent: a key that already exists is never duplicated.
+ * Append the Volato DSN to `.env.local`, preserving any existing file
+ * content. Idempotent: a key that already exists is never duplicated.
+ *
+ * Single source of truth: `NEXT_PUBLIC_VOLATO_DSN`. Next.js exposes
+ * `NEXT_PUBLIC_*` to server-side code too, so we don't need a separate
+ * `VOLATO_DSN` server twin. The `VOLATO_INGEST_TOKEN` is *not* written
+ * by the CLI — the developer copies it from the dashboard themselves
+ * (only used at build / CI time, not at SDK runtime).
  */
 export function patchEnvLocal(cwd: string, dsn: string): PatchOutcome {
   const path = `${cwd}/.env.local`;
   const existing = readIfExists(path) ?? "";
 
   const keys: Array<{ key: string; value: string }> = [
-    { key: "VOLATO_DSN", value: dsn },
     { key: "NEXT_PUBLIC_VOLATO_DSN", value: dsn },
   ];
 

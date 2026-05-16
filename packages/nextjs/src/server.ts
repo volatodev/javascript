@@ -40,7 +40,7 @@ let serverExtras: ServerExtras = {};
  * Configure server-side capture extras: `beforeSend` hook, explicit
  * `release` / `environment` / `dist` overrides. Idempotent — call from
  * the `register()` hook in `instrumentation.ts`. The DSN itself still
- * comes from `process.env.VOLATO_DSN`.
+ * comes from `process.env.NEXT_PUBLIC_VOLATO_DSN`.
  */
 export function initServer(config: ServerExtras): void {
   serverExtras = { ...serverExtras, ...config };
@@ -174,8 +174,10 @@ function serialize(
 
 /**
  * Send a server-side (RSC) error to Volato. Reads DSN from
- * `process.env.VOLATO_DSN`. No-ops with a `console.warn` when the env var
- * is unset — by design, a missing DSN must never crash the host app.
+ * `process.env.NEXT_PUBLIC_VOLATO_DSN` (the `NEXT_PUBLIC_*` prefix is
+ * read on the server too — same single source of truth as the browser).
+ * No-ops with a `console.warn` when the env var is unset — by design,
+ * a missing DSN must never crash the host app.
  *
  * Fire-and-forget: the network POST is started but NOT awaited. The
  * function returns as soon as the local pipeline (filter / dedupe /
@@ -196,11 +198,11 @@ export async function captureException(
   err: unknown,
   ctx?: ServerCaptureContext,
 ): Promise<void> {
-  const dsn = process.env.VOLATO_DSN;
+  const dsn = process.env.NEXT_PUBLIC_VOLATO_DSN;
   if (!dsn) {
     if (typeof console !== "undefined" && console.warn) {
       console.warn(
-        "[Volato] captureException skipped: VOLATO_DSN env var is not set",
+        "[Volato] captureException skipped: NEXT_PUBLIC_VOLATO_DSN env var is not set",
       );
     }
     return;
