@@ -322,3 +322,77 @@ describe("runUpload — wire-format invariant", () => {
   });
 });
 
+describe("runUpload — privacy posture", () => {
+  it("strips sourcesContent from every uploaded map (customer source never leaves CI)", async () => {
+    // A real Next.js .js.map has the full source code of every bundled
+    // file embedded in `sourcesContent`. We must drop it client-side
+    // before POST so we never see it on the wire — and so a Volato
+    // breach can't ever expose customer code.
+    const mapWithSource = JSON.stringify({
+      version: 3,
+      sources: ["app/page.tsx", "lib/auth.ts"],
+      sourcesContent: [
+        "import { signIn } from '@/lib/auth';\nexport default function Page() { signIn(); }",
+        "export async function signIn(email, password) { /* secret recipe */ }",
+      ],
+      names: ["signIn"],
+      mappings: "AAAA;AACA",
+    });
+    await seedBuildOutput([
+      { path: "page-deadbeef.js.map", content: mapWithSource },
+    ]);
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({}), { status: 201 }));
+
+    await runUpload({
+      token: TOKEN,
+      endpoint: ENDPOINT,
+      release: RELEASE,
+      cwd: testCwd,
+      fetchImpl,
+      stdout: () => {},
+      stderr: () => {},
+    });
+
+    const init = fetchImpl.mock.calls[0]![1] as RequestInit;
+    const fd = init.body as FormData;
+    const blob = fd.get("map") as Blob;
+    const text = await blob.text();
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+
+    expect(parsed).not.toHaveProperty("sourcesContent");
+    // The customer's literal source strings must not appear anywhere in
+    // the POST body — defence in depth in case JSON.stringify rearranged
+    // fields unexpectedly.
+    expect(text).not.toContain("signIn(email, password)");
+    expect(text).not.toContain("secret recipe");
+
+    // The rest of the map (what we actually need to symbolicate) is intact.
+    expect(parsed).toHaveProperty("mappings", "AAAA;AACA");
+    expect(parsed.sources).toEqual(["app/page.tsx", "lib/auth.ts"]);
+  });
+
+  it("skips unparseable .js.map files rather than sending raw bytes", async () => {
+    await seedBuildOutput([
+      { path: "page-cafebabe.js.map", content: "not json at all" },
+    ]);
+    const fetchImpl = vi.fn();
+    const lines: string[] = [];
+
+    const summary = await runUpload({
+      token: TOKEN,
+      endpoint: ENDPOINT,
+      release: RELEASE,
+      cwd: testCwd,
+      fetchImpl,
+      stdout: () => {},
+      stderr: (l) => lines.push(l),
+    });
+
+    expect(summary.skipped).toBe(1);
+    expect(summary.uploaded).toBe(0);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(lines.join("")).toContain("not valid JSON");
+  });
+});

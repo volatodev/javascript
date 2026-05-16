@@ -19,8 +19,7 @@
  * Phase D.3 of the sourcemaps work.
  */
 
-import { createReadStream } from "node:fs";
-import { readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import { parseDSN, projectFramePath } from "@volatodev/core";
 import { detectRelease } from "../internal/release";
@@ -145,23 +144,31 @@ async function uploadOne(args: {
   fd.set("filename_hash", key.filename_hash);
   fd.set("display_path", key.display_path);
 
-  // Read the file synchronously into a Blob — Next.js maps top out
-  // at a few MB; streaming via undici-specific APIs is not portable.
-  const stream = createReadStream(args.mapPath);
-  const chunks: Uint8Array[] = [];
-  for await (const chunk of stream) {
-    chunks.push(chunk as Uint8Array);
-  }
-  const total = chunks.reduce((acc, c) => acc + c.length, 0);
-  const merged = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) {
-    merged.set(c, offset);
-    offset += c.length;
+  // Read the .js.map, parse it, and STRIP `sourcesContent` before
+  // shipping. This is the load-bearing line for our privacy posture:
+  // we resolve `page-abc.js:1:8472` → `app/page.tsx:42:14` from the
+  // mappings + sources fields alone. The customer's source code never
+  // leaves their CI. The agent (Claude / Cursor) recovers the snippet
+  // locally via `git show <release>:<file>` because it already lives
+  // in the developer's repo.
+  //
+  // If the map is unparseable (rare — webpack/turbopack always emit
+  // valid JSON) we skip it loudly rather than send unsanitised bytes.
+  const raw = await readFile(args.mapPath, "utf8");
+  let sanitised: string;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    delete parsed.sourcesContent;
+    sanitised = JSON.stringify(parsed);
+  } catch {
+    args.warn(
+      `[Volato] Skipping ${jsRelative} — sourcemap is not valid JSON.\n`,
+    );
+    return "skipped";
   }
   fd.set(
     "map",
-    new Blob([merged], { type: "application/json" }),
+    new Blob([sanitised], { type: "application/json" }),
     `${key.filename_hash}.map`,
   );
 
