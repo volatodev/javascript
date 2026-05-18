@@ -11,6 +11,7 @@
  * The SDK reads `NEXT_PUBLIC_VOLATO_DSN` from `process.env`.
  */
 
+import { scrubUrl } from "./internal/scrub-url";
 import { captureException, type ServerRuntime } from "./server";
 
 type NextRouteType = "render" | "route" | "action" | "middleware";
@@ -59,10 +60,16 @@ function buildRequestSummary(
   request: NextRequestInfo | undefined,
 ): { method: string; url: string; pathname?: string } | undefined {
   if (!request) return undefined;
+  // `request.path` from Next.js is `pathname + search` in App Router, so
+  // it can carry sensitive query params. The pathname-only field stays
+  // raw — it's the bare path without the query string.
+  const queryIdx = request.path.indexOf("?");
+  const pathname =
+    queryIdx === -1 ? request.path : request.path.slice(0, queryIdx);
   return {
     method: request.method,
-    url: request.path,
-    pathname: request.path,
+    url: scrubUrl(request.path),
+    pathname,
   };
 }
 

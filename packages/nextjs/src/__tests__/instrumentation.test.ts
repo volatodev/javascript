@@ -150,6 +150,27 @@ describe("onRequestError (Next.js 15 instrumentation hook)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("scrubs sensitive query params from the captured request.url", async () => {
+    await onRequestError(
+      new Error("with query"),
+      {
+        path: "/dashboard?email=alice@example.com&token=abc&page=2",
+        method: "GET",
+        headers: {},
+      },
+      { routeType: "render", routePath: "/dashboard" },
+    );
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as { request?: { url: string; pathname?: string } };
+
+    expect(body.request?.url).toBe(
+      "/dashboard?email=[FILTERED]&token=[FILTERED]&page=2",
+    );
+    expect(body.request?.pathname).toBe("/dashboard");
+  });
+
   it("swallows transport errors so the host app never crashes", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
     await expect(
