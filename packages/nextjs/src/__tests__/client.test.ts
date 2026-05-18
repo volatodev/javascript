@@ -144,6 +144,26 @@ describe("initClient", () => {
     expect(typeof body.timestamp).toBe("number");
   });
 
+  it("scrubs sensitive query params from the captured event.url (location.href)", () => {
+    const { window, listeners } = makeMockWindow();
+    vi.stubGlobal("window", window);
+    vi.stubGlobal("location", {
+      href: "https://app.example.com/dashboard?email=alice@example.com&page=2",
+    });
+
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
+
+    const errorListener = listeners.get("error")?.[0]!;
+    errorListener({ error: new Error("boom"), message: "boom" } as ErrorEvent);
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as Record<string, unknown>;
+    expect(body.url).toBe(
+      "https://app.example.com/dashboard?email=[FILTERED]&page=2",
+    );
+  });
+
   it("includes filename/lineno/colno from the ErrorEvent when present", () => {
     const { window, listeners } = makeMockWindow();
     vi.stubGlobal("window", window);
@@ -448,6 +468,72 @@ describe("instrumentFetch", () => {
     const firstWrap = getWindowFetch();
     instrumentFetch();
     expect(getWindowFetch()).toBe(firstWrap);
+  });
+
+  it("scrubs the URL in FetchHttpError / FetchNetworkError synthetic messages", async () => {
+    upstreamFetch.mockImplementation(async (input: string | Request) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.startsWith("https://volato.dev/api/ingest")) {
+        return new Response(null, { status: 202 });
+      }
+      return new Response(null, { status: 503 });
+    });
+
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
+    instrumentFetch();
+
+    await getWindowFetch()(
+      "https://api.example.com/users?email=alice@example.com&token=abc",
+    );
+
+    const body = lastIngestBody();
+    expect(body.type).toBe("FetchHttpError");
+    expect(body.message).toBe(
+      "HTTP 503 GET https://api.example.com/users?email=[FILTERED]&token=[FILTERED]",
+    );
+  });
+
+  it("scrubs the URL in the FetchNetworkError synthetic message", async () => {
+    upstreamFetch.mockImplementation(async (input: string | Request) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.startsWith("https://volato.dev/api/ingest")) {
+        return new Response(null, { status: 202 });
+      }
+      throw new TypeError("Failed to fetch");
+    });
+
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
+    instrumentFetch();
+
+    await expect(
+      getWindowFetch()("https://api.example.com/y?token=abc", {
+        method: "POST",
+      }),
+    ).rejects.toThrow("Failed to fetch");
+
+    const body = lastIngestBody();
+    expect(body.type).toBe("FetchNetworkError");
+    expect(String(body.message)).toContain("token=[FILTERED]");
+    expect(String(body.message)).not.toContain("token=abc");
+  });
+
+  it("scrubs sensitive query params in the fetch breadcrumb URL", async () => {
+    upstreamFetch.mockImplementation(
+      async () => new Response(null, { status: 200 }),
+    );
+
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
+    instrumentFetch();
+
+    await getWindowFetch()(
+      "https://api.example.com/users?email=alice@example.com&page=2",
+    );
+
+    const crumbs = getCurrentScope().breadcrumbs;
+    const fetchCrumb = crumbs.find((c) => c.category === "fetch");
+    expect(fetchCrumb?.data?.url).toBe(
+      "https://api.example.com/users?email=[FILTERED]&page=2",
+    );
   });
 });
 

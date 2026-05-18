@@ -95,5 +95,27 @@ describe("instrumentNavigation", () => {
     history.pushState(null, "", "/a"); // same URL
     expect(getCurrentScope().breadcrumbs.length).toBe(0);
   });
+
+  it("scrubs sensitive query params in the navigation from/to", () => {
+    initClient({ dsn: DSN, environment: "production" });
+    const origPush = history.pushState as unknown as ReturnType<typeof vi.fn>;
+    origPush.mockImplementation((_d: unknown, _u: string, url: string) => {
+      (location as { href: string }).href = `https://app.example.com${
+        url.startsWith("/") ? url : `/${url}`
+      }`;
+    });
+    (location as { href: string }).href =
+      "https://app.example.com/a?email=alice@example.com";
+
+    instrumentNavigation();
+    history.pushState(null, "", "/b?token=abc123");
+
+    const crumbs = getCurrentScope().breadcrumbs;
+    expect(crumbs.length).toBe(1);
+    expect(crumbs[0]?.data).toEqual({
+      from: "https://app.example.com/a?email=[FILTERED]",
+      to: "https://app.example.com/b?token=[FILTERED]",
+    });
+  });
 });
 

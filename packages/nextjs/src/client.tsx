@@ -56,6 +56,7 @@ import {
   shouldSend,
 } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
+import { scrubUrl } from "./internal/scrub-url";
 import { sendEnvelope } from "./internal/transport";
 import type { VolatoConfig } from "./index";
 
@@ -178,7 +179,8 @@ function serialize(
     type: coerced.type,
     message: coerced.message,
     stack: coerced.stack,
-    url: typeof location !== "undefined" ? location.href : "",
+    url:
+      typeof location !== "undefined" ? scrubUrl(location.href) : "",
     userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
     timestamp: Date.now(),
     runtime: "client",
@@ -406,7 +408,7 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
           type: "http",
           level: res.status >= 400 ? "error" : "info",
           data: {
-            url,
+            url: scrubUrl(url),
             method,
             status: res.status,
             duration_ms: Date.now() - startedAt,
@@ -418,7 +420,9 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
         shouldCapture(url) &&
         isEnabled(activeConfig)
       ) {
-        const synthetic = new Error(`HTTP ${res.status} ${method} ${url}`);
+        const synthetic = new Error(
+          `HTTP ${res.status} ${method} ${scrubUrl(url)}`,
+        );
         synthetic.name = "FetchHttpError";
         post(activeConfig!, serialize(synthetic));
       }
@@ -430,7 +434,7 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
           type: "http",
           level: "error",
           data: {
-            url,
+            url: scrubUrl(url),
             method,
             duration_ms: Date.now() - startedAt,
             error: err instanceof Error ? err.message : String(err),
@@ -438,7 +442,7 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
         });
         const reason = err instanceof Error ? err.message : String(err);
         const synthetic = new Error(
-          `Network failure ${method} ${url}: ${reason}`,
+          `Network failure ${method} ${scrubUrl(url)}: ${reason}`,
         );
         synthetic.name = "FetchNetworkError";
         if (err instanceof Error && err.stack) synthetic.stack = err.stack;
@@ -564,7 +568,7 @@ function recordNavigation(from: string, to: string): void {
   getCurrentScope().addBreadcrumb({
     category: "navigation",
     type: "navigation",
-    data: { from, to },
+    data: { from: scrubUrl(from), to: scrubUrl(to) },
   });
 }
 
