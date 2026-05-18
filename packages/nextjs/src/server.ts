@@ -25,6 +25,7 @@ import { applyReleaseTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
 import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
+import { scrubSearchParams, scrubUrl } from "./internal/scrub-url";
 import { sendEnvelope } from "./internal/transport";
 export { createTunnelHandler, type TunnelOptions } from "./tunnel";
 import type { LinkedError } from "@volatodev/core";
@@ -113,11 +114,16 @@ function summarizeRequest(input: Request | RequestSummary): RequestSummary {
       const all = url.searchParams.getAll(key);
       sp[key] = all.length > 1 ? all : all[0]!;
     }
-    if (Object.keys(sp).length > 0) searchParams = sp;
+    if (Object.keys(sp).length > 0) searchParams = scrubSearchParams(sp);
   } catch {
-    // Malformed URL — keep raw `req.url`, no path/searchParams.
+    // Malformed URL — keep scrubbed `req.url`, no path/searchParams.
   }
-  return { method: req.method, url: req.url, pathname, searchParams };
+  return {
+    method: req.method,
+    url: scrubUrl(req.url),
+    pathname,
+    searchParams,
+  };
 }
 
 function whitelist(headers: Headers | undefined): Record<string, string> {

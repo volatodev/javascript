@@ -122,6 +122,34 @@ describe("captureException (server / RSC)", () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
     await expect(captureException(new Error("boom"))).resolves.toBeUndefined();
   });
+
+  it("scrubs sensitive query params from ctx.request url and searchParams", async () => {
+    const req = new Request(
+      "https://app.test/api/users?email=alice@example.com&token=abc&page=2",
+      { method: "GET" },
+    );
+    await captureException(new Error("with query"), { request: req });
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as {
+      request: {
+        url: string;
+        pathname?: string;
+        searchParams?: Record<string, string>;
+      };
+    };
+
+    expect(body.request.url).toBe(
+      "https://app.test/api/users?email=[FILTERED]&token=[FILTERED]&page=2",
+    );
+    expect(body.request.pathname).toBe("/api/users");
+    expect(body.request.searchParams).toEqual({
+      email: "[FILTERED]",
+      token: "[FILTERED]",
+      page: "2",
+    });
+  });
 });
 
 describe("wrapAction", () => {
