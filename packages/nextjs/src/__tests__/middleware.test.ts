@@ -76,6 +76,33 @@ describe("captureException (middleware / Edge)", () => {
     expect(body.message).toBe("just a string");
   });
 
+  it("scrubs sensitive query params from url and searchParams", async () => {
+    const req = new Request(
+      "https://app.test/protected?email=alice@example.com&token=abc&page=2",
+      { method: "GET" },
+    );
+    await captureException(new Error("boom"), req, config);
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as {
+      url: string;
+      request: { url: string; searchParams: Record<string, string> };
+    };
+
+    expect(body.url).toBe(
+      "https://app.test/protected?email=[FILTERED]&token=[FILTERED]&page=2",
+    );
+    expect(body.request.url).toBe(
+      "https://app.test/protected?email=[FILTERED]&token=[FILTERED]&page=2",
+    );
+    expect(body.request.searchParams).toEqual({
+      email: "[FILTERED]",
+      token: "[FILTERED]",
+      page: "2",
+    });
+  });
+
   it("swallows fetch errors so the host app never crashes", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
     const req = new Request("https://app.test/", { method: "GET" });

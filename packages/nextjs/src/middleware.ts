@@ -25,6 +25,7 @@ import { unwrapCauseChain } from "./internal/linked-errors";
 import { runBeforeSend } from "./internal/before-send";
 import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
+import { scrubSearchParams, scrubUrl } from "./internal/scrub-url";
 import { sendEnvelope } from "./internal/transport";
 import type { VolatoConfig } from "./index";
 import type { LinkedError } from "@volatodev/core";
@@ -56,11 +57,16 @@ function summarizeEdgeRequest(req: Request): EdgeErrorPayload["request"] {
       const all = u.searchParams.getAll(key);
       sp[key] = all.length > 1 ? all : all[0]!;
     }
-    if (Object.keys(sp).length > 0) searchParams = sp;
+    if (Object.keys(sp).length > 0) searchParams = scrubSearchParams(sp);
   } catch {
-    // Malformed URL — keep raw req.url, no path.
+    // Malformed URL — keep scrubbed req.url, no path.
   }
-  return { method: req.method, url: req.url, pathname, searchParams };
+  return {
+    method: req.method,
+    url: scrubUrl(req.url),
+    pathname,
+    searchParams,
+  };
 }
 
 let warnedMissingDsn = false;
@@ -102,7 +108,7 @@ export async function captureException(
       type: e.name ?? "Error",
       message: e.message ?? "",
       stack: e.stack ?? null,
-      url: req.url,
+      url: scrubUrl(req.url),
       method: req.method,
       runtime: "middleware",
       timestamp: Date.now(),
