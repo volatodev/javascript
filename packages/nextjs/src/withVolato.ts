@@ -194,6 +194,26 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
     return { ...nextConfig, productionBrowserSourceMaps: true };
   }
 
+  // Build-time warning. The token gates the entire sourcemap upload
+  // path; without it, the platform never gets a `.map` and every
+  // browser frame the agent sees in fix_context stays minified
+  // (chunks/page-abc.js:1:23456 instead of app/page.tsx:42). Fires
+  // once per `next.config` load — `next build`, `next dev`,
+  // `next start` — at the cost of a single stderr line. No CI/prod
+  // gating: the failure mode the warning catches (token missing in
+  // CI) is decided during development, so dev needs to see it too.
+  // `--quiet` upstream of Next does not silence the message; that's
+  // intentional. The opt-out is `disableUpload: true`, already
+  // handled by the early return above.
+  if (!process.env.VOLATO_INGEST_TOKEN && typeof console !== "undefined") {
+    console.warn(
+      "[Volato] VOLATO_INGEST_TOKEN is not set — sourcemaps will not be uploaded. " +
+        "Without a token, errors firing in production show minified frames " +
+        "(chunks/page-abc.js:1:23456) instead of original paths (app/page.tsx:42). " +
+        "Configure the token in your CI environment to enable source resolution.",
+    );
+  }
+
   const userWebpack = nextConfig.webpack;
   return {
     ...nextConfig,
