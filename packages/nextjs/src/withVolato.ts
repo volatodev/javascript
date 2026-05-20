@@ -109,6 +109,18 @@ type UploadOutcome = "uploaded" | "updated" | "skipped" | "failed";
  * (wrong token, oversized map, malformed sourcemap) that retrying just
  * delays.
  */
+export async function __uploadOneForTests(args: {
+  mapPath: string;
+  jsRelative: string;
+  release: string;
+  endpoint: string;
+  token: string;
+  fetchImpl: typeof fetch;
+  warn: (msg: string) => void;
+}): Promise<UploadOutcome> {
+  return uploadOne(args);
+}
+
 async function uploadOne(args: {
   mapPath: string;
   jsRelative: string;
@@ -215,15 +227,20 @@ async function withConcurrency<T, R>(
   return out;
 }
 
-export type VolatoSourceMapsPluginInternals = {
+/**
+ * Test-only injection point. Not part of the stable API — the `__`
+ * prefix signals "internal, may change". Production callers never
+ * pass this; the plugin defaults to `fetch` and `process.cwd()`.
+ */
+export type __VolatoSourceMapsPluginInternals = {
   fetchImpl?: typeof fetch;
   cwd?: string;
 };
 
-class VolatoSourceMapsPlugin {
+export class __VolatoSourceMapsPlugin {
   constructor(
     private readonly opts: WithVolatoOptions,
-    private readonly internals: VolatoSourceMapsPluginInternals = {},
+    private readonly internals: __VolatoSourceMapsPluginInternals = {},
   ) {}
 
   apply(compiler: {
@@ -356,7 +373,6 @@ type NextConfigLike = {
 export function withVolato<T extends NextConfigLike = NextConfigLike>(
   nextConfig: T,
   options: WithVolatoOptions = {},
-  internals: VolatoSourceMapsPluginInternals = {},
 ): T {
   if (options.disableUpload) {
     return { ...nextConfig, productionBrowserSourceMaps: true };
@@ -400,7 +416,7 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
         "plugins" in next
       ) {
         const plugins = (next as { plugins?: unknown[] }).plugins ?? [];
-        plugins.push(new VolatoSourceMapsPlugin(options, internals));
+        plugins.push(new __VolatoSourceMapsPlugin(options));
         (next as { plugins?: unknown[] }).plugins = plugins;
       }
       return next;
