@@ -7,7 +7,6 @@
 
 import { Command } from "commander";
 import { runInit } from "./cli/init";
-import { runPurge } from "./cli/sourcemaps";
 
 const program = new Command();
 
@@ -27,44 +26,6 @@ program
       process.exit(1);
     }
   });
-
-const sourcemaps = program
-  .command("sourcemaps")
-  .description("Manage sourcemaps for this project");
-
-sourcemaps
-  .command("purge")
-  .description(
-    "Delete sourcemap rows + S3 objects (project-scoped; --release narrows further)",
-  )
-  .option(
-    "--token <token>",
-    "Ingest token (falls back to VOLATO_INGEST_TOKEN)",
-  )
-  .option(
-    "--endpoint <url>",
-    "Override ingest origin (default: derived from NEXT_PUBLIC_VOLATO_DSN)",
-  )
-  .option("--release <sha>", "Scope the purge to one release")
-  .action(
-    async (opts: {
-      token?: string;
-      endpoint?: string;
-      release?: string;
-    }) => {
-      try {
-        await runPurge({
-          token: opts.token,
-          endpoint: opts.endpoint,
-          release: opts.release,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        process.stderr.write(`volato: ${message}\n`);
-        process.exit(1);
-      }
-    },
-  );
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
