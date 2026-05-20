@@ -421,7 +421,20 @@ function printNextSteps(middlewarePath: string | null, cwd: string): void {
       "{ error }",
     )} (no throw), call ${pc.cyan(
       "reportActionError",
-    )} from the catch branch.\n\n`,
+    )} from the catch branch.\n`,
+  );
+  // The token gates the automatic sourcemap upload that `withVolato()`
+  // performs at `next build`. Without it, prod errors arrive as
+  // minified frames and the agent can't open the offending file.
+  // Find it in the project's dashboard alongside the DSN.
+  process.stdout.write(
+    `  ${pc.dim("5.")} ${pc.bold("(CI)")} Set ${pc.cyan(
+      "VOLATO_INGEST_TOKEN",
+    )} in your CI environment — ${pc.cyan(
+      "withVolato()",
+    )} uses it to upload\n     sourcemaps at ${pc.cyan(
+      "next build",
+    )}. Without it, prod errors show minified frames.\n\n`,
   );
   process.stdout.write(
     `${pc.green("✓")} Done. ${pc.dim(
