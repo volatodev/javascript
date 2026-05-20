@@ -3,8 +3,8 @@
  *
  *   1. Force-enable production browser source maps so a real stack can be
  *      symbolicated.
- *   2. Inject a webpack plugin that, after build, POSTs every `.map` file
- *      under the build output to the project's source-map upload endpoint.
+ *   2. Inject a webpack plugin that, after build, uploads every `.js.map`
+ *      under the build output to the project's ingest endpoint.
  *   3. Optionally delete the `.map` files from the served output so they
  *      don't ship to end users (`hideSourceMaps: true`).
  *
@@ -13,25 +13,29 @@
  * client-side code or middleware.
  */
 
-import { readdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
-import { join, relative } from "node:path";
-import { dsnToIngestUrl, parseDSN } from "@volatodev/core";
+import { readdirSync, statSync } from "node:fs";
+import { readFile, unlink } from "node:fs/promises";
+import { join, relative, sep } from "node:path";
+import { dsnToIngestUrl, parseDSN, projectFramePath } from "@volatodev/core";
+import { detectRelease } from "./internal/release";
 
 export type WithVolatoOptions = {
   /**
-   * DSN to attach to uploaded source maps. Defaults to
-   * `process.env.NEXT_PUBLIC_VOLATO_DSN`. The webpack plugin runs at
-   * build time so `process.env` is the natural place to read it from.
+   * DSN used to derive the ingest origin. Defaults to
+   * `process.env.NEXT_PUBLIC_VOLATO_DSN`. The DSN is **not** used as
+   * auth on the upload path — the ingest route rejects DSN-bearing
+   * write requests by design. Only its host portion matters here.
    */
   dsn?: string;
   /**
    * Release identifier the maps belong to. Defaults to
-   * `process.env.VOLATO_RELEASE`. Source-map symbolication keys on this.
+   * `detectRelease()` (VOLATO_RELEASE / NEXT_PUBLIC_VOLATO_RELEASE).
+   * Source-map symbolication keys on this.
    */
   release?: string;
   /**
-   * Delete `.map` files from the build output after upload so they
-   * aren't served to end users. Default `true` for production builds.
+   * Delete `.map` files from the build output after a successful
+   * upload so they aren't served to end users. Default `true`.
    */
   hideSourceMaps?: boolean;
   /**
@@ -41,26 +45,25 @@ export type WithVolatoOptions = {
    */
   disableUpload?: boolean;
   /**
-   * Override the upload endpoint. Defaults to
-   * `${ingest_origin}/api/sourcemaps`.
+   * Override the upload endpoint. Defaults to the ingest origin
+   * derived from the DSN.
    */
   uploadUrl?: string;
 };
 
-const MAX_MAP_BYTES = 10 * 1024 * 1024; // 10 MB hard cap; bigger = skip
-
-// Directories under the build output that must NOT be walked for map
-// uploads. `cache/` is webpack's persistent build cache — full of
+// Webpack's persistent build cache lives under `cache/` and is full of
 // `.map` files from previous compilations that are not part of the
-// served bundle. Walking them would upload thousands of stale,
-// useless source maps every build.
-const SKIP_DIRS = new Set([
-  "cache",
-  ".cache",
-  "node_modules",
-]);
+// served bundle. Walking them would upload thousands of stale maps
+// every build.
+const SKIP_DIRS = new Set(["cache", ".cache", "node_modules"]);
 
-function* walkMapFiles(root: string): Iterable<string> {
+const UPLOAD_CONCURRENCY = 8;
+// Backoff sequence for transient failures (network / 5xx). 4xx errors
+// indicate a misconfiguration the user must see, so they're surfaced
+// immediately without retry.
+const RETRY_DELAYS_MS = [200, 800, 3200] as const;
+
+function* walkJsMapFiles(root: string): Iterable<string> {
   let entries: string[];
   try {
     entries = readdirSync(root);
@@ -77,37 +80,151 @@ function* walkMapFiles(root: string): Iterable<string> {
     }
     if (s.isDirectory()) {
       if (SKIP_DIRS.has(entry)) continue;
-      yield* walkMapFiles(full);
-    } else if (s.isFile() && full.endsWith(".map")) {
+      yield* walkJsMapFiles(full);
+    } else if (s.isFile() && full.endsWith(".js.map")) {
       yield full;
     }
   }
 }
 
-async function uploadMap(
-  uploadUrl: string,
-  dsn: string,
-  release: string | undefined,
-  filename: string,
-  content: string,
-): Promise<void> {
+const sleep = (ms: number): Promise<void> =>
+  new Promise((r) => setTimeout(r, ms));
+
+type UploadOutcome = "uploaded" | "updated" | "skipped" | "failed";
+
+/**
+ * Upload one `.js.map` to `POST /api/sourcemaps`.
+ *
+ * Auth: `Authorization: Bearer ${VOLATO_INGEST_TOKEN}`. The DSN must
+ * not be used here — the ingest explicitly rejects DSN-bearing write
+ * requests because the DSN lives in browser bundles and would let any
+ * client forge sourcemap uploads.
+ *
+ * Privacy: `sourcesContent` is stripped before transit. This is the
+ * load-bearing line for "your code stays in your repo" — Volato gets
+ * file paths + identifier names + position mappings, never the source.
+ *
+ * Retries: bounded (3 attempts) on network errors and 5xx only. 4xx
+ * surfaces immediately as a loud warning — these are misconfigurations
+ * (wrong token, oversized map, malformed sourcemap) that retrying just
+ * delays.
+ */
+async function uploadOne(args: {
+  mapPath: string;
+  jsRelative: string;
+  release: string;
+  endpoint: string;
+  token: string;
+  fetchImpl: typeof fetch;
+  warn: (msg: string) => void;
+}): Promise<UploadOutcome> {
+  const key = projectFramePath(args.jsRelative);
+  if (!key) {
+    args.warn(
+      `Skipping ${args.jsRelative} — no hashed filename, resolver cannot look this up.`,
+    );
+    return "skipped";
+  }
+
+  let sanitised: string;
   try {
-    await fetch(uploadUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Volato-DSN": dsn,
-        ...(release ? { "X-Volato-Release": release } : {}),
-      },
-      body: JSON.stringify({ filename, content }),
-    });
+    const raw = await readFile(args.mapPath, "utf8");
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    delete parsed.sourcesContent;
+    sanitised = JSON.stringify(parsed);
   } catch {
-    // Build must never fail because of a sourcemap upload error.
+    args.warn(`Skipping ${args.jsRelative} — sourcemap is not valid JSON.`);
+    return "skipped";
+  }
+
+  const fd = new FormData();
+  fd.set("release", args.release);
+  fd.set("filename_hash", key.filename_hash);
+  fd.set("display_path", key.display_path);
+  fd.set(
+    "map",
+    new Blob([sanitised], { type: "application/json" }),
+    `${key.filename_hash}.map`,
+  );
+
+  const url = new URL("/api/sourcemaps", args.endpoint);
+
+  for (let attempt = 0; ; attempt++) {
+    let res: Response;
+    try {
+      res = await args.fetchImpl(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${args.token}` },
+        body: fd,
+      });
+    } catch (err) {
+      if (attempt < RETRY_DELAYS_MS.length) {
+        await sleep(RETRY_DELAYS_MS[attempt]!);
+        continue;
+      }
+      args.warn(
+        `Upload of ${args.jsRelative} failed after ${attempt + 1} attempts (network): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return "failed";
+    }
+
+    if (res.status === 201) return "uploaded";
+    if (res.status === 200) return "updated";
+
+    if (res.status === 401) {
+      args.warn(
+        "VOLATO_INGEST_TOKEN rejected by ingest. Check it matches the project's ingestToken in the dashboard.",
+      );
+      return "failed";
+    }
+
+    if (res.status >= 500 && attempt < RETRY_DELAYS_MS.length) {
+      await sleep(RETRY_DELAYS_MS[attempt]!);
+      continue;
+    }
+
+    const text = await res.text().catch(() => "");
+    args.warn(
+      `Upload of ${args.jsRelative} failed: ${res.status} ${text}`.trim(),
+    );
+    return "failed";
   }
 }
 
+async function withConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  async function pull(): Promise<void> {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      out[i] = await worker(items[i]!);
+    }
+  }
+  const lanes = Array.from(
+    { length: Math.min(limit, items.length) },
+    () => pull(),
+  );
+  await Promise.all(lanes);
+  return out;
+}
+
+export type VolatoSourceMapsPluginInternals = {
+  fetchImpl?: typeof fetch;
+  cwd?: string;
+};
+
 class VolatoSourceMapsPlugin {
-  constructor(private readonly opts: WithVolatoOptions) {}
+  constructor(
+    private readonly opts: WithVolatoOptions,
+    private readonly internals: VolatoSourceMapsPluginInternals = {},
+  ) {}
 
   apply(compiler: {
     options: { output?: { path?: string } };
@@ -118,48 +235,98 @@ class VolatoSourceMapsPlugin {
     compiler.hooks.afterEmit.tapPromise(
       "VolatoSourceMapsPlugin",
       async () => {
-        const dsn = this.opts.dsn ?? process.env.NEXT_PUBLIC_VOLATO_DSN;
-        if (!dsn) return;
-        try {
-          parseDSN(dsn);
-        } catch {
+        const warn = (msg: string): void => {
+          if (typeof console !== "undefined") console.warn(`[Volato] ${msg}`);
+        };
+
+        let endpoint: string | undefined;
+        if (this.opts.uploadUrl) {
+          try {
+            endpoint = new URL(this.opts.uploadUrl).origin;
+          } catch {
+            warn(
+              `uploadUrl "${this.opts.uploadUrl}" is not a valid URL — sourcemaps will not be uploaded.`,
+            );
+            return;
+          }
+        } else {
+          const dsn = this.opts.dsn ?? process.env.NEXT_PUBLIC_VOLATO_DSN;
+          if (!dsn) {
+            warn(
+              "no DSN configured (NEXT_PUBLIC_VOLATO_DSN) — sourcemaps will not be uploaded.",
+            );
+            return;
+          }
+          try {
+            parseDSN(dsn);
+            endpoint = dsnToIngestUrl(dsn).replace(/\/api\/ingest$/, "");
+          } catch {
+            warn(
+              "NEXT_PUBLIC_VOLATO_DSN is not a valid DSN — sourcemaps will not be uploaded.",
+            );
+            return;
+          }
+        }
+
+        const token = process.env.VOLATO_INGEST_TOKEN;
+        if (!token) {
+          // Already warned at withVolato() load-time; staying silent
+          // here avoids doubling the noise on every build.
           return;
         }
-        const release = this.opts.release ?? process.env.VOLATO_RELEASE;
-        const uploadUrl =
-          this.opts.uploadUrl ?? `${dsnToIngestUrl(dsn).replace(/\/api\/ingest$/, "")}/api/sourcemaps`;
+
+        const release = this.opts.release ?? detectRelease();
+        if (!release) {
+          warn(
+            "no release tag — sourcemaps will not be uploaded. Set VOLATO_RELEASE in your CI " +
+              "or run `npx volato init` to wire your provider's commit SHA.",
+          );
+          return;
+        }
+
         const outputRoot = compiler.options.output?.path;
         if (!outputRoot) return;
 
+        const cwd = this.internals.cwd ?? process.cwd();
+        const fetchImpl = this.internals.fetchImpl ?? fetch;
         const hide = this.opts.hideSourceMaps ?? true;
-        const skipped: string[] = [];
 
-        for (const mapPath of walkMapFiles(outputRoot)) {
-          let content: string;
-          try {
-            const stat = statSync(mapPath);
-            if (stat.size > MAX_MAP_BYTES) {
-              skipped.push(`${relative(outputRoot, mapPath)} (${Math.round(stat.size / 1024)}KB)`);
-              continue;
-            }
-            content = readFileSync(mapPath, "utf8");
-          } catch {
-            continue;
-          }
-          const rel = relative(outputRoot, mapPath);
-          await uploadMap(uploadUrl, dsn, release, rel, content);
-          if (hide) {
-            try {
-              unlinkSync(mapPath);
-            } catch {
-              // best-effort
-            }
-          }
-        }
+        const maps: string[] = [];
+        for (const mapPath of walkJsMapFiles(outputRoot)) maps.push(mapPath);
+        if (maps.length === 0) return;
 
-        if (skipped.length > 0 && typeof console !== "undefined") {
-          console.warn(
-            `[Volato] Skipped ${skipped.length} source map(s) larger than ${MAX_MAP_BYTES / 1024 / 1024}MB — these are exactly the bundles you'd most want symbolicated. Consider splitting your chunks. First few skipped:\n  - ${skipped.slice(0, 5).join("\n  - ")}`,
+        const outcomes = await withConcurrency(
+          maps,
+          UPLOAD_CONCURRENCY,
+          async (mapPath) => {
+            const jsRelative = relative(cwd, mapPath)
+              .split(sep)
+              .join("/")
+              .replace(/\.map$/, "");
+            const outcome = await uploadOne({
+              mapPath,
+              jsRelative,
+              release,
+              endpoint: endpoint!,
+              token,
+              fetchImpl,
+              warn,
+            });
+            if (hide && (outcome === "uploaded" || outcome === "updated")) {
+              try {
+                await unlink(mapPath);
+              } catch {
+                // best-effort
+              }
+            }
+            return outcome;
+          },
+        );
+
+        const failed = outcomes.filter((o) => o === "failed").length;
+        if (failed > 0) {
+          warn(
+            `${failed}/${outcomes.length} sourcemap(s) failed to upload — the agent will see minified frames for those releases until a re-deploy lands the maps.`,
           );
         }
       },
@@ -189,6 +356,7 @@ type NextConfigLike = {
 export function withVolato<T extends NextConfigLike = NextConfigLike>(
   nextConfig: T,
   options: WithVolatoOptions = {},
+  internals: VolatoSourceMapsPluginInternals = {},
 ): T {
   if (options.disableUpload) {
     return { ...nextConfig, productionBrowserSourceMaps: true };
@@ -232,7 +400,7 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
         "plugins" in next
       ) {
         const plugins = (next as { plugins?: unknown[] }).plugins ?? [];
-        plugins.push(new VolatoSourceMapsPlugin(options));
+        plugins.push(new VolatoSourceMapsPlugin(options, internals));
         (next as { plugins?: unknown[] }).plugins = plugins;
       }
       return next;
