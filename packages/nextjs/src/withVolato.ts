@@ -387,17 +387,31 @@ type NextConfigLike = {
  * tool every Next.js project already uses; baking hoster-specific names
  * into the SDK would couple us to those companies' naming conventions.
  */
-function detectGitSha(): string | undefined {
+function detectGitSha(cwd?: string): string | undefined {
   try {
     const out = execSync("git rev-parse HEAD", {
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 1000,
       encoding: "utf8",
+      cwd,
     }).trim();
     return /^[a-f0-9]{40}$/.test(out) ? out : undefined;
   } catch {
     return undefined;
   }
+}
+
+/** Test-only — exposes `detectGitSha` for direct assertion. */
+export function __detectGitShaForTests(cwd?: string): string | undefined {
+  return detectGitSha(cwd);
+}
+
+/** Test-only — exposes `buildEnvWithRelease` for direct assertion. */
+export function __buildEnvWithReleaseForTests(
+  existingEnv: unknown,
+  sha: string | undefined,
+): Record<string, string> {
+  return buildEnvWithRelease(existingEnv, sha);
 }
 
 /**
@@ -407,28 +421,23 @@ function detectGitSha(): string | undefined {
  * statically — see `internal/release.ts` for why static access is
  * load-bearing here.
  *
- * Precedence (first non-empty wins):
- *
- *   1. `options.release` (explicit override at the `withVolato()` call site)
- *   2. `process.env.VOLATO_RELEASE` (user set it in shell / `.env`)
- *   3. `detectGitSha()` (the auto-detect path most users land on)
- *
  * The user's own entries in `nextConfig.env` are preserved untouched,
  * and we never overwrite `VOLATO_RELEASE` / `NEXT_PUBLIC_VOLATO_RELEASE`
  * if they already exist in `nextConfig.env` — the user wired it
  * manually for a reason.
+ *
+ * Pure: the SHA is resolved by the caller. Keeps the function testable
+ * in isolation from the `execSync` shell-out.
  */
 function buildEnvWithRelease(
   existingEnv: unknown,
-  options: WithVolatoOptions,
+  sha: string | undefined,
 ): Record<string, string> {
   const userEnv: Record<string, string> =
     existingEnv && typeof existingEnv === "object" && !Array.isArray(existingEnv)
       ? { ...(existingEnv as Record<string, string>) }
       : {};
 
-  const sha =
-    options.release ?? process.env.VOLATO_RELEASE ?? detectGitSha();
   if (!sha) return userEnv;
 
   if (!("VOLATO_RELEASE" in userEnv)) userEnv.VOLATO_RELEASE = sha;
@@ -436,6 +445,21 @@ function buildEnvWithRelease(
     userEnv.NEXT_PUBLIC_VOLATO_RELEASE = sha;
   }
   return userEnv;
+}
+
+/**
+ * Resolve the release tag from the precedence chain :
+ *
+ *   1. `options.release` (explicit override at the `withVolato()` call site)
+ *   2. `process.env.VOLATO_RELEASE` (user set it in shell / `.env`)
+ *   3. `detectGitSha()` (the auto-detect path most users land on)
+ *
+ * Returns undefined when none of the three yields a value.
+ */
+function resolveRelease(options: WithVolatoOptions): string | undefined {
+  return (
+    options.release ?? process.env.VOLATO_RELEASE ?? detectGitSha()
+  );
 }
 
 /**
@@ -454,7 +478,7 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
     return {
       ...nextConfig,
       productionBrowserSourceMaps: true,
-      env: buildEnvWithRelease(nextConfig.env, options),
+      env: buildEnvWithRelease(nextConfig.env, resolveRelease(options)),
     };
   }
 
@@ -482,7 +506,7 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
   return {
     ...nextConfig,
     productionBrowserSourceMaps: true,
-    env: buildEnvWithRelease(nextConfig.env, options),
+    env: buildEnvWithRelease(nextConfig.env, resolveRelease(options)),
     webpack(
       config: { plugins?: unknown[] } & Record<string, unknown>,
       ctx: { isServer?: boolean },
