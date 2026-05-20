@@ -8,67 +8,73 @@
  *                  | NODE_ENV
  *   dist:          VOLATO_DIST | NEXT_PUBLIC_VOLATO_DIST
  *
- * Browser bundles see the `NEXT_PUBLIC_*` form because Next replaces it
- * at build time. Server sees both. Reads are memoized: env doesn't change
- * between events, so we don't re-walk the env on every capture.
+ * **Static env access on purpose.** Webpack's DefinePlugin (which Next
+ * uses to inline `NEXT_PUBLIC_*` into client bundles, and which we
+ * piggy-back on by setting `env: { VOLATO_RELEASE: ... }` in
+ * `withVolato()`) only replaces *static* `process.env.SOMETHING`
+ * references. A dynamic read via `process.env[name]` would compile to
+ * a lookup on an object that doesn't exist in the browser. Each
+ * reachable env var is therefore named in code below, not pulled from
+ * a list. Reads are memoized: env doesn't change between events, so
+ * we don't re-evaluate the chain on every capture.
  *
- * The SDK does not read provider-specific env vars (no Vercel, Netlify,
- * Cloudflare, etc.). Users hosting on a provider that exposes a build SHA
- * map it themselves to `VOLATO_RELEASE`, e.g. in `next.config`:
- *
- *   process.env.VOLATO_RELEASE ??= process.env.VERCEL_GIT_COMMIT_SHA;
+ * The SDK does not read provider-specific env vars (no Vercel,
+ * Netlify, Cloudflare, etc.). Release tagging is auto-handled by
+ * `withVolato()`, which runs `git rev-parse HEAD` at build time and
+ * injects the SHA into Next's `env` config. A user wanting to override
+ * — e.g. shipping with a semver tag instead of a commit SHA — sets
+ * `VOLATO_RELEASE` explicitly in their CI env; the explicit value
+ * takes precedence over the git-derived one.
  */
 
-function readEnv(name: string): string | undefined {
-  if (typeof process === "undefined" || !process.env) return undefined;
-  const v = process.env[name];
+function trimmed(v: unknown): string | undefined {
   if (typeof v !== "string") return undefined;
-  const trimmed = v.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
+  const s = v.trim();
+  return s.length > 0 ? s : undefined;
 }
 
-function firstOf(names: readonly string[]): string | undefined {
-  for (const name of names) {
-    const v = readEnv(name);
-    if (v) return v;
-  }
-  return undefined;
+function readProcessEnv(): NodeJS.ProcessEnv | undefined {
+  return typeof process !== "undefined" && process.env ? process.env : undefined;
 }
-
-const RELEASE_VARS = [
-  "VOLATO_RELEASE",
-  "NEXT_PUBLIC_VOLATO_RELEASE",
-] as const;
-
-const ENV_VARS = [
-  "VOLATO_ENVIRONMENT",
-  "NEXT_PUBLIC_VOLATO_ENVIRONMENT",
-  "NODE_ENV",
-] as const;
-
-const DIST_VARS = [
-  "VOLATO_DIST",
-  "NEXT_PUBLIC_VOLATO_DIST",
-] as const;
 
 let cachedRelease: string | null | undefined;
 let cachedEnvironment: string | null | undefined;
 let cachedDist: string | null | undefined;
 
 export function detectRelease(): string | undefined {
-  if (cachedRelease === undefined) cachedRelease = firstOf(RELEASE_VARS) ?? null;
+  if (cachedRelease === undefined) {
+    const env = readProcessEnv();
+    // Static accesses — DefinePlugin replaces these at build time on
+    // the client. Server reads them at runtime from the real env.
+    const fromServer = env ? trimmed(env.VOLATO_RELEASE) : undefined;
+    const fromPublic = env
+      ? trimmed(env.NEXT_PUBLIC_VOLATO_RELEASE)
+      : undefined;
+    cachedRelease = fromServer ?? fromPublic ?? null;
+  }
   return cachedRelease ?? undefined;
 }
 
 export function detectEnvironment(): string | undefined {
   if (cachedEnvironment === undefined) {
-    cachedEnvironment = firstOf(ENV_VARS) ?? null;
+    const env = readProcessEnv();
+    const fromServer = env ? trimmed(env.VOLATO_ENVIRONMENT) : undefined;
+    const fromPublic = env
+      ? trimmed(env.NEXT_PUBLIC_VOLATO_ENVIRONMENT)
+      : undefined;
+    const fromNode = env ? trimmed(env.NODE_ENV) : undefined;
+    cachedEnvironment = fromServer ?? fromPublic ?? fromNode ?? null;
   }
   return cachedEnvironment ?? undefined;
 }
 
 export function detectDist(): string | undefined {
-  if (cachedDist === undefined) cachedDist = firstOf(DIST_VARS) ?? null;
+  if (cachedDist === undefined) {
+    const env = readProcessEnv();
+    const fromServer = env ? trimmed(env.VOLATO_DIST) : undefined;
+    const fromPublic = env ? trimmed(env.NEXT_PUBLIC_VOLATO_DIST) : undefined;
+    cachedDist = fromServer ?? fromPublic ?? null;
+  }
   return cachedDist ?? undefined;
 }
 

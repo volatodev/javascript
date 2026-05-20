@@ -13,6 +13,7 @@
  * client-side code or middleware.
  */
 
+import { execSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
 import { readFile, unlink } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
@@ -363,6 +364,81 @@ type NextConfigLike = {
 };
 
 /**
+ * Resolve the current build's commit SHA from `git rev-parse HEAD`.
+ *
+ * Runs once at `next.config.ts` load time. The shell-out is sub-ms
+ * in a real repo; we still cap it at 1 second to defend against an
+ * unhealthy git or a file-system stall. The result is validated as a
+ * 40-char hex SHA — anything else (warning text on a misconfigured
+ * git, empty output) is treated as a miss and we return undefined.
+ *
+ * Returns undefined on the three real-world failure modes:
+ *   - `.git` is missing (Docker build that excluded it via
+ *     `.dockerignore`, or `git clone --depth=0`)
+ *   - the `git` binary isn't on `PATH` (minimal alpine, distroless)
+ *   - the subprocess hangs and trips the 1s timeout
+ *
+ * Caller is expected to fall back gracefully — the downstream warning
+ * in the sourcemap-upload plugin already covers the "no release tag"
+ * case loudly. We never throw from here.
+ *
+ * Why not read provider env vars (`VERCEL_GIT_COMMIT_SHA`, `COMMIT_REF`,
+ * `CF_PAGES_COMMIT_SHA`, etc.)? Clean-room policy. Git is the universal
+ * tool every Next.js project already uses; baking hoster-specific names
+ * into the SDK would couple us to those companies' naming conventions.
+ */
+function detectGitSha(): string | undefined {
+  try {
+    const out = execSync("git rev-parse HEAD", {
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 1000,
+      encoding: "utf8",
+    }).trim();
+    return /^[a-f0-9]{40}$/.test(out) ? out : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Merge a release tag into the `env` block of the returned Next.js
+ * config so Next inlines it into both server and client bundles via
+ * DefinePlugin. The SDK's `detectRelease()` reads the inlined value
+ * statically — see `internal/release.ts` for why static access is
+ * load-bearing here.
+ *
+ * Precedence (first non-empty wins):
+ *
+ *   1. `options.release` (explicit override at the `withVolato()` call site)
+ *   2. `process.env.VOLATO_RELEASE` (user set it in shell / `.env`)
+ *   3. `detectGitSha()` (the auto-detect path most users land on)
+ *
+ * The user's own entries in `nextConfig.env` are preserved untouched,
+ * and we never overwrite `VOLATO_RELEASE` / `NEXT_PUBLIC_VOLATO_RELEASE`
+ * if they already exist in `nextConfig.env` — the user wired it
+ * manually for a reason.
+ */
+function buildEnvWithRelease(
+  existingEnv: unknown,
+  options: WithVolatoOptions,
+): Record<string, string> {
+  const userEnv: Record<string, string> =
+    existingEnv && typeof existingEnv === "object" && !Array.isArray(existingEnv)
+      ? { ...(existingEnv as Record<string, string>) }
+      : {};
+
+  const sha =
+    options.release ?? process.env.VOLATO_RELEASE ?? detectGitSha();
+  if (!sha) return userEnv;
+
+  if (!("VOLATO_RELEASE" in userEnv)) userEnv.VOLATO_RELEASE = sha;
+  if (!("NEXT_PUBLIC_VOLATO_RELEASE" in userEnv)) {
+    userEnv.NEXT_PUBLIC_VOLATO_RELEASE = sha;
+  }
+  return userEnv;
+}
+
+/**
  * Wrap a Next.js config to enable production browser source maps and
  * upload them to Volato at build time.
  *
@@ -375,7 +451,11 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
   options: WithVolatoOptions = {},
 ): T {
   if (options.disableUpload) {
-    return { ...nextConfig, productionBrowserSourceMaps: true };
+    return {
+      ...nextConfig,
+      productionBrowserSourceMaps: true,
+      env: buildEnvWithRelease(nextConfig.env, options),
+    };
   }
 
   // Build-time warning. The token gates the entire sourcemap upload
@@ -402,6 +482,7 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
   return {
     ...nextConfig,
     productionBrowserSourceMaps: true,
+    env: buildEnvWithRelease(nextConfig.env, options),
     webpack(
       config: { plugins?: unknown[] } & Record<string, unknown>,
       ctx: { isServer?: boolean },
