@@ -1,6 +1,6 @@
 # Volato JavaScript SDKs
 
-Official JavaScript and TypeScript SDKs for [Volato](https://volato.dev) — MCP-native error tracking for modern web apps.
+Official JavaScript and TypeScript packages for [Volato](https://volato.dev) — agent-native error tracking for modern web apps.
 
 ## Packages
 
@@ -8,12 +8,15 @@ Official JavaScript and TypeScript SDKs for [Volato](https://volato.dev) — MCP
 | --- | --- |
 | [`@volatodev/core`](./packages/core) | Wire format schemas and DSN parser, shared between SDKs and ingestion. |
 | [`@volatodev/nextjs`](./packages/nextjs) | Next.js error tracking SDK — captures errors across all Next.js runtimes. |
+| [`@volatodev/cli`](./packages/cli) | The agent-facing CLI. Install once, your AI agent shells out from any terminal. |
 
 ## Quickstart (Next.js)
 
 ```bash
 pnpm add @volatodev/nextjs
-npx volato init
+npm install -g @volatodev/cli
+volato init                     # wires the SDK into your Next.js app
+volato login <token>            # workspace token from https://app.volato.dev
 ```
 
 Set your DSN in `.env.local`:
@@ -65,7 +68,7 @@ export default function Error({
 
 ## Automatic context (breadcrumbs)
 
-Once `VolatoBootstrap` is mounted, the SDK can record a trail of what happened *before* an error fires. The MCP server returns those breadcrumbs alongside the stack so the agent reads the trigger sequence, not just the crash.
+Once `VolatoBootstrap` is mounted, the SDK can record a trail of what happened *before* an error fires. The CLI returns those breadcrumbs alongside the stack so the agent reads the trigger sequence, not just the crash.
 
 Three opt-in instrumentations are shipped — they are silent until you call them:
 
@@ -105,24 +108,20 @@ import { addBreadcrumb } from "@volatodev/nextjs/client";
 addBreadcrumb({ category: "auth", message: "user signed in", data: { userId } });
 ```
 
-The MCP renderer caps the rendered timeline at the 12 most-recent breadcrumbs (newest first), so noisy categories don't crowd out the relevant ones.
+The CLI caps the rendered timeline at the 12 most-recent breadcrumbs (newest first), so noisy categories don't crowd out the relevant ones.
 
-## MCP integration
+## Agent loop
 
-Volato exposes an MCP server so any LLM-powered IDE (Claude Code, Cursor, etc.) can query your errors directly:
+The CLI is the primary surface for AI agents. Tell your agent to run `volato readme` and it discovers every command in one call:
 
-```json
-{
-  "mcpServers": {
-    "volato": {
-      "url": "https://api.volato.dev/v1/mcp",
-      "headers": {
-        "Authorization": "Bearer ${VOLATO_MCP_TOKEN}"
-      }
-    }
-  }
-}
+```bash
+volato errors list                  # browse open groups
+volato errors show <id>             # one-call fix context (stack + commit + source)
+volato errors show                  # most recent unresolved across the workspace
+volato errors resolve <id> --note "fixed in PR #123"
 ```
+
+Each command prints agent-ready markdown by default; pass `--json` for the structured payload.
 
 ## Development
 
