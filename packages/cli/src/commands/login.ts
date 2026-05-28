@@ -8,7 +8,11 @@
  * memory after reading the docs.
  */
 import prompts from "prompts";
-import { writeToken, credentialsLocation } from "../lib/credentials.js";
+import {
+  credentialsLocation,
+  readToken,
+  writeToken,
+} from "../lib/credentials.js";
 import { printLocalError, printOk } from "../lib/output.js";
 
 export async function runLogin(args: { token?: string }): Promise<void> {
@@ -40,7 +44,6 @@ export async function runWhoami(): Promise<void> {
   // token is present and where it lives. A real /whoami endpoint
   // (user email + workspace name) lands when we add the API call
   // in a follow-up.
-  const { readToken } = await import("../lib/credentials.js");
   const token = await readToken();
   if (!token) {
     printLocalError(
