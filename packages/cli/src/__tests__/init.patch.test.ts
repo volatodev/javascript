@@ -15,7 +15,7 @@ import {
   patchLayout,
   patchNextConfig,
   patchTunnelRoute,
-} from "../cli/patch";
+} from "../commands/init/patch";
 
 let cwd: string;
 

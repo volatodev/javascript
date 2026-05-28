@@ -20,6 +20,7 @@
  * print it directly.
  */
 import { Command } from "commander";
+import { runInit } from "./commands/init/init.js";
 import { runLogin, runWhoami } from "./commands/login.js";
 import {
   runErrorsList,
@@ -36,6 +37,19 @@ program
   .description(
     "Volato CLI — agent-native error tracking. Run `volato readme` for the full surface.",
   );
+
+program
+  .command("init")
+  .description("Wire @volatodev/nextjs into the current Next.js project")
+  .action(async () => {
+    try {
+      await runInit({ cwd: process.cwd() });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      printLocalError(message);
+      process.exit(1);
+    }
+  });
 
 program
   .command("login")
