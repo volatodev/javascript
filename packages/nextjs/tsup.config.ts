@@ -63,23 +63,4 @@ export default defineConfig([
     banner: { js: '"use client";' },
     onSuccess: ensureUseClientBanner,
   },
-  // CLI bundle — CJS so deeply-nested CommonJS deps (commander v14
-  // internally `require`s `events`) don't hit the ESM "Dynamic
-  // require of …" wall. The CLI runs in Node only; CJS is the
-  // pragmatic format here even though the rest of the package is
-  // dual-ESM/CJS. tsup outputs `.cjs` by default for the cjs format;
-  // we keep the `.js` extension via `outExtension` so the `bin`
-  // entry in package.json stays stable.
-  {
-    entry: { cli: "src/cli.ts" },
-    format: ["cjs"],
-    dts: false,
-    clean: false,
-    sourcemap: false,
-    target: "es2022",
-    minify: false,
-    splitting: false,
-    noExternal: ["commander", "prompts", "picocolors", "kleur", "sisteransi"],
-    banner: { js: "#!/usr/bin/env node" },
-  },
 ]);

@@ -19,16 +19,13 @@
     "nextjs",
     "error-tracking",
     "observability",
-    "mcp",
+    "ai-agents",
     "sdk",
     "typescript"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "volato": "./dist/cli.cjs"
-  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -85,15 +82,11 @@
     "react-dom": ">=18.0.0"
   },
   "dependencies": {
-    "@volatodev/core": "link:/home/nicolas/volato-dev/javascript/packages/core",
-    "commander": "^14.0.3",
-    "picocolors": "^1.1.1",
-    "prompts": "^2.4.2"
+    "@volatodev/core": "link:/home/nicolas/volato-dev/javascript/packages/core"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
     "@types/node": "^24.0.0",
-    "@types/prompts": "^2.4.9",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "happy-dom": "^15.11.7",
