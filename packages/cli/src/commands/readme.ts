@@ -2,10 +2,10 @@
  * `volato readme` — print the full command surface as markdown.
  *
  * The point of this command: an AI agent that's never seen Volato
- * before runs `volato readme` and gets every command + flag in one
- * call. Equivalent of `tools/list` for an MCP server, except the
- * CLI works in any terminal without client config. Keep the output
- * stable and machine-friendly; this is part of the contract.
+ * before runs `volato readme` and gets every command + flag + env
+ * knob in one call. Equivalent of `tools/list` for an MCP server,
+ * except the CLI works in any terminal without client config. Keep
+ * the output stable and machine-friendly; this is part of the contract.
  */
 
 const README = `# volato — Volato CLI
@@ -20,6 +20,15 @@ terminal or have your agent shell out.
 
 The token is workspace-scoped and covers every project in the
 workspace. Stored at ~/.config/volato/credentials (mode 0600).
+
+## Install into a Next.js app
+
+    volato init
+
+Patches a Next.js 15 project — env vars, layout bootstrap,
+instrumentation hook, optional tunnel route — and sends a test event
+so you see capture land before your dev server has restarted.
+Idempotent: re-running converges, never duplicates.
 
 ## Reading errors
 
@@ -56,6 +65,12 @@ reopen does NOT erase prior notes; the full history surfaces in
 Every command prints agent-ready markdown by default. Pass --json
 to get the structured payload instead. Both forms are stable
 contracts.
+
+## Environment
+
+    VOLATO_API_URL              # override the API base (default https://api.volato.dev)
+    VOLATO_CREDENTIALS_FILE     # override the credentials file path
+    XDG_CONFIG_HOME             # base dir for ~/.config (honoured for credentials)
 
 ## Where things break
 
