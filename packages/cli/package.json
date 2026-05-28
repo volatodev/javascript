@@ -1,0 +1,56 @@
+{
+  "name": "@volatodev/cli",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Volato CLI — the agent-facing surface for reading, triaging, and resolving errors from any terminal.",
+  "license": "MIT",
+  "author": "Wrenchy SASU",
+  "homepage": "https://github.com/volatodev/javascript#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/volatodev/javascript.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/volatodev/javascript/issues"
+  },
+  "keywords": [
+    "volato",
+    "cli",
+    "error-tracking",
+    "observability",
+    "ai-agents"
+  ],
+  "bin": {
+    "volato": "./dist/cli.cjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist .turbo",
+    "prepublishOnly": "pnpm clean && pnpm build && pnpm test"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/prompts": "^2.4.9",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
