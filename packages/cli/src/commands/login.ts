@@ -1,42 +1,129 @@
 /**
- * `volato login [token]` — write the workspace bearer to disk.
+ * `volato login` — authenticate the CLI.
  *
- * If `token` is passed as an argument we skip the prompt. That's the
- * shape the dashboard's copy-paste snippet emits (`volato login XXX`),
- * and it's also the shape CI scripts use. Without the argument we
- * prompt interactively — handy for users typing the command from
- * memory after reading the docs.
+ * Three paths, in priority order:
+ *   1. Explicit token — `volato login <token>` (dashboard copy-paste)
+ *      or `--stdin` (pipe it without leaking it in `ps`). Stored as-is.
+ *   2. Interactive browser code flow (the default, à la Claude Code):
+ *      open app.volato.dev/cli, the page shows a one-time code, paste
+ *      it back; we exchange it for the workspace token.
+ *   3. Non-interactive with no token — we DON'T hang on a prompt; we
+ *      fail loudly pointing at VOLATO_TOKEN / --stdin.
+ *
+ * Headless callers (CI, agents) can skip `login` entirely: the API
+ * client falls back to VOLATO_TOKEN from the environment.
  */
+import { spawn } from "node:child_process";
 import prompts from "prompts";
+import { postJsonPublic } from "../lib/api-client.js";
 import {
   credentialsLocation,
   deleteToken,
   readToken,
   writeToken,
 } from "../lib/credentials.js";
-import { printLocalError, printOk } from "../lib/output.js";
+import { EXIT } from "../lib/exit.js";
+import { printApiError, printLocalError, printOk } from "../lib/output.js";
 
-export async function runLogin(args: { token?: string }): Promise<void> {
-  let token = args.token?.trim();
-  if (!token) {
-    const answer = await prompts({
-      type: "password",
-      name: "token",
-      message: "Paste your Volato token (from https://app.volato.dev):",
+const DEFAULT_APP_URL = "https://app.volato.dev";
+
+function appBaseUrl(): string {
+  return (process.env.VOLATO_APP_URL ?? DEFAULT_APP_URL).replace(/\/+$/, "");
+}
+
+/** Best-effort browser open — never blocks or throws if it can't. */
+function tryOpenBrowser(url: string): void {
+  const [cmd, args] =
+    process.platform === "darwin"
+      ? ["open", [url]]
+      : process.platform === "win32"
+        ? ["cmd", ["/c", "start", "", url]]
+        : ["xdg-open", [url]];
+  try {
+    const child = spawn(cmd as string, args as string[], {
+      stdio: "ignore",
+      detached: true,
     });
-    token = typeof answer.token === "string" ? answer.token.trim() : "";
+    child.on("error", () => {
+      /* no opener available — the printed URL is the fallback */
+    });
+    child.unref();
+  } catch {
+    /* ignore */
   }
-  if (!token) {
-    printLocalError("Cancelled. No token saved.");
-    process.exit(1);
-    return;
-  }
+}
+
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function storeAndConfirm(token: string): Promise<void> {
   const file = await writeToken(token);
   printOk(`Token saved to ${file}`);
   process.stderr.write(
-    `  Try: volato errors list\n` +
-      `  Discover: volato readme\n`,
+    `  Try: volato errors list\n  Discover: volato readme\n`,
   );
+}
+
+export async function runLogin(args: {
+  token?: string;
+  stdin?: boolean;
+}): Promise<void> {
+  // 1. Explicit token (scripted / CI). Positional arg keeps the
+  //    dashboard copy-paste working; --stdin avoids `ps` exposure.
+  let token = args.token?.trim();
+  if (!token && args.stdin) token = (await readStdin()).trim();
+  if (token) {
+    await storeAndConfirm(token);
+    return;
+  }
+
+  // 2. No token, no TTY → never hang on an unanswerable prompt.
+  if (!process.stdin.isTTY) {
+    printLocalError(
+      "Non-interactive shell — can't run the browser login.\n" +
+        "  Set VOLATO_TOKEN in the environment, or pipe a token:\n" +
+        '    echo "$VOLATO_TOKEN" | volato login --stdin',
+    );
+    process.exit(EXIT.GENERAL);
+    return;
+  }
+
+  // 3. Interactive browser code flow.
+  const url = `${appBaseUrl()}/cli`;
+  process.stderr.write(
+    `Opening ${url}\n` +
+      `  Sign in, copy the code it shows, and paste it below.\n` +
+      `  (If the browser didn't open, paste that URL in manually.)\n`,
+  );
+  tryOpenBrowser(url);
+
+  const answer = await prompts({
+    type: "text",
+    name: "code",
+    message: "Login code:",
+  });
+  const code = typeof answer.code === "string" ? answer.code.trim() : "";
+  if (!code) {
+    printLocalError("Cancelled. No code entered.");
+    process.exit(EXIT.GENERAL);
+    return;
+  }
+
+  const resp = await postJsonPublic<{ token?: string }>(
+    "/v1/auth/cli-exchange",
+    { code },
+  );
+  const exchanged =
+    resp.ok && typeof resp.data?.token === "string" ? resp.data.token : null;
+  if (!exchanged) {
+    printApiError(resp);
+    process.exit(EXIT.AUTH);
+    return;
+  }
+  await storeAndConfirm(exchanged);
 }
 
 export async function runWhoami(): Promise<void> {

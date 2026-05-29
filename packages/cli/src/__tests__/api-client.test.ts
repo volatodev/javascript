@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getJson } from "../lib/api-client.js";
+import { getJson, postJsonPublic } from "../lib/api-client.js";
 
 const credFile = join(tmpdir(), `volato-cli-test-cred-${process.pid}`);
 
@@ -74,5 +74,39 @@ describe("api-client transport resilience", () => {
       "Bearer test-token",
     );
     expect(init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("postJsonPublic sends no Authorization header (login exchange is pre-auth)", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(jsonResponse(200, { data: { token: "t" } }));
+    await postJsonPublic("/v1/auth/cli-exchange", { code: "vlt_x" });
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(
+      (init?.headers as Record<string, string>).Authorization,
+    ).toBeUndefined();
+  });
+
+  it("falls back to VOLATO_TOKEN when there's no credentials file", async () => {
+    const prevFile = process.env.VOLATO_CREDENTIALS_FILE;
+    // Point at a path that doesn't exist so readToken misses → env wins.
+    process.env.VOLATO_CREDENTIALS_FILE = join(
+      tmpdir(),
+      `volato-absent-${process.pid}`,
+    );
+    process.env.VOLATO_TOKEN = "env-token";
+    try {
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(jsonResponse(200, { markdown: "ok" }));
+      await getJson("/v1/errors");
+      const [, init] = fetchMock.mock.calls[0]!;
+      expect((init?.headers as Record<string, string>).Authorization).toBe(
+        "Bearer env-token",
+      );
+    } finally {
+      process.env.VOLATO_CREDENTIALS_FILE = prevFile;
+      delete process.env.VOLATO_TOKEN;
+    }
   });
 });

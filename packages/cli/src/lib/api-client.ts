@@ -59,10 +59,12 @@ function resolveApiBase(): string {
 }
 
 async function loadToken(): Promise<string> {
-  const token = await readToken();
+  // Stored token first; fall back to VOLATO_TOKEN so a headless agent or
+  // CI run works with zero `login` step — just set the env var.
+  const token = (await readToken()) ?? process.env.VOLATO_TOKEN?.trim() ?? null;
   if (!token) {
     throw new CliError(
-      "Not authenticated. Run `volato login <token>` first — grab the token from https://app.volato.dev (workspace home).",
+      "Not authenticated. Run `volato login`, or set VOLATO_TOKEN in the environment.",
       EXIT.AUTH,
     );
   }
@@ -73,13 +75,17 @@ async function request<T>(
   method: "GET" | "POST",
   path: string,
   body?: unknown,
+  opts?: { auth?: boolean },
 ): Promise<ApiResponse<T>> {
-  const token = await loadToken();
   const url = `${resolveApiBase()}${path}`;
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
     ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
   };
+  // The login exchange is pre-auth (the caller has no token yet); every
+  // other call attaches the bearer.
+  if (opts?.auth !== false) {
+    headers.Authorization = `Bearer ${await loadToken()}`;
+  }
   const payload = body !== undefined ? JSON.stringify(body) : undefined;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
@@ -160,6 +166,17 @@ export function postJson<T = unknown>(
   body: unknown,
 ): Promise<ApiResponse<T>> {
   return request<T>("POST", path, body);
+}
+
+/**
+ * POST without a bearer — only for the login code exchange, where the
+ * caller has no token yet and the code in the body is the credential.
+ */
+export function postJsonPublic<T = unknown>(
+  path: string,
+  body: unknown,
+): Promise<ApiResponse<T>> {
+  return request<T>("POST", path, body, { auth: false });
 }
 
 export class CliError extends Error {

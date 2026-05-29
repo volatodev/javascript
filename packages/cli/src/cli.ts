@@ -61,10 +61,11 @@ program
 
 program
   .command("login")
-  .argument("[token]", "workspace bearer token from https://app.volato.dev")
-  .description("Authenticate the CLI with a workspace token")
-  .action(async (token: string | undefined) => {
-    await runLogin({ token });
+  .argument("[token]", "workspace token (omit for the browser code flow)")
+  .option("--stdin", "read the token from stdin (CI: echo \"$VOLATO_TOKEN\" | volato login --stdin)")
+  .description("Authenticate the CLI (browser code flow, or pass a token)")
+  .action(async (token: string | undefined, opts: { stdin?: boolean }) => {
+    await runLogin({ token, stdin: opts.stdin });
   });
 
 program

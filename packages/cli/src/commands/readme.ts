@@ -16,10 +16,17 @@ terminal or have your agent shell out.
 
 ## Setup
 
-    volato login <token>    # token from https://app.volato.dev
+    volato login            # opens app.volato.dev/cli, paste the code it shows
 
-The token is workspace-scoped and covers every project in the
-workspace. Stored at ~/.config/volato/credentials (mode 0600).
+Browser code flow: \`login\` sends you to a page that shows a one-time
+code; paste it back and the CLI exchanges it for the workspace token.
+The token is workspace-scoped (covers every project) and stored at
+~/.config/volato/credentials (mode 0600).
+
+Headless / CI — skip \`login\` and set the token in the environment:
+
+    export VOLATO_TOKEN=...        # the API client reads it directly
+    echo "$VOLATO_TOKEN" | volato login --stdin   # or store it once
 
 ## Install into a Next.js app
 
@@ -80,7 +87,9 @@ on 5, stop on 4.
 
 ## Environment
 
+    VOLATO_TOKEN                # workspace token; used directly when no credentials file (headless/CI)
     VOLATO_API_URL              # override the API base (default https://api.volato.dev)
+    VOLATO_APP_URL              # override the dashboard base for login (default https://app.volato.dev)
     VOLATO_CREDENTIALS_FILE     # override the credentials file path
     XDG_CONFIG_HOME             # base dir for ~/.config (honoured for credentials)
 
