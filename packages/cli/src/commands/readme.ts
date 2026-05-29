@@ -59,6 +59,7 @@ reopen does NOT erase prior notes; the full history surfaces in
 ## Auth
 
     volato whoami            # confirm a token is loaded
+    volato logout            # remove the stored token
 
 ## Output
 

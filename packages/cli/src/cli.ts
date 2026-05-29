@@ -21,7 +21,7 @@
  */
 import { Command } from "commander";
 import { runInit } from "./commands/init/init.js";
-import { runLogin, runWhoami } from "./commands/login.js";
+import { runLogin, runLogout, runWhoami } from "./commands/login.js";
 import {
   runErrorsList,
   runErrorsShow,
@@ -71,6 +71,13 @@ program
   .description("Confirm a token is loaded")
   .action(async () => {
     await runWhoami();
+  });
+
+program
+  .command("logout")
+  .description("Remove the stored workspace token")
+  .action(async () => {
+    await runLogout();
   });
 
 program

@@ -10,6 +10,7 @@
 import prompts from "prompts";
 import {
   credentialsLocation,
+  deleteToken,
   readToken,
   writeToken,
 } from "../lib/credentials.js";
@@ -56,4 +57,14 @@ export async function runWhoami(): Promise<void> {
   process.stdout.write(
     `Authenticated. Token stored at ${credentialsLocation()}.\n`,
   );
+}
+
+export async function runLogout(): Promise<void> {
+  const removed = await deleteToken();
+  if (removed) {
+    printOk(`Logged out. Token removed from ${credentialsLocation()}.`);
+  } else {
+    // Nothing to remove is success, not failure — `logout` is idempotent.
+    printOk(`No token was stored (${credentialsLocation()}).`);
+  }
 }
