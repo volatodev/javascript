@@ -67,6 +67,17 @@ Every command prints agent-ready markdown by default. Pass --json
 to get the structured payload instead. Both forms are stable
 contracts.
 
+## Exit codes
+
+    0   success
+    1   generic / local / usage error
+    3   auth — token missing or invalid (401), or subscription inactive (402)
+    4   not found — no such error group or project (404)
+    5   rate limited (429) — back off and retry
+
+Branch on these instead of parsing stderr: re-login on 3, back off
+on 5, stop on 4.
+
 ## Environment
 
     VOLATO_API_URL              # override the API base (default https://api.volato.dev)

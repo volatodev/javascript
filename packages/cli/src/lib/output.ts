@@ -37,6 +37,9 @@ export function printApiError(resp: ApiResponse<unknown>): void {
   if (detail) {
     process.stderr.write(`${detail}\n`);
   }
+  if (status === 429 && resp.retryAfter) {
+    process.stderr.write(`Retry after ${resp.retryAfter}s.\n`);
+  }
 }
 
 export function printLocalError(message: string): void {

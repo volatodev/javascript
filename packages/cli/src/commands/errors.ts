@@ -7,6 +7,7 @@
  * the envelope's `data` field for scripts.
  */
 import { getJson, postJson } from "../lib/api-client.js";
+import { exitCodeForStatus } from "../lib/exit.js";
 import {
   printApiError,
   printSuccess,
@@ -31,7 +32,7 @@ export async function runErrorsList(opts: {
   });
   if (!resp.ok) {
     printApiError(resp);
-    process.exit(1);
+    process.exit(exitCodeForStatus(resp.status));
     return;
   }
   printSuccess(resp, mode);
@@ -52,7 +53,7 @@ export async function runErrorsShow(opts: {
   });
   if (!resp.ok) {
     printApiError(resp);
-    process.exit(1);
+    process.exit(exitCodeForStatus(resp.status));
     return;
   }
   printSuccess(resp, mode);
@@ -71,7 +72,7 @@ export async function runErrorsResolve(opts: {
   });
   if (!resp.ok) {
     printApiError(resp);
-    process.exit(1);
+    process.exit(exitCodeForStatus(resp.status));
     return;
   }
   printSuccess(resp, mode);

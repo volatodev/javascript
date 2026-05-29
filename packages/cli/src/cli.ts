@@ -28,6 +28,7 @@ import {
   runErrorsResolve,
 } from "./commands/errors.js";
 import { runReadme } from "./commands/readme.js";
+import { CliError } from "./lib/api-client.js";
 import { printLocalError } from "./lib/output.js";
 
 // Replaced at build time by tsup's `define` (see tsup.config.ts). The
@@ -171,5 +172,5 @@ errors
 program.parseAsync(process.argv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
   printLocalError(message);
-  process.exit(1);
+  process.exit(err instanceof CliError ? err.exitCode : 1);
 });

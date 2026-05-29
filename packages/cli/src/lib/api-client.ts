@@ -20,6 +20,7 @@
  * A fatal transport failure bubbles as a CliError the entry catches.
  */
 import { readToken } from "./credentials.js";
+import { EXIT } from "./exit.js";
 
 const DEFAULT_API_URL = "https://api.volato.dev";
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -62,6 +63,7 @@ async function loadToken(): Promise<string> {
   if (!token) {
     throw new CliError(
       "Not authenticated. Run `volato login <token>` first — grab the token from https://app.volato.dev (workspace home).",
+      EXIT.AUTH,
     );
   }
   return token;
@@ -161,8 +163,10 @@ export function postJson<T = unknown>(
 }
 
 export class CliError extends Error {
-  constructor(message: string) {
+  readonly exitCode: number;
+  constructor(message: string, exitCode: number = EXIT.GENERAL) {
     super(message);
     this.name = "CliError";
+    this.exitCode = exitCode;
   }
 }
