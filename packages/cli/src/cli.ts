@@ -30,13 +30,20 @@ import {
 import { runReadme } from "./commands/readme.js";
 import { printLocalError } from "./lib/output.js";
 
+// Replaced at build time by tsup's `define` (see tsup.config.ts). The
+// fallback keeps `tsc`/tests honest when the bundle isn't built.
+declare const __CLI_VERSION__: string;
+const CLI_VERSION =
+  typeof __CLI_VERSION__ === "string" ? __CLI_VERSION__ : "0.0.0-dev";
+
 const program = new Command();
 
 program
   .name("volato")
   .description(
     "Volato CLI — agent-native error tracking. Run `volato readme` for the full surface.",
-  );
+  )
+  .version(CLI_VERSION, "-v, --version", "print the volato CLI version");
 
 program
   .command("init")

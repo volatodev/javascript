@@ -1,4 +1,12 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "tsup";
+
+// Inline the package version at build time so `volato --version` works
+// from the bundled binary without reading package.json at runtime
+// (which isn't shipped next to dist/cli.cjs in a predictable place).
+const { version } = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+) as { version: string };
 
 // Single-file CJS bundle. Commander v14 internally `require`s `events`
 // at runtime, which trips the ESM "Dynamic require of …" wall when the
@@ -16,5 +24,6 @@ export default defineConfig({
   minify: false,
   splitting: false,
   noExternal: ["commander", "prompts", "picocolors", "kleur", "sisteransi"],
+  define: { __CLI_VERSION__: JSON.stringify(version) },
   banner: { js: "#!/usr/bin/env node" },
 });
