@@ -79,9 +79,11 @@ If you see "subscription_inactive (402)", your workspace's sub
 lapsed. The token is still valid; reactivate at
 https://app.volato.dev/billing and the CLI resumes immediately.
 
-If you see "rate_limited (429)", the workspace is over 300 calls
-per minute. The CLI retries are not automatic — back off and try
-again in <60s.
+Transient failures (network errors, 502/503/504) are retried
+automatically — up to 2 quick backoffs — and every request times out
+after 30s. A "rate_limited (429)" is NOT auto-retried: the workspace
+is over 300 calls/minute. Back off and retry after the Retry-After
+window the CLI prints (typically <60s).
 `;
 
 export function runReadme(): void {

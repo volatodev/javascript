@@ -8,14 +8,23 @@
  *   - decode the JSON envelope `{ markdown, data }` returned by the
  *     API, or the error envelope `{ error, message? }`
  *
- * The API returns a JSON envelope on success AND on error. We don't
- * try to be clever about transport-level failures (DNS, timeout) —
- * those bubble as thrown errors that the CLI entry catches and
- * prints to stderr.
+ * The API returns a JSON envelope on success AND on error. Transport
+ * resilience is bounded and deliberate:
+ *   - every request carries a 30s timeout (AbortSignal) so a hung
+ *     connection can't stall an agent waiting on the CLI;
+ *   - transient failures (network errors, 502/503/504) get up to 2
+ *     quick retries with exponential backoff;
+ *   - 429 is NOT auto-retried — its Retry-After can be a full minute,
+ *     and sleeping that long in a one-shot CLI is worse than returning
+ *     the 429 and letting the caller decide. We surface `retryAfter`.
+ * A fatal transport failure bubbles as a CliError the entry catches.
  */
 import { readToken } from "./credentials.js";
 
 const DEFAULT_API_URL = "https://api.volato.dev";
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_ATTEMPTS = 3;
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
 
 export type ApiResponse<T = unknown> = {
   status: number;
@@ -24,7 +33,24 @@ export type ApiResponse<T = unknown> = {
   data?: T;
   error?: string;
   message?: string;
+  /** Seconds from a `Retry-After` header (429/503), when present. */
+  retryAfter?: number;
 };
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Exponential backoff for transient retries: 250ms, then 500ms (cap 2s).
+function backoffMs(attempt: number): number {
+  return Math.min(250 * 2 ** (attempt - 1), 2000);
+}
+
+function parseRetryAfter(raw: string | null): number | undefined {
+  if (!raw || !/^\d+$/.test(raw)) return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
 
 function resolveApiBase(): string {
   const raw = process.env.VOLATO_API_URL ?? DEFAULT_API_URL;
@@ -48,35 +74,69 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
   const token = await loadToken();
   const url = `${resolveApiBase()}${path}`;
-  const res = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
-  let parsed: unknown = {};
-  const text = await res.text();
-  if (text.length > 0) {
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      // Non-JSON body — keep the raw text so the CLI can surface it.
-      parsed = { error: "non_json_response", message: text };
-    }
-  }
-  const envelope = parsed as Record<string, unknown>;
-
-  return {
-    status: res.status,
-    ok: res.ok,
-    markdown: typeof envelope.markdown === "string" ? envelope.markdown : undefined,
-    data: envelope.data as T | undefined,
-    error: typeof envelope.error === "string" ? envelope.error : undefined,
-    message: typeof envelope.message === "string" ? envelope.message : undefined,
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
   };
+  const payload = body !== undefined ? JSON.stringify(body) : undefined;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method,
+        headers,
+        body: payload,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (err) {
+      // Transport failure (DNS, reset) or our own timeout. Retry the
+      // transient ones; once attempts run out, surface a clean message.
+      if (attempt < MAX_ATTEMPTS) {
+        await sleep(backoffMs(attempt));
+        continue;
+      }
+      const timedOut = err instanceof Error && err.name === "TimeoutError";
+      throw new CliError(
+        timedOut
+          ? `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s — ${resolveApiBase()} did not respond.`
+          : `Could not reach ${resolveApiBase()}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    // Server-transient statuses get a quick retry; 429 deliberately
+    // falls through to be returned (see the module doc comment).
+    if (RETRYABLE_STATUS.has(res.status) && attempt < MAX_ATTEMPTS) {
+      await sleep(backoffMs(attempt));
+      continue;
+    }
+
+    let parsed: unknown = {};
+    const text = await res.text();
+    if (text.length > 0) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        // Non-JSON body — keep the raw text so the CLI can surface it.
+        parsed = { error: "non_json_response", message: text };
+      }
+    }
+    const envelope = parsed as Record<string, unknown>;
+
+    return {
+      status: res.status,
+      ok: res.ok,
+      markdown: typeof envelope.markdown === "string" ? envelope.markdown : undefined,
+      data: envelope.data as T | undefined,
+      error: typeof envelope.error === "string" ? envelope.error : undefined,
+      message: typeof envelope.message === "string" ? envelope.message : undefined,
+      retryAfter: parseRetryAfter(res.headers.get("retry-after")),
+    };
+  }
+
+  // Unreachable: the loop returns or throws within MAX_ATTEMPTS. Present
+  // so TS sees a definite return on every path.
+  throw new CliError("request: exhausted attempts without a response");
 }
 
 export function getJson<T = unknown>(
