@@ -1,7 +1,10 @@
 {
   "name": "@volatodev/cli",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "description": "Volato CLI — the agent-facing surface for reading, triaging, and resolving errors from any terminal.",
   "license": "MIT",
   "author": "Wrenchy SASU",
@@ -41,14 +44,12 @@
     "clean": "rm -rf dist .turbo",
     "prepublishOnly": "pnpm clean && pnpm build && pnpm test"
   },
-  "dependencies": {
-    "commander": "^14.0.3",
-    "picocolors": "^1.1.1",
-    "prompts": "^2.4.2"
-  },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "@types/prompts": "^2.4.9",
+    "commander": "^14.0.3",
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

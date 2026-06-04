@@ -1,7 +1,10 @@
 {
   "name": "@volatodev/nextjs",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "description": "Next.js error tracking SDK — captures errors across all Next.js runtimes and streams them to Volato.",
   "license": "MIT",
   "author": "Wrenchy SASU",
@@ -77,12 +80,12 @@
     "prepublishOnly": "pnpm clean && pnpm build && pnpm test"
   },
   "peerDependencies": {
-    "next": ">=14.0.0",
+    "next": ">=15.0.0",
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
   },
   "dependencies": {
-    "@volatodev/core": "link:/home/nicolas/volato-dev/javascript/packages/core"
+    "@volatodev/core": "workspace:^"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",

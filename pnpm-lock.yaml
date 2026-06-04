@@ -93,7 +93,7 @@ importers:
   packages/nextjs:
     dependencies:
       '@volatodev/core':
-        specifier: link:/home/nicolas/volato-dev/javascript/packages/core
+        specifier: workspace:^
         version: link:../core
     devDependencies:
       '@testing-library/react':
