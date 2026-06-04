@@ -6,10 +6,12 @@
  *
  * DSN shape: `https://<publicKey>@<host>[:<port>]/<projectId>`.
  *
- * The `publicKey` is the auth secret sent in the `X-Volato-DSN`
- * header. The `projectId` is the UUID of the target project —
- * it lets ingest route the event without an extra DB lookup.
- * Both must be present.
+ * The `publicKey` is a public, write-only ingestion key sent in the
+ * `X-Volato-DSN` header — it only authorizes *sending* events to a
+ * project and is safe to embed in a browser bundle (it can read
+ * nothing). The `projectId` is the UUID of the target project — it
+ * lets ingest route the event without an extra DB lookup. Both must
+ * be present.
  */
 export type ParsedDSN = {
   origin: string;
@@ -29,7 +31,9 @@ export function parseDSN(dsn: string): ParsedDSN {
   try {
     url = new URL(dsn);
   } catch {
-    throw new InvalidDSNError(`not a valid URL: ${dsn}`);
+    // Don't echo the raw DSN back — it carries the public key and the
+    // message could be logged or captured by another tracker.
+    throw new InvalidDSNError("not a valid URL");
   }
 
   if (url.protocol !== "https:" && url.protocol !== "http:") {
