@@ -264,6 +264,46 @@ describe("patchNextConfig", () => {
     expect(next).not.toContain("withVolato({ reactStrictMode: true };");
   });
 
+  it("wraps a multi-line ternary export as a whole (no mid-expression truncation)", () => {
+    const path = join(cwd, "next.config.ts");
+    writeFileSync(
+      path,
+      "const prod = { reactStrictMode: true };\nconst dev = { reactStrictMode: false };\nexport default process.env.NODE_ENV === 'production'\n  ? prod\n  : dev;\n",
+    );
+    const out = patchNextConfig(path);
+    expect(out.status).toBe("updated");
+    const next = readFileSync(path, "utf8");
+    // The entire ternary is wrapped, not just the boolean condition.
+    expect(next).toContain(
+      "export default withVolato(process.env.NODE_ENV === 'production'",
+    );
+    expect(next).toContain("? prod");
+    expect(next).toContain(": dev)");
+    // The corruption bug wrapped only the condition, leaving a dangling
+    // `? prod : dev` that discards the wrap entirely.
+    expect(next).not.toContain(
+      "withVolato(process.env.NODE_ENV === 'production')",
+    );
+  });
+
+  it("wraps a multi-line builder chain as a whole (no crash-inducing truncation)", () => {
+    const path = join(cwd, "next.config.ts");
+    writeFileSync(
+      path,
+      "const base = { reactStrictMode: true };\nexport default base\n  .with({ a: 1 })\n  .build();\n",
+    );
+    const out = patchNextConfig(path);
+    expect(out.status).toBe("updated");
+    const next = readFileSync(path, "utf8");
+    // The full chain lives inside withVolato(...).
+    expect(next).toContain("export default withVolato(base");
+    expect(next).toContain(".with({ a: 1 })");
+    expect(next).toContain(".build())");
+    // The corruption bug produced `withVolato(base).with(...).build()`,
+    // which throws at config load (.with is not a function).
+    expect(next).not.toContain("withVolato(base)");
+  });
+
   it("captures balanced parens / braces inside the export expression", () => {
     const path = join(cwd, "next.config.ts");
     writeFileSync(

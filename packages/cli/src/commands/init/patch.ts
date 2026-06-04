@@ -315,15 +315,113 @@ type ExportDefaultLocation = {
 };
 
 /**
+ * Characters that, as the LAST significant char of the expression
+ * captured so far, mean the statement is unfinished and continues past
+ * a line break (trailing operator, member `.`, ternary `?`/`:`, comma).
+ */
+const TRAILING_CONTINUATION = new Set([
+  ".",
+  ",",
+  "+",
+  "-",
+  "*",
+  "/",
+  "%",
+  "=",
+  "<",
+  ">",
+  "&",
+  "|",
+  "^",
+  "?",
+  ":",
+]);
+
+/**
+ * Characters that, as the NEXT significant char after a top-level
+ * newline, mean the following line continues the expression — a method
+ * chain `.`, a ternary `?`/`:`, a binary operator, a call `(`, a
+ * computed member `[`, or a tagged template. Mirrors JS ASI: a line
+ * starting with one of these joins the previous line.
+ */
+const LEADING_CONTINUATION = new Set([
+  ".",
+  "?",
+  ":",
+  "+",
+  "-",
+  "*",
+  "/",
+  "%",
+  "=",
+  "<",
+  ">",
+  "&",
+  "|",
+  "^",
+  "(",
+  "[",
+  "`",
+]);
+
+/**
+ * The next significant character at or after `from`, skipping
+ * whitespace, line comments, and block comments. `""` at end of input.
+ */
+function nextSignificantChar(source: string, from: number): string {
+  let j = from;
+  while (j < source.length) {
+    const c = source[j]!;
+    if (c === " " || c === "\t" || c === "\r" || c === "\n") {
+      j += 1;
+      continue;
+    }
+    if (c === "/" && source[j + 1] === "/") {
+      j += 2;
+      while (j < source.length && source[j] !== "\n") j += 1;
+      continue;
+    }
+    if (c === "/" && source[j + 1] === "*") {
+      j += 2;
+      while (j < source.length && !(source[j] === "*" && source[j + 1] === "/"))
+        j += 1;
+      j += 2;
+      continue;
+    }
+    return c;
+  }
+  return "";
+}
+
+/**
+ * Whether the export expression continues past a top-level newline —
+ * either because it ends on a continuation operator, or because the
+ * next line begins with one. When neither holds, the newline is a real
+ * statement boundary (e.g. an adjacent `export const runtime = ...`).
+ */
+function continuesPastNewline(lastSig: string, nextChar: string): boolean {
+  if (TRAILING_CONTINUATION.has(lastSig)) return true;
+  if (nextChar === "") return false;
+  return LEADING_CONTINUATION.has(nextChar);
+}
+
+/**
  * Find `export default <expr>` in `source` and return the absolute
  * indices spanning the entire statement (from `export` to the
- * terminating `;` or just past the expression at EOF).
+ * terminating `;`, a real top-level newline boundary, or EOF).
  *
- * Walks the expression with bracket counting so an object literal,
- * call, or arrow function with internal commas is captured intact.
- * Returns `null` if no `export default` is found, or if the walker
- * runs into a shape it can't handle confidently (e.g. an unclosed
- * string).
+ * Walks the expression with bracket/string/comment tracking so an
+ * object literal, call, or arrow function with internal commas is
+ * captured intact. A bare top-level newline only ends the statement
+ * when the expression is genuinely complete there: a multi-line
+ * ternary (`cond\n ? a\n : b`) or a builder chain (`base\n .with()\n
+ * .build()`) is kept whole instead of being truncated mid-expression
+ * (which previously produced a syntactically broken wrap that silently
+ * disabled the config or crashed the build). Returns `null` when no
+ * `export default` is found, or when the walker can't finish
+ * confidently (unbalanced brackets, or an expression left dangling on
+ * a continuation operator at EOF) — the caller then falls back to
+ * `manual` rather than writing a guess.
  */
 function findExportDefaultExpression(
   source: string,
@@ -343,107 +441,141 @@ function findExportDefaultExpression(
   let inBacktick = false;
   let inLineComment = false;
   let inBlockComment = false;
+  // Last non-whitespace, non-comment character consumed as part of the
+  // expression — decides whether a top-level newline ends it.
+  let lastSig = "";
+
+  // `exprEnd` bounds the expression text (exclusive of any terminator);
+  // `endIndex` is the replacement boundary — past the `;` when there is
+  // one, so the wrap consumes it; otherwise the same as `exprEnd`.
+  const finish = (
+    exprEnd: number,
+    endIndex: number,
+  ): ExportDefaultLocation | null => {
+    const expression = source.slice(exprStart, exprEnd).trim();
+    if (expression.length === 0) return null;
+    return { startIndex, endIndex, expression };
+  };
 
   while (i < source.length) {
     const ch = source[i]!;
     const next = source[i + 1] ?? "";
 
     if (inLineComment) {
-      if (ch === "\n") inLineComment = false;
-      i += 1;
-      continue;
-    }
-    if (inBlockComment) {
+      // A line comment runs to its newline; that newline is still a
+      // real top-level break, so fall through to the shared handling
+      // below instead of consuming it here.
+      if (ch !== "\n") {
+        i += 1;
+        continue;
+      }
+      inLineComment = false;
+    } else if (inBlockComment) {
       if (ch === "*" && next === "/") {
         inBlockComment = false;
         i += 2;
-        continue;
+      } else {
+        i += 1;
       }
-      i += 1;
       continue;
-    }
-    if (inSingle) {
+    } else if (inSingle) {
       if (ch === "\\") {
         i += 2;
         continue;
       }
       if (ch === "'") inSingle = false;
+      lastSig = ch;
       i += 1;
       continue;
-    }
-    if (inDouble) {
+    } else if (inDouble) {
       if (ch === "\\") {
         i += 2;
         continue;
       }
       if (ch === '"') inDouble = false;
+      lastSig = ch;
       i += 1;
       continue;
-    }
-    if (inBacktick) {
+    } else if (inBacktick) {
       if (ch === "\\") {
         i += 2;
         continue;
       }
       if (ch === "`") inBacktick = false;
+      lastSig = ch;
       i += 1;
       continue;
+    } else {
+      if (ch === "/" && next === "/") {
+        inLineComment = true;
+        i += 2;
+        continue;
+      }
+      if (ch === "/" && next === "*") {
+        inBlockComment = true;
+        i += 2;
+        continue;
+      }
+      if (ch === "'") {
+        inSingle = true;
+        lastSig = ch;
+        i += 1;
+        continue;
+      }
+      if (ch === '"') {
+        inDouble = true;
+        lastSig = ch;
+        i += 1;
+        continue;
+      }
+      if (ch === "`") {
+        inBacktick = true;
+        lastSig = ch;
+        i += 1;
+        continue;
+      }
+
+      if (ch === "(") depthRound += 1;
+      else if (ch === ")") depthRound -= 1;
+      else if (ch === "[") depthSquare += 1;
+      else if (ch === "]") depthSquare -= 1;
+      else if (ch === "{") depthCurly += 1;
+      else if (ch === "}") depthCurly -= 1;
+
+      const atTopLevel =
+        depthRound === 0 && depthSquare === 0 && depthCurly === 0;
+
+      // A top-level `;` always closes the statement; the expression
+      // ends before it, the replacement boundary consumes it.
+      if (atTopLevel && ch === ";") {
+        return finish(i, i + 1);
+      }
+
+      if (ch !== "\n") {
+        if (!/\s/.test(ch)) lastSig = ch;
+        i += 1;
+        continue;
+      }
+      // ch === "\n": fall through to the shared newline handling below.
     }
 
-    if (ch === "/" && next === "/") {
-      inLineComment = true;
-      i += 2;
-      continue;
+    // Shared top-level newline handling — reached from plain code or
+    // from the close of a line comment.
+    const atTop = depthRound === 0 && depthSquare === 0 && depthCurly === 0;
+    if (
+      atTop &&
+      !continuesPastNewline(lastSig, nextSignificantChar(source, i + 1))
+    ) {
+      return finish(i, i);
     }
-    if (ch === "/" && next === "*") {
-      inBlockComment = true;
-      i += 2;
-      continue;
-    }
-    if (ch === "'") {
-      inSingle = true;
-      i += 1;
-      continue;
-    }
-    if (ch === '"') {
-      inDouble = true;
-      i += 1;
-      continue;
-    }
-    if (ch === "`") {
-      inBacktick = true;
-      i += 1;
-      continue;
-    }
-
-    if (ch === "(") depthRound += 1;
-    else if (ch === ")") depthRound -= 1;
-    else if (ch === "[") depthSquare += 1;
-    else if (ch === "]") depthSquare -= 1;
-    else if (ch === "{") depthCurly += 1;
-    else if (ch === "}") depthCurly -= 1;
-
-    const atTopLevel =
-      depthRound === 0 && depthSquare === 0 && depthCurly === 0;
-
-    if (atTopLevel && (ch === ";" || ch === "\n")) {
-      const expression = source.slice(exprStart, i).trim();
-      if (expression.length === 0) return null;
-      // Include the `;` in the slice we replace; otherwise stop just
-      // before the newline (no trailing semicolon to swallow).
-      const endIndex = ch === ";" ? i + 1 : i;
-      return { startIndex, endIndex, expression };
-    }
-
     i += 1;
   }
 
-  // EOF without a `;`/newline at top level — accept what we have if
-  // the brackets balanced.
-  if (depthRound === 0 && depthSquare === 0 && depthCurly === 0) {
-    const expression = source.slice(exprStart).trim();
-    if (expression.length === 0) return null;
-    return { startIndex, endIndex: source.length, expression };
+  // EOF — accept only if brackets balanced and the expression isn't
+  // left dangling on a continuation operator (which means incomplete).
+  const balanced = depthRound === 0 && depthSquare === 0 && depthCurly === 0;
+  if (balanced && !TRAILING_CONTINUATION.has(lastSig)) {
+    return finish(source.length, source.length);
   }
   return null;
 }
