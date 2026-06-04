@@ -8,7 +8,7 @@
  * Every event passes through `ErrorEventSchema.passthrough()`
  * so unknown fields survive into the stored `payload jsonb` —
  * a new optional field can ship in the SDK and start showing
- * up in MCP tool output without an ingest deploy. Required
+ * up in the agent/CLI output without an ingest deploy. Required
  * fields are always added as `.optional()` to keep older SDK
  * versions backward-compatible.
  */
@@ -142,6 +142,15 @@ export type Contexts = z.infer<typeof ContextsSchema>;
  */
 export const ErrorEventSchema = z
   .object({
+    /**
+     * Wire-format version discriminator. Optional, and an absent value
+     * means v1 (the original 0.1.0 shape) — SDKs that never send it
+     * stay valid forever. A future breaking change to the payload
+     * ships as `v: 2` so ingest can route old vs new payloads without
+     * sniffing field shapes; widen this to a union when that day comes.
+     */
+    v: z.literal(1).optional(),
+
     type: z.string(),
     message: z.string(),
     runtime: RuntimeSchema,
