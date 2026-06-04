@@ -66,7 +66,7 @@ export async function runErrorsResolve(opts: {
   json?: boolean;
 }): Promise<void> {
   const mode: OutputMode = opts.json ? "json" : "human";
-  const resp = await postJson(`/v1/errors/${opts.id}/resolve`, {
+  const resp = await postJson(`/v1/errors/${encodeURIComponent(opts.id)}/resolve`, {
     action: opts.action,
     note: opts.note,
   });
