@@ -30,6 +30,38 @@ describe("bundle hygiene (dist/middleware.js)", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("does not import disallowed Node built-ins, even as bare specifiers", () => {
+    // tsup strips the `node:` prefix on emit, so `node:fs` ships as a
+    // bare `fs` import the `node:`-only check above cannot see. Scan for
+    // both forms of every builtin the Edge runtime can't provide.
+    const FORBIDDEN = [
+      "fs",
+      "fs/promises",
+      "child_process",
+      "net",
+      "tls",
+      "dns",
+      "http",
+      "https",
+      "crypto",
+      "os",
+      "stream",
+      "zlib",
+      "worker_threads",
+      "cluster",
+      "module",
+      "vm",
+    ];
+    const offenders = FORBIDDEN.filter((m) => {
+      const esc = m.replace(/\//g, "\\/");
+      const re = new RegExp(
+        `(?:import[^;]*from\\s*|require\\(\\s*|import\\(\\s*)["'](?:node:)?${esc}["']`,
+      );
+      return re.test(bundle);
+    });
+    expect(offenders).toEqual([]);
+  });
+
   it("does not reference Buffer", () => {
     expect(bundle).not.toMatch(/Buffer/);
   });
