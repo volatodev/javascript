@@ -15,10 +15,12 @@
  *   `/instrumentation`  Next.js `onRequestError` re-export
  *   `/error-boundary`   React `error.tsx` capture helper
  *
- * Importing from the root pulls in the config types only — no
- * runtime code — so a config file (e.g. `next.config.ts`) can
- * type its `VolatoConfig` without dragging the SDK into the
- * Next config bundle.
+ * The root also exports the `withVolato` build helper used in
+ * `next.config`. Importing only the *types* is erased by the
+ * compiler, but `withVolato` is Node-only — it touches `fs` /
+ * `child_process` to upload sourcemaps at build time — so call it
+ * from `next.config` (a Node context) and never from client or
+ * edge code.
  */
 export type {
   ErrorEvent,

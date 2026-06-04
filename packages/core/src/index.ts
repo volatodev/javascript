@@ -5,7 +5,7 @@
  * contract used to look up sourcemaps.
  *
  * Anything that needs to be byte-identical on both ends of the
- * `SDK → ingest → MCP → resolver` pipe lives here. Anything
+ * `SDK → ingest → resolver` pipe lives here. Anything
  * runtime-specific (transport, scope, hub, breadcrumbs) lives
  * in the per-runtime SDK packages.
  */
