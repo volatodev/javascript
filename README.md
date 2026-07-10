@@ -22,8 +22,8 @@ volato login <token>            # workspace token from https://app.volato.dev
 Set your DSN in `.env.local`:
 
 ```bash
-NEXT_PUBLIC_VOLATO_DSN="https://<public_key>@ingest.volato.dev/<project_id>"
-VOLATO_DSN="https://<public_key>@ingest.volato.dev/<project_id>"
+NEXT_PUBLIC_VOLATO_DSN="https://<public_key>@api.volato.dev/<project_id>"
+VOLATO_DSN="https://<public_key>@api.volato.dev/<project_id>"
 ```
 
 Mount the browser bootstrap inside your root layout:

@@ -22,7 +22,7 @@ volato login <token>        # workspace token from https://app.volato.dev
 **1. Set your DSN** in `.env.local`:
 
 ```bash
-NEXT_PUBLIC_VOLATO_DSN="https://<public_key>@ingest.volato.dev/<project_id>"
+NEXT_PUBLIC_VOLATO_DSN="https://<public_key>@api.volato.dev/<project_id>"
 ```
 
 `NEXT_PUBLIC_*` is readable on the server too, so this single var covers every runtime.

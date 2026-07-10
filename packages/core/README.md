@@ -22,7 +22,7 @@ npm install @volatodev/core
 ```ts
 import { parseDSN, ErrorEventSchema } from "@volatodev/core";
 
-const dsn = parseDSN("https://pk_live_xxx@ingest.volato.dev/proj_123");
+const dsn = parseDSN("https://pk_live_xxx@api.volato.dev/proj_123");
 const event = ErrorEventSchema.parse(payload);
 ```
 
