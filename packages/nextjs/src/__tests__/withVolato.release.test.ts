@@ -9,7 +9,6 @@
  *   - End-to-end through `withVolato()` to pin the glue.
  */
 
-import { execSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -35,30 +34,17 @@ beforeAll(() => {
   process.env.VOLATO_INGEST_TOKEN = "suite-token";
 });
 
-function makeGitRepo(): string {
-  const dir = mkdtempSync(join(tmpdir(), "volato-git-"));
-  // Set author/committer via env so the test doesn't depend on the
-  // runner's global git config (CI machines often have none).
-  const env = {
-    ...process.env,
-    GIT_AUTHOR_NAME: "t",
-    GIT_AUTHOR_EMAIL: "t@t",
-    GIT_COMMITTER_NAME: "t",
-    GIT_COMMITTER_EMAIL: "t@t",
-  };
-  execSync("git init -q -b main", { cwd: dir, env });
-  execSync("git commit --allow-empty -q -m init", { cwd: dir, env });
-  return dir;
-}
-
 function makeEmptyDir(): string {
   return mkdtempSync(join(tmpdir(), "volato-nogit-"));
 }
 
 describe("__detectGitShaForTests", () => {
   it("returns the 40-char hex SHA of HEAD inside a real git repo", () => {
-    const repo = makeGitRepo();
-    const sha = __detectGitShaForTests(repo);
+    // The package is tested from the checked-out repository. Reuse that real
+    // repository instead of initialising a nested `.git` directory: several
+    // hardened CI/sandbox environments deliberately forbid creating nested
+    // Git metadata even though read-only `git rev-parse` is allowed.
+    const sha = __detectGitShaForTests(process.cwd());
     expect(sha).toMatch(/^[a-f0-9]{40}$/);
   });
 
