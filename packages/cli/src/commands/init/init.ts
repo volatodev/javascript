@@ -20,23 +20,22 @@
  */
 
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import pc from "picocolors";
 import prompts from "prompts";
 import { detectProject, DetectionError } from "./detect";
 import {
   buildMiddlewareSnippet,
-  patchEnvLocal,
-  patchInstrumentation,
-  patchLayout,
-  patchNextConfig,
-  patchTunnelRoute,
   type PatchOutcome,
   type PatchStatus,
 } from "./patch";
+import { generateNextjsIntegration } from "../../integrations/nextjs";
 
 export type InitOptions = {
   cwd: string;
+  dsn?: string;
+  nonInteractive?: boolean;
+  sendTestEvent?: boolean;
 };
 
 const STATUS_BADGE: Record<PatchStatus, string> = {
@@ -159,23 +158,37 @@ export async function runInit(options: InitOptions): Promise<void> {
     throw new Error(`Invalid DSN: ${dsn}`);
   }
 
-  const outcomes: PatchOutcome[] = [];
-  outcomes.push(patchEnvLocal(cwd, dsn));
-  outcomes.push(
-    patchInstrumentation(project.instrumentationPath, project.language),
-  );
-  outcomes.push(patchLayout(project.layoutPath));
-  outcomes.push(patchNextConfig(project.nextConfigPath));
-  outcomes.push(patchTunnelRoute(project.tunnelRoutePath, project.language));
+  const generated = generateNextjsIntegration({
+    cwd,
+    dsn,
+    project,
+  });
+  const outcomes: PatchOutcome[] = [
+    {
+      path: generated.runtimeRoot,
+      status: "created",
+      detail: `${generated.generatedFiles.length} local runtime files`,
+    },
+    ...generated.outcomes,
+    {
+      path: generated.manifestPath,
+      status: "created",
+      detail: "generated-file integrity manifest",
+    },
+  ];
 
   for (const o of outcomes) printOutcome(cwd, o);
   process.stdout.write("\n");
 
-  await ensureGitignoreCoversEnvLocal(cwd);
+  await ensureGitignoreCoversEnvLocal(cwd, options.nonInteractive);
 
-  await maybeSendTestEvent(dsn);
+  await maybeSendTestEvent(
+    dsn,
+    options.nonInteractive,
+    options.sendTestEvent,
+  );
 
-  printNextSteps(project.middlewarePath, cwd);
+  printNextSteps(project.middlewarePath, generated.runtimeRoot, cwd);
 }
 
 /**
@@ -191,7 +204,10 @@ export async function runInit(options: InitOptions): Promise<void> {
  *     a Volato-tagged block. On n, print a red warning and continue — we
  *     don't block init, but we make it loud that the token will leak.
  */
-async function ensureGitignoreCoversEnvLocal(cwd: string): Promise<void> {
+async function ensureGitignoreCoversEnvLocal(
+  cwd: string,
+  nonInteractive = false,
+): Promise<void> {
   const path = join(cwd, ".gitignore");
   const fileExists = existsSync(path);
   const content = fileExists ? readFileSync(path, "utf8") : "";
@@ -234,21 +250,23 @@ async function ensureGitignoreCoversEnvLocal(cwd: string): Promise<void> {
     );
   }
 
-  const response = await prompts(
-    {
-      type: "confirm",
-      name: "patch",
-      message: fileExists
-        ? "Add `.env*.local` to .gitignore?"
-        : "Create .gitignore with `.env*.local`?",
-      initial: true,
-    },
-    {
-      onCancel: () => {
-        throw new Error("aborted by user");
-      },
-    },
-  );
+  const response = nonInteractive
+    ? { patch: true }
+    : await prompts(
+        {
+          type: "confirm",
+          name: "patch",
+          message: fileExists
+            ? "Add `.env*.local` to .gitignore?"
+            : "Create .gitignore with `.env*.local`?",
+          initial: true,
+        },
+        {
+          onCancel: () => {
+            throw new Error("aborted by user");
+          },
+        },
+      );
 
   if (!response.patch) {
     process.stdout.write(
@@ -274,7 +292,7 @@ async function ensureGitignoreCoversEnvLocal(cwd: string): Promise<void> {
 /**
  * Offer to send a test event immediately after `init` succeeds.
  * Posts a synthetic error directly to the ingest endpoint with the
- * resolved DSN — same wire format as the SDK so the dashboard's
+ * resolved DSN — same wire format as the generated runtime so the dashboard's
  * checklist step 3 flips green right away. The user has a "yes it
  * actually works" moment in the same terminal session, before they
  * even restart their dev server.
@@ -283,20 +301,26 @@ async function ensureGitignoreCoversEnvLocal(cwd: string): Promise<void> {
  * project files are already patched). We print the error so the
  * user sees why and can debug separately.
  */
-async function maybeSendTestEvent(dsn: string): Promise<void> {
-  const response = await prompts(
-    {
-      type: "confirm",
-      name: "send",
-      message: "Send a test error now to verify the pipe?",
-      initial: true,
-    },
-    {
-      onCancel: () => {
-        throw new Error("aborted by user");
-      },
-    },
-  );
+async function maybeSendTestEvent(
+  dsn: string,
+  nonInteractive = false,
+  sendExplicitly = false,
+): Promise<void> {
+  const response = nonInteractive
+    ? { send: sendExplicitly }
+    : await prompts(
+        {
+          type: "confirm",
+          name: "send",
+          message: "Send a test error now to verify the pipe?",
+          initial: true,
+        },
+        {
+          onCancel: () => {
+            throw new Error("aborted by user");
+          },
+        },
+      );
   if (!response.send) return;
 
   try {
@@ -346,6 +370,7 @@ async function sendTestEvent(dsn: string): Promise<void> {
 }
 
 async function resolveDsn(options: InitOptions): Promise<string> {
+  if (options.dsn) return options.dsn;
   const fromEnv = findDsnInEnvFiles(options.cwd);
   if (fromEnv) {
     const tail = dsnTail(fromEnv.dsn);
@@ -362,7 +387,7 @@ async function resolveDsn(options: InitOptions): Promise<string> {
           : "",
       )}\n` +
         `${pc.dim(
-          "  We'll wire your SDK to send errors to this project.",
+          "  We'll wire this application to send errors to this project.",
         )}\n\n`,
     );
     const response = await prompts(
@@ -387,7 +412,17 @@ async function resolveDsn(options: InitOptions): Promise<string> {
   return promptForDsn();
 }
 
-function printNextSteps(middlewarePath: string | null, cwd: string): void {
+function localModule(fromFile: string, target: string): string {
+  let path = relative(dirname(fromFile), target).replaceAll("\\", "/");
+  if (!path.startsWith(".")) path = `./${path}`;
+  return path;
+}
+
+function printNextSteps(
+  middlewarePath: string | null,
+  runtimeRoot: string,
+  cwd: string,
+): void {
   process.stdout.write(`${pc.bold("Next steps")}\n`);
   process.stdout.write(
     `  ${pc.dim("1.")} Restart your dev server so the new env vars load.\n`,
@@ -398,7 +433,9 @@ function printNextSteps(middlewarePath: string | null, cwd: string): void {
     process.stdout.write(
       `  ${pc.dim("2.")} Wrap your middleware (${pc.cyan(rel)}):\n\n`,
     );
-    const snippet = buildMiddlewareSnippet()
+    const snippet = buildMiddlewareSnippet(
+      localModule(middlewarePath, join(runtimeRoot, "middleware")),
+    )
       .split("\n")
       .map((line) => `       ${line}`)
       .join("\n");
@@ -414,16 +451,17 @@ function printNextSteps(middlewarePath: string | null, cwd: string): void {
   process.stdout.write(
     `  ${pc.dim("3.")} For Route Handlers, wrap each export with ${pc.cyan(
       "wrapRoute",
-    )} from ${pc.cyan("@volatodev/nextjs/server")}.\n`,
+    )} from your generated ${pc.cyan(`${relpath(cwd, runtimeRoot)}/server`)} module.\n`,
   );
   process.stdout.write(
     `  ${pc.dim("4.")} For Server Actions returning ${pc.cyan(
       "{ error }",
     )} (no throw), call ${pc.cyan(
       "reportActionError",
-    )} from the catch branch.\n`,
+    )} from the generated server module.\n`,
   );
-  // The token gates the automatic sourcemap upload that `withVolato()`
+  // The token gates the automatic sourcemap upload that the generated
+  // `withVolato()` build helper performs.
   // performs at `next build`. Without it, prod errors arrive as
   // minified frames and the agent can't open the offending file.
   // Find it in the project's dashboard alongside the DSN.

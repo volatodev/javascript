@@ -1,8 +1,8 @@
 {
-  "name": "volato-sdks-js",
+  "name": "volato-javascript",
   "version": "0.0.0",
   "private": true,
-  "description": "Volato JavaScript SDKs monorepo",
+  "description": "Volato CLI, agent skills, and generated integration recipes",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/volatodev/javascript.git"

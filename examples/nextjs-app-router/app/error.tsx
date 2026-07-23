@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { captureFromErrorBoundary } from "@volatodev/nextjs/error-boundary";
+import { captureFromErrorBoundary } from "../volato/error-boundary";
 
 export default function Error({
   error,

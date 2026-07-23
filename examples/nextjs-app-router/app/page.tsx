@@ -1,6 +1,6 @@
 "use client";
 
-import { captureClientError } from "@volatodev/nextjs/client";
+import { captureClientError } from "../volato/client";
 
 export default function HomePage() {
   return (

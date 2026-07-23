@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": 1,
+  "recipe": "nextjs-app-router",
+  "recipeVersion": "1.0.0",
+  "generatedFiles": {
+    "volato/client.tsx": "29ffa582b0605af5364783ceeb4d79021998bffd5c1299e2e84219ebd4c4d9f6",
+    "volato/error-boundary.tsx": "752e518fd666088bc187503b160480a5955216dec6dd0abfd50c408a96dff1fc",
+    "volato/index.ts": "a39ef4bd1110fc3848ed7b33c0d9fbc473563efbfe2cdcced3e1225bd56b9480",
+    "volato/instrumentation.ts": "5d09872607ea419a08607166312dd80bb76a87881505566379f357dcdb75216f",
+    "volato/internal/before-send.ts": "1a1883eab6c9d7c562943e666e72a01ff6c0f678899f97198b404a96215d100f",
+    "volato/internal/browser-context.ts": "5b1db7996236e8f4a57235ab8f4a4689ce619c57d91f628189b017503c2867e4",
+    "volato/internal/dedupe.ts": "86b87c39f8db39e482456e09e393723583272a458c8655ae7b520fac360964ab",
+    "volato/internal/filters.ts": "e17a997ab292d0d37af2f87492e048074feba7a09c3c892425c8d8bd5f563101",
+    "volato/internal/hub-browser.ts": "55703ff09cf8b3b6892fc1eac2521f1b0082499237b7765f09d71504bce133f1",
+    "volato/internal/hub-node.ts": "615acd4e1fd4f13078ba5785b4fc056e89069377251fad914e35fffd435c2678",
+    "volato/internal/linked-errors.ts": "a7383107f554d18c2f6557678797b5aa4ea085b1b9b9af47e83eefa606cd5422",
+    "volato/internal/release.ts": "c5884de16abd525f0acafdefaf731cc680ee1659bfef989e9900a4684a4109be",
+    "volato/internal/scope.ts": "aabbe6d0b82a9a6a51b30210ebb94c4e1b162c4a676b20516848c7203d3d03e4",
+    "volato/internal/scrub-url.ts": "44419111ebb684d4bcc13748891e9be5611b63bd45272add26a0b0dc0a03364f",
+    "volato/internal/transport.ts": "c3e364dfb64b79199fef2d46992b4036354fc1df3280699c6af36dd6ee674391",
+    "volato/middleware.ts": "f0d3abb0a814e5ec514f7e3e30f6c9c21c83d41f274454e5ad05b1f172453e13",
+    "volato/protocol.ts": "e7b9549df82366f1c94e954f80939825b2baabbeb883c03bdeb1b0f3bbeb6383",
+    "volato/server.ts": "40d9a70f1ba42649269a1087b97eae601922c2963cbf7ff129e95a0eabc603aa",
+    "volato/tunnel.ts": "fecc8197ca2ae3aa47c03b1227e2f9db7b5ab2f095a1aa8975a994034f703ba4",
+    "volato/withVolato.ts": "f6d5a77eb7c4f27655c5f7cfcbe6d235d7c3ca87760ede8efaf14e92c1fed8b5"
+  }
+}

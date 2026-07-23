@@ -28,11 +28,15 @@ volato errors show                        # most-recent unresolved across the wo
 volato errors resolve <id> --note "..."  # mark resolved (append-only history)
 volato errors reopen <id>
 volato errors ignore <id>
-volato init                               # wire @volatodev/nextjs into a Next.js app
+volato skills install                     # install agent-facing setup skills
+volato init --dsn <dsn> --yes             # generate local capture source
 volato readme                             # print every command (point your agent here)
 ```
 
 Every command prints agent-ready markdown by default. Pass `--json` for the structured payload, scriptable exit codes for the rest (`3` auth, `4` not-found, `5` rate-limited).
+
+`volato init` adds no Volato runtime package. It generates versioned source in
+the application and records integrity hashes in `.volato/manifest.json`.
 
 ## For agents
 

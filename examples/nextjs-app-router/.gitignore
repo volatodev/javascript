@@ -1,0 +1,3 @@
+
+# local env files (Volato CLI)
+.env*.local

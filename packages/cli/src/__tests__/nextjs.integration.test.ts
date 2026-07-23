@@ -1,0 +1,127 @@
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { detectProject } from "../commands/init/detect";
+import { generateNextjsIntegration } from "../integrations/nextjs";
+import {
+  modifiedGeneratedFiles,
+  readManifest,
+} from "../integrations/manifest";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const sourceRoot = resolve(
+  here,
+  "../../skills/volato-nextjs/assets/runtime",
+);
+
+let cwd: string;
+
+beforeEach(() => {
+  cwd = mkdtempSync(join(tmpdir(), "volato-next-recipe-"));
+  mkdirSync(join(cwd, "src", "app"), { recursive: true });
+  writeFileSync(
+    join(cwd, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "fixture",
+        dependencies: {
+          next: "15.5.0",
+          react: "19.0.0",
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  writeFileSync(
+    join(cwd, "src", "app", "layout.tsx"),
+    "export default function Layout({ children }) {\n  return <body>{children}</body>;\n}\n",
+  );
+  writeFileSync(join(cwd, "next.config.ts"), "export default {};\n");
+});
+
+afterEach(() => {
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+describe("Next.js generated integration", () => {
+  it("generates a local runtime without package dependencies", () => {
+    const project = detectProject(cwd);
+    const result = generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+
+    expect(result.generatedFiles.length).toBeGreaterThan(10);
+    expect(existsSync(join(cwd, "src", "volato", "client.tsx"))).toBe(true);
+    expect(readFileSync(project.layoutPath, "utf8")).toContain(
+      'from "../volato/client"',
+    );
+    expect(readFileSync(project.instrumentationPath, "utf8")).toContain(
+      'from "./volato/instrumentation"',
+    );
+    expect(readFileSync(project.nextConfigPath!, "utf8")).toContain(
+      'from "./src/volato/withVolato"',
+    );
+    expect(
+      JSON.parse(readFileSync(join(cwd, "package.json"), "utf8")).dependencies,
+    ).toEqual({
+      next: "15.5.0",
+      react: "19.0.0",
+    });
+
+    const manifest = readManifest(cwd);
+    expect(manifest?.recipe).toBe("nextjs-app-router");
+    expect(modifiedGeneratedFiles(cwd, manifest!)).toEqual([]);
+  });
+
+  it("is idempotent while generated files remain untouched", () => {
+    const project = detectProject(cwd);
+    generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+
+    expect(() =>
+      generateNextjsIntegration({
+        cwd,
+        dsn: "https://pk@api.volato.dev/project",
+        project,
+        sourceRoot,
+      }),
+    ).not.toThrow();
+  });
+
+  it("refuses to overwrite a locally edited generated runtime", () => {
+    const project = detectProject(cwd);
+    generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+    writeFileSync(join(cwd, "src", "volato", "client.tsx"), "local edit");
+
+    expect(() =>
+      generateNextjsIntegration({
+        cwd,
+        dsn: "https://pk@api.volato.dev/project",
+        project,
+        sourceRoot,
+      }),
+    ).toThrow(/were edited or deleted/);
+  });
+});

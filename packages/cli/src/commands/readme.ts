@@ -30,12 +30,17 @@ Headless / CI — skip \`login\` and set the token in the environment:
 
 ## Install into a Next.js app
 
-    volato init
+    volato skills install
+    volato init --dsn "https://<public_key>@api.volato.dev/<project_id>" --yes
 
-Patches a Next.js 15 project — env vars, layout bootstrap,
-instrumentation hook, optional tunnel route — and sends a test event
-so you see capture land before your dev server has restarted.
-Idempotent: re-running converges, never duplicates.
+Installs the generic and Next.js agent skills, then generates local capture
+source in a Next.js 15 App Router project. No Volato runtime dependency is
+added. The recipe patches env vars, layout bootstrap, instrumentation hook,
+tunnel route and build-time sourcemap upload. Re-running is idempotent and
+refuses to overwrite locally edited generated files.
+
+Add \`--send-test-event\` to a non-interactive init when network verification
+is wanted immediately.
 
 ## Reading errors
 

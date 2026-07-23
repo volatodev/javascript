@@ -28,6 +28,7 @@ import {
   runErrorsResolve,
 } from "./commands/errors.js";
 import { runReadme } from "./commands/readme.js";
+import { runSkillsInstall } from "./commands/skills.js";
 import { CliError } from "./lib/api-client.js";
 import { printLocalError } from "./lib/output.js";
 
@@ -48,10 +49,52 @@ program
 
 program
   .command("init")
-  .description("Wire @volatodev/nextjs into the current Next.js project")
-  .action(async () => {
+  .description("Generate the dependency-free Volato integration for this project")
+  .option("--dsn <dsn>", "project DSN (avoids the interactive prompt)")
+  .option("--yes", "apply safe setup defaults without prompts")
+  .option(
+    "--send-test-event",
+    "send a synthetic event after non-interactive setup",
+  )
+  .action(async (opts: {
+    dsn?: string;
+    yes?: boolean;
+    sendTestEvent?: boolean;
+  }) => {
     try {
-      await runInit({ cwd: process.cwd() });
+      await runInit({
+        cwd: process.cwd(),
+        dsn: opts.dsn,
+        nonInteractive: opts.yes,
+        sendTestEvent: opts.sendTestEvent,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      printLocalError(message);
+      process.exit(1);
+    }
+  });
+
+const skills = program
+  .command("skills")
+  .description("Install the agent skills carried by this CLI");
+
+skills
+  .command("install")
+  .description("Install the generic Volato skill and supported framework skills")
+  .option(
+    "--target <directory>",
+    "project-relative agent skills directory",
+    ".agents/skills",
+  )
+  .option("--force", "replace differing installed skill files")
+  .action((opts: { target: string; force?: boolean }) => {
+    try {
+      runSkillsInstall({
+        cwd: process.cwd(),
+        target: opts.target,
+        force: opts.force,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       printLocalError(message);

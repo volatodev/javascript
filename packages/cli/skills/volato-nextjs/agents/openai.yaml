@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set up Volato for Next.js"
+  short_description: "Generate and verify the Next.js integration"
+  default_prompt: "Use $volato-nextjs to generate and verify Volato capture in this Next.js App Router project."

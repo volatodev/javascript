@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set up Volato"
+  short_description: "Connect an application to Volato safely"
+  default_prompt: "Use $volato-setup to connect this application to Volato and verify error capture."

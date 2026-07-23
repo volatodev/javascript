@@ -25,9 +25,7 @@
  * Every patch returns a `PatchOutcome` with one of four
  * statuses (`created` / `updated` / `skipped` / `manual`) so
  * the orchestrator can render the final report without re-
- * reading the file. `skipped` means the marker
- * `@volatodev/nextjs` was already present — re-running
- * `volato init` is safe.
+ * reading the file. Re-running `volato init` is safe.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -40,8 +38,6 @@ export type PatchOutcome = {
   status: PatchStatus;
   detail?: string;
 };
-
-const VOLATO_MARKER = "@volatodev/nextjs";
 
 function ensureDir(path: string): void {
   const dir = dirname(path);
@@ -61,7 +57,7 @@ function readIfExists(path: string): string | null {
  * `NEXT_PUBLIC_*` to server-side code too, so we don't need a separate
  * `VOLATO_DSN` server twin. The `VOLATO_INGEST_TOKEN` is *not* written
  * by the CLI — the developer copies it from the dashboard themselves
- * (only used at build / CI time, not at SDK runtime).
+ * (only used at build / CI time, not at application runtime).
  */
 export function patchEnvLocal(cwd: string, dsn: string): PatchOutcome {
   const path = `${cwd}/.env.local`;
@@ -101,11 +97,10 @@ export function patchEnvLocal(cwd: string, dsn: string): PatchOutcome {
 }
 
 /**
- * Create `instrumentation.ts` (or `.js`) re-exporting the SDK hook.
+ * Create `instrumentation.ts` (or `.js`) re-exporting the generated hook.
  *
- * Both .ts and .js variants emit ESM `export { onRequestError }` —
- * `@volatodev/nextjs` is `"type": "module"` and cannot be required
- * from CJS without a top-level await. For JS projects without
+ * Both .ts and .js variants emit ESM `export { onRequestError }`.
+ * For JS projects without
  * `"type": "module"` in their own package.json, a CJS-style file
  * would either fail to parse (Node ESM) or fail at runtime (`require`
  * an ESM-only export). We emit ESM and document the project-side
@@ -117,21 +112,21 @@ export function patchEnvLocal(cwd: string, dsn: string): PatchOutcome {
 export function patchInstrumentation(
   path: string,
   language: "ts" | "js",
+  modulePath = "./volato/instrumentation",
 ): PatchOutcome {
   const existing = readIfExists(path);
-  if (existing && existing.includes(VOLATO_MARKER)) {
+  if (existing && existing.includes(modulePath)) {
     return {
       path,
       status: "skipped",
-      detail: "instrumentation already wires @volatodev/nextjs",
+      detail: "instrumentation already wires the generated Volato hook",
     };
   }
   if (existing) {
     return {
       path,
       status: "manual",
-      detail:
-        'instrumentation file exists — add `export { onRequestError } from "@volatodev/nextjs/instrumentation"` manually',
+      detail: `instrumentation file exists — re-export onRequestError from "${modulePath}" manually`,
     };
   }
 
@@ -140,7 +135,7 @@ export function patchInstrumentation(
   // instrumentation.js when the project's package.json has
   // `"type": "module"`. If it doesn't, the JS variant requires the
   // user to opt in — flagged via the `detail` field below.
-  const body = `export { onRequestError } from "@volatodev/nextjs/instrumentation";\n`;
+  const body = `export { onRequestError } from "${modulePath}";\n`;
   writeFileSync(path, body, "utf8");
 
   const detail =
@@ -157,7 +152,7 @@ export function patchInstrumentation(
  *   2. Insert `<VolatoBootstrap dsn={...} />` next to `{children}`.
  *
  * `<VolatoBootstrap>` is a client component that renders nothing (it
- * just mounts the browser SDK). Next.js allows client components to
+ * just mounts browser capture). Next.js allows client components to
  * render inside server components, so this works whether or not the
  * layout is `"use client"`. The render-phase error boundary belongs in
  * `app/error.tsx` / `app/global-error.tsx` — App Router's file-system
@@ -166,7 +161,10 @@ export function patchInstrumentation(
  *
  * Falls back to `manual` when the layout shape is unusual.
  */
-export function patchLayout(path: string): PatchOutcome {
+export function patchLayout(
+  path: string,
+  modulePath = "../volato/client",
+): PatchOutcome {
   const original = readIfExists(path);
   if (original === null) {
     return {
@@ -175,7 +173,7 @@ export function patchLayout(path: string): PatchOutcome {
       detail: "layout file not found — copy the snippet from the docs",
     };
   }
-  if (original.includes(VOLATO_MARKER)) {
+  if (original.includes(modulePath)) {
     return {
       path,
       status: "skipped",
@@ -195,7 +193,7 @@ export function patchLayout(path: string): PatchOutcome {
     };
   }
 
-  const importBlock = `import { VolatoBootstrap } from "@volatodev/nextjs/client";\n`;
+  const importBlock = `import { VolatoBootstrap } from "${modulePath}";\n`;
   // Sibling, not wrapper — keeps the patch compatible with server
   // layouts (the default for app/layout.tsx in Next 15).
   const insertion =
@@ -239,8 +237,10 @@ function insertAfterLastImport(source: string, block: string): string {
  * designed to be safe in browser bundles, so the public prefix is the
  * correct shape for Edge too.
  */
-export function buildMiddlewareSnippet(): string {
-  return `import { wrapMiddleware } from "@volatodev/nextjs/middleware";
+export function buildMiddlewareSnippet(
+  modulePath = "./volato/middleware",
+): string {
+  return `import { wrapMiddleware } from "${modulePath}";
 
 export default wrapMiddleware(async (req) => {
   // your existing middleware logic
@@ -262,7 +262,10 @@ export default wrapMiddleware(async (req) => {
  * subsequent `export const runtime = ...` adjacent to the default
  * export. The bracket walker stops at the actual statement boundary.
  */
-export function patchNextConfig(path: string | null): PatchOutcome {
+export function patchNextConfig(
+  path: string | null,
+  modulePath = "./volato/withVolato",
+): PatchOutcome {
   if (!path) {
     return {
       path: "next.config",
@@ -294,7 +297,7 @@ export function patchNextConfig(path: string | null): PatchOutcome {
     };
   }
 
-  const importLine = `import { withVolato } from "@volatodev/nextjs";\n`;
+  const importLine = `import { withVolato } from "${modulePath}";\n`;
   const wrappedSlice = `export default withVolato(${located.expression.trim()})`;
   const replaced =
     original.slice(0, located.startIndex) +
@@ -582,11 +585,12 @@ function findExportDefaultExpression(
 
 /**
  * Create the same-origin tunnel route at `app/monitoring/route.ts`. The
- * SDK's browser transport posts to `/monitoring` by default.
+ * Generated browser transport posts to `/monitoring` by default.
  */
 export function patchTunnelRoute(
   path: string,
   language: "ts" | "js",
+  modulePath = "../../../volato/server",
 ): PatchOutcome {
   const existing = readIfExists(path);
   if (existing && existing.includes("createTunnelHandler")) {
@@ -602,8 +606,8 @@ export function patchTunnelRoute(
   ensureDir(path);
   const body =
     language === "ts"
-      ? `import { createTunnelHandler } from "@volatodev/nextjs/server";\n\nexport const POST = createTunnelHandler();\n`
-      : `const { createTunnelHandler } = require("@volatodev/nextjs/server");\n\nexports.POST = createTunnelHandler();\n`;
+      ? `import { createTunnelHandler } from "${modulePath}";\n\nexport const POST = createTunnelHandler();\n`
+      : `const { createTunnelHandler } = require("${modulePath}");\n\nexports.POST = createTunnelHandler();\n`;
   writeFileSync(path, body, "utf8");
   return { path, status: "created" };
 }

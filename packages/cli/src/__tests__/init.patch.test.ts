@@ -78,7 +78,7 @@ describe("patchInstrumentation", () => {
 
     expect(out.status).toBe("created");
     expect(readFileSync(path, "utf8")).toContain(
-      'export { onRequestError } from "@volatodev/nextjs/instrumentation"',
+      'export { onRequestError } from "./volato/instrumentation"',
     );
   });
 
@@ -88,7 +88,7 @@ describe("patchInstrumentation", () => {
     const out = patchInstrumentation(path, "js");
 
     expect(readFileSync(path, "utf8")).toContain(
-      'export { onRequestError } from "@volatodev/nextjs/instrumentation"',
+      'export { onRequestError } from "./volato/instrumentation"',
     );
     expect(readFileSync(path, "utf8")).not.toContain("require(");
     expect(out.detail).toMatch(/type.*module/);
@@ -98,7 +98,7 @@ describe("patchInstrumentation", () => {
     const path = join(cwd, "instrumentation.ts");
     writeFileSync(
       path,
-      'export { onRequestError } from "@volatodev/nextjs/instrumentation";\n',
+      'export { onRequestError } from "./volato/instrumentation";\n',
     );
 
     const out = patchInstrumentation(path, "ts");
@@ -151,7 +151,7 @@ export default function RootLayout({
     expect(out.status).toBe("updated");
     const contents = readFileSync(path, "utf8");
     expect(contents).toContain(
-      'import { VolatoBootstrap } from "@volatodev/nextjs/client";',
+      'import { VolatoBootstrap } from "../volato/client";',
     );
     expect(contents).toContain("<VolatoBootstrap");
     // No wrapper: VolatoErrorBoundary must NOT appear (it's a client
@@ -163,7 +163,7 @@ export default function RootLayout({
 
   it("skips a layout that already references Volato", () => {
     const path = writeLayout(
-      'import { VolatoBootstrap } from "@volatodev/nextjs/client";\n' +
+      'import { VolatoBootstrap } from "../volato/client";\n' +
         STARTER_LAYOUT,
     );
 
@@ -197,10 +197,10 @@ export default function RootLayout({
 });
 
 describe("buildMiddlewareSnippet", () => {
-  it("returns a wrapMiddleware snippet referencing the SDK", () => {
+  it("returns a wrapMiddleware snippet referencing generated source", () => {
     const snippet = buildMiddlewareSnippet();
     expect(snippet).toContain(
-      'import { wrapMiddleware } from "@volatodev/nextjs/middleware"',
+      'import { wrapMiddleware } from "./volato/middleware"',
     );
     expect(snippet).toContain("wrapMiddleware(");
   });
@@ -225,7 +225,7 @@ describe("patchNextConfig", () => {
     const out = patchNextConfig(path);
     expect(out.status).toBe("updated");
     const next = readFileSync(path, "utf8");
-    expect(next).toContain('import { withVolato } from "@volatodev/nextjs"');
+    expect(next).toContain('import { withVolato } from "./volato/withVolato"');
     expect(next).toContain(
       "export default withVolato({ reactStrictMode: true })",
     );
@@ -342,7 +342,7 @@ describe("patchTunnelRoute", () => {
     const out = patchTunnelRoute(path, "ts");
     expect(out.status).toBe("created");
     const body = readFileSync(path, "utf8");
-    expect(body).toContain('from "@volatodev/nextjs/server"');
+    expect(body).toContain('from "../../../volato/server"');
     expect(body).toContain("export const POST = createTunnelHandler()");
   });
 
@@ -350,7 +350,7 @@ describe("patchTunnelRoute", () => {
     const path = join(cwd, "app", "monitoring", "route.js");
     patchTunnelRoute(path, "js");
     const body = readFileSync(path, "utf8");
-    expect(body).toContain('require("@volatodev/nextjs/server")');
+    expect(body).toContain('require("../../../volato/server")');
     expect(body).toContain("exports.POST = createTunnelHandler()");
   });
 
