@@ -62,7 +62,7 @@ export function createTunnelHandler(options: TunnelOptions = {}): TunnelHandler 
         },
         body,
       });
-      // Pass through the upstream status so the SDK transport's retry
+      // Pass through the upstream status so the generated transport's retry
       // logic still applies end-to-end.
       return new Response(null, {
         status: upstream.status,

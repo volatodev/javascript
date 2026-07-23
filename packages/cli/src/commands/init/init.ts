@@ -292,7 +292,7 @@ async function ensureGitignoreCoversEnvLocal(
 /**
  * Offer to send a test event immediately after `init` succeeds.
  * Posts a synthetic error directly to the ingest endpoint with the
- * resolved DSN — same wire format as the generated runtime so the dashboard's
+ * resolved DSN — same wire format as the generated runtime so the project's
  * checklist step 3 flips green right away. The user has a "yes it
  * actually works" moment in the same terminal session, before they
  * even restart their dev server.
@@ -326,7 +326,7 @@ async function maybeSendTestEvent(
   try {
     await sendTestEvent(dsn);
     process.stdout.write(
-      `  ${pc.green("✓")} Test event sent — your Volato dashboard should flip to ${pc.green("Receiving")}.\n\n`,
+      `  ${pc.green("✓")} Test event sent — the project should now show ${pc.green("Receiving")}.\n\n`,
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -375,7 +375,7 @@ async function resolveDsn(options: InitOptions): Promise<string> {
   if (fromEnv) {
     const tail = dsnTail(fromEnv.dsn);
     // Why we ask: the developer probably just pasted the env var from the
-    // dashboard, but they may have several projects open. Before we patch
+    // project page, but they may have several projects open. Before we patch
     // instrumentation.ts + layout against this DSN — committing the target
     // — give them an out to point at a different project.
     process.stdout.write(
@@ -464,7 +464,7 @@ function printNextSteps(
   // `withVolato()` build helper performs.
   // performs at `next build`. Without it, prod errors arrive as
   // minified frames and the agent can't open the offending file.
-  // Find it in the project's dashboard alongside the DSN.
+  // Find it on the project's settings page alongside the DSN.
   process.stdout.write(
     `  ${pc.dim("5.")} ${pc.bold("(CI)")} Set ${pc.cyan(
       "VOLATO_INGEST_TOKEN",
@@ -476,7 +476,7 @@ function printNextSteps(
   );
   process.stdout.write(
     `${pc.green("✓")} Done. ${pc.dim(
-      "Trigger an error and check your Volato dashboard.",
+      "Trigger an error, then run `volato errors show`.",
     )}\n`,
   );
 }

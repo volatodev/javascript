@@ -1,5 +1,5 @@
 /**
- * SDK-side deduplication: drop a captured event if we've seen the same
+ * Integration-side deduplication: drop a captured event if we've seen the same
  * `(type, message, first-stack-frame)` triple within the configured TTL.
  *
  * Purpose: a single bug can fire `console.error` 50 times during a render

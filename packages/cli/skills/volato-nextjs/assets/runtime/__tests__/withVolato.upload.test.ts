@@ -51,7 +51,7 @@ afterAll(() => {
   restore("VOLATO_RELEASE", ORIGINAL_RELEASE);
 });
 
-// A representative `.map` file as the SDK would emit one. Includes a
+// A representative `.map` file as Next.js would emit one. Includes a
 // `sourcesContent` field that MUST be stripped before transit.
 const SAMPLE_MAP = JSON.stringify({
   version: 3,

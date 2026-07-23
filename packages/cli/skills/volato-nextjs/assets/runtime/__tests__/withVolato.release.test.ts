@@ -193,7 +193,7 @@ describe("withVolato — end-to-end release injection", () => {
     expect(env?.VOLATO_RELEASE).toBe("user-config-v1");
   });
 
-  it("still injects env when disableUpload is set (the SDK still wants the release tag)", () => {
+  it("still injects env when disableUpload is set (capture still wants the release tag)", () => {
     process.env.VOLATO_RELEASE = "abc123";
     const out = withVolato({}, { disableUpload: true });
     const env = (out as { env?: Record<string, string> }).env;

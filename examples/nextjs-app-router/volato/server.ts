@@ -3,8 +3,8 @@
  * Edge-runtime (middleware) capture lives in `./middleware`.
  *
  * Hard constraint: never import `node:crypto` or any Node-only module that
- * would break SDK uniformity across runtimes. The SDK is transport-only —
- * fingerprinting happens on the server at `/api/ingest`.
+ * would break runtime uniformity. Generated capture is transport-only —
+ * fingerprinting happens at `/api/ingest`.
  */
 
 import {

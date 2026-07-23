@@ -4,7 +4,7 @@
  *   - `VolatoBootstrap` — the React component the user mounts in
  *     their root layout. Initialises capture once per page load.
  *   - `initClient` — the imperative version, useful when the host
- *     wants to defer SDK boot.
+ *     wants to defer automatic capture.
  *   - `captureClientError` — the manual capture API used by the
  *     `error-boundary` helper and any custom user code.
  *   - `wrapClientAction` — wraps a server-action invocation on
@@ -254,7 +254,7 @@ function post(config: VolatoConfig, payload: ClientErrorPayload): void {
  * Send a client-side error through the active Volato config. Used by
  * `captureFromErrorBoundary` (called from `app/error.tsx`) to forward
  * React render errors that `window.onerror` never sees. No-op when no
- * config has been installed or the SDK is disabled.
+ * config has been installed or capture is disabled.
  */
 export function captureClientError(
   error: unknown,
@@ -268,7 +268,7 @@ let globalListenersAttached = false;
 let warnedMissingDsn = false;
 
 /**
- * Loud, idempotent notice when an SDK entrypoint is reached without a
+ * Loud, idempotent notice when a capture entrypoint is reached without a
  * DSN. Painkiller contract: never silently no-op — the dev who forgot
  * `.env.local` must know within seconds, not when their first prod bug
  * fails to show up.

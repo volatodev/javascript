@@ -385,7 +385,7 @@ type NextConfigLike = {
  * Why not read provider env vars (`VERCEL_GIT_COMMIT_SHA`, `COMMIT_REF`,
  * `CF_PAGES_COMMIT_SHA`, etc.)? Clean-room policy. Git is the universal
  * tool every Next.js project already uses; baking hoster-specific names
- * into the SDK would couple us to those companies' naming conventions.
+ * into generated source would couple us to those companies' naming conventions.
  */
 function detectGitSha(cwd?: string): string | undefined {
   try {
@@ -417,7 +417,7 @@ export function __buildEnvWithReleaseForTests(
 /**
  * Merge a release tag into the `env` block of the returned Next.js
  * config so Next inlines it into both server and client bundles via
- * DefinePlugin. The SDK's `detectRelease()` reads the inlined value
+ * DefinePlugin. The generated runtime's `detectRelease()` reads the inlined value
  * statically — see `internal/release.ts` for why static access is
  * load-bearing here.
  *

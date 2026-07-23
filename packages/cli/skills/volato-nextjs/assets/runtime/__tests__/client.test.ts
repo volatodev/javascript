@@ -313,8 +313,8 @@ describe("initClient", () => {
   it("propagates scope breadcrumbs into the captured event payload", () => {
     // E2E: a breadcrumb added to the scope (auto-instrumentation,
     // user-driven addBreadcrumb, …) must end up inside the wire
-    // payload so the MCP renderer can show it to the agent. This pins
-    // the SDK ↔ wire ↔ MCP contract that whatToDo §3.B audits.
+    // payload so the agent renderer can show it. This pins the generated
+    // integration ↔ HTTP protocol ↔ agent API contract.
     const { window, listeners } = makeMockWindow();
     vi.stubGlobal("window", window);
 

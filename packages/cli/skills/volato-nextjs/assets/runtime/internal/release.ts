@@ -18,7 +18,7 @@
  * a list. Reads are memoized: env doesn't change between events, so
  * we don't re-evaluate the chain on every capture.
  *
- * The SDK does not read provider-specific env vars (no Vercel,
+ * Generated source does not read provider-specific env vars (no Vercel,
  * Netlify, Cloudflare, etc.). Release tagging is auto-handled by
  * `withVolato()`, which runs `git rev-parse HEAD` at build time and
  * injects the SHA into Next's `env` config. A user wanting to override
