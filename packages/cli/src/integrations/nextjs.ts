@@ -10,6 +10,7 @@ import { dirname, join, relative } from "node:path";
 import type { ProjectShape } from "../commands/init/detect";
 import {
   patchEnvLocal,
+  patchErrorBoundary,
   patchInstrumentation,
   patchLayout,
   patchNextConfig,
@@ -123,6 +124,13 @@ export function generateNextjsIntegration(
     patchLayout(
       options.project.layoutPath,
       modulePath(options.project.layoutPath, join(runtimeRoot, "client")),
+    ),
+    patchErrorBoundary(
+      options.project.errorBoundaryPath,
+      modulePath(
+        options.project.errorBoundaryPath,
+        join(runtimeRoot, "error-boundary"),
+      ),
     ),
     patchNextConfig(
       options.project.nextConfigPath,

@@ -47,6 +47,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Smoke packed CLI artifact
+        run: pnpm smoke:package
+
   release:
     name: Release
     needs: ci

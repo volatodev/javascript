@@ -65,6 +65,9 @@ describe("Next.js generated integration", () => {
 
     expect(result.generatedFiles.length).toBeGreaterThan(10);
     expect(existsSync(join(cwd, "src", "volato", "client.tsx"))).toBe(true);
+    expect(readFileSync(join(cwd, "src", "app", "error.tsx"), "utf8")).toContain(
+      'from "../volato/error-boundary"',
+    );
     expect(readFileSync(project.layoutPath, "utf8")).toContain(
       'from "../volato/client"',
     );

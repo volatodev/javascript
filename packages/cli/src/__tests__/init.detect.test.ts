@@ -121,6 +121,22 @@ describe("detectProject", () => {
     expect(() => detectProject(cwd)).not.toThrow();
   });
 
+  it("rejects Next.js versions older than 15", () => {
+    makePackageJson({ dependencies: { next: "^14.2.0" } });
+    mkdirSync(join(cwd, "app"));
+    writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
+
+    expect(() => detectProject(cwd)).toThrow(/Next\.js 15 or newer/);
+  });
+
+  it("rejects a version specifier whose major cannot be confirmed", () => {
+    makePackageJson({ dependencies: { next: "latest" } });
+    mkdirSync(join(cwd, "app"));
+    writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
+
+    expect(() => detectProject(cwd)).toThrow(/Cannot confirm the Next\.js version/);
+  });
+
   it("throws DetectionError when no App Router layout exists", () => {
     makePackageJson();
     mkdirSync(join(cwd, "pages"));
@@ -143,6 +159,7 @@ describe("detectProject", () => {
     expect(project.tunnelRoutePath).toBe(
       join(cwd, "app", "monitoring", "route.ts"),
     );
+    expect(project.errorBoundaryPath).toBe(join(cwd, "app", "error.tsx"));
   });
 
   it("falls back to next.config.mjs / .js / .cjs in priority order", () => {

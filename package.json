@@ -15,6 +15,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "smoke:package": "pnpm --filter @volatodev/cli build && node scripts/package-smoke.mjs",
     "clean": "turbo run clean && rm -rf node_modules",
     "changeset": "changeset",
     "version": "changeset version",

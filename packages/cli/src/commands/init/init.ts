@@ -179,16 +179,31 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   for (const o of outcomes) printOutcome(cwd, o);
   process.stdout.write("\n");
+  const manualOutcomes = outcomes.filter(
+    (outcome) => outcome.status === "manual",
+  );
 
   await ensureGitignoreCoversEnvLocal(cwd, options.nonInteractive);
 
-  await maybeSendTestEvent(
-    dsn,
-    options.nonInteractive,
-    options.sendTestEvent,
-  );
+  if (manualOutcomes.length === 0) {
+    await maybeSendTestEvent(
+      dsn,
+      options.nonInteractive,
+      options.sendTestEvent,
+    );
+  }
 
-  printNextSteps(project.middlewarePath, generated.runtimeRoot, cwd);
+  printNextSteps(
+    project.middlewarePath,
+    generated.runtimeRoot,
+    cwd,
+    manualOutcomes.length === 0,
+  );
+  if (manualOutcomes.length > 0) {
+    throw new Error(
+      `Integration setup is incomplete: ${manualOutcomes.length} file${manualOutcomes.length === 1 ? "" : "s"} require manual composition.`,
+    );
+  }
 }
 
 /**
@@ -422,6 +437,7 @@ function printNextSteps(
   middlewarePath: string | null,
   runtimeRoot: string,
   cwd: string,
+  complete: boolean,
 ): void {
   process.stdout.write(`${pc.bold("Next steps")}\n`);
   process.stdout.write(
@@ -474,9 +490,17 @@ function printNextSteps(
       "next build",
     )}. Without it, prod errors show minified frames.\n\n`,
   );
-  process.stdout.write(
-    `${pc.green("✓")} Done. ${pc.dim(
-      "Trigger an error, then run `volato errors show`.",
-    )}\n`,
-  );
+  if (complete) {
+    process.stdout.write(
+      `${pc.green("✓")} Done. ${pc.dim(
+        "Trigger an error, then run `volato errors show`.",
+      )}\n`,
+    );
+  } else {
+    process.stdout.write(
+      `${pc.yellow("!")} Setup incomplete. ${pc.dim(
+        "Complete every manual file action above, then rerun `volato init`.",
+      )}\n`,
+    );
+  }
 }

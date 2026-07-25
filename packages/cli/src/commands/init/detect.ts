@@ -27,6 +27,10 @@ export type ProjectShape = {
   nextConfigPath: string | null;
   /** Absolute path where the tunnel route should live (app/monitoring/route.{ts,js}). */
   tunnelRoutePath: string;
+  /** Absolute path where the App Router render error boundary should live. */
+  errorBoundaryPath: string;
+  /** Confirmed major version from the package.json dependency specifier. */
+  nextMajor: number;
   language: "ts" | "js";
 };
 
@@ -51,14 +55,24 @@ function readJsonSafe(path: string): Record<string, unknown> | null {
   }
 }
 
-function hasNextDependency(pkg: Record<string, unknown>): boolean {
-  const deps = pkg.dependencies;
-  const devDeps = pkg.devDependencies;
-  const inDeps =
-    deps && typeof deps === "object" && "next" in (deps as object);
-  const inDevDeps =
-    devDeps && typeof devDeps === "object" && "next" in (devDeps as object);
-  return Boolean(inDeps || inDevDeps);
+function nextVersionSpecifier(pkg: Record<string, unknown>): string | null {
+  for (const field of ["dependencies", "devDependencies"] as const) {
+    const deps = pkg[field];
+    if (!deps || typeof deps !== "object") continue;
+    const value = (deps as Record<string, unknown>).next;
+    if (typeof value === "string") return value.trim();
+  }
+  return null;
+}
+
+function supportedNextMajor(specifier: string): number | null {
+  // Common npm semver forms: 15.5.0, ^15.5.0, ~15, >=15.0.0 <16.
+  // Tags, git URLs, aliases and workspace references cannot prove the runtime
+  // contract, so setup fails with an actionable message instead of guessing.
+  const match = /(?:^|[<>=~^|\s])v?(\d+)(?:\.|$)/.exec(specifier);
+  if (!match) return null;
+  const major = Number(match[1]);
+  return Number.isInteger(major) ? major : null;
 }
 
 function findLayout(
@@ -85,9 +99,21 @@ export function detectProject(cwd: string): ProjectShape {
       `No package.json found in ${cwd}. Run this command from your Next.js project root.`,
     );
   }
-  if (!hasNextDependency(pkg)) {
+  const nextSpecifier = nextVersionSpecifier(pkg);
+  if (!nextSpecifier) {
     throw new DetectionError(
       "Next.js is not listed in dependencies or devDependencies. Run `pnpm add next` first.",
+    );
+  }
+  const nextMajor = supportedNextMajor(nextSpecifier);
+  if (nextMajor === null) {
+    throw new DetectionError(
+      `Cannot confirm the Next.js version from package.json specifier "${nextSpecifier}". Pin a semver range for Next.js 15 or newer before running Volato setup.`,
+    );
+  }
+  if (nextMajor < 15) {
+    throw new DetectionError(
+      `Volato requires Next.js 15 or newer; package.json declares "${nextSpecifier}".`,
     );
   }
 
@@ -134,6 +160,11 @@ export function detectProject(cwd: string): ProjectShape {
     "monitoring",
     `route.${tunnelRouteExt}`,
   );
+  const errorBoundaryPath = join(
+    cwd,
+    appDir,
+    `error.${layout.ext}`,
+  );
 
   return {
     cwd,
@@ -143,6 +174,8 @@ export function detectProject(cwd: string): ProjectShape {
     middlewarePath,
     nextConfigPath,
     tunnelRoutePath,
+    errorBoundaryPath,
+    nextMajor,
     language,
   };
 }

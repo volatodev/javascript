@@ -16,6 +16,7 @@
  *                                lines — the walker stops at
  *                                the right statement boundary)
  *   - `patchTunnelRoute`         create `app/monitoring/route.ts`
+ *   - `patchErrorBoundary`       create `app/error.tsx`
  *   - `buildMiddlewareSnippet`   the only one that doesn't write
  *                                — middleware shapes vary too
  *                                much for a regex patch to be
@@ -609,5 +610,64 @@ export function patchTunnelRoute(
       ? `import { createTunnelHandler } from "${modulePath}";\n\nexport const POST = createTunnelHandler();\n`
       : `const { createTunnelHandler } = require("${modulePath}");\n\nexports.POST = createTunnelHandler();\n`;
   writeFileSync(path, body, "utf8");
+  return { path, status: "created" };
+}
+
+/**
+ * Create the canonical App Router render error boundary. Existing application
+ * boundaries own user-facing recovery UI, so they are never rewritten: setup
+ * reports a manual composition outcome instead.
+ */
+export function patchErrorBoundary(
+  path: string,
+  modulePath = "../volato/error-boundary",
+): PatchOutcome {
+  const existing = readIfExists(path);
+  if (existing && existing.includes("captureFromErrorBoundary")) {
+    return {
+      path,
+      status: "skipped",
+      detail: "React error boundary already reports to Volato",
+    };
+  }
+  if (existing) {
+    return {
+      path,
+      status: "manual",
+      detail: `error boundary exists — call captureFromErrorBoundary(error) from "${modulePath}" in a useEffect`,
+    };
+  }
+
+  ensureDir(path);
+  writeFileSync(
+    path,
+    `"use client";
+
+import { useEffect } from "react";
+import { captureFromErrorBoundary } from "${modulePath}";
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    captureFromErrorBoundary(error);
+  }, [error]);
+
+  return (
+    <main>
+      <h1>Something went wrong</h1>
+      <button type="button" onClick={() => reset()}>
+        Try again
+      </button>
+    </main>
+  );
+}
+`,
+    "utf8",
+  );
   return { path, status: "created" };
 }

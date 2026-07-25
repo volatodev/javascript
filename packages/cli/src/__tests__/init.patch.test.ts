@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildMiddlewareSnippet,
   patchEnvLocal,
+  patchErrorBoundary,
   patchInstrumentation,
   patchLayout,
   patchNextConfig,
@@ -367,5 +368,43 @@ describe("patchTunnelRoute", () => {
     writeFileSync(path, "export const POST = () => new Response();\n");
     const out = patchTunnelRoute(path, "ts");
     expect(out.status).toBe("manual");
+  });
+});
+
+describe("patchErrorBoundary", () => {
+  it("creates an App Router error boundary that reports render errors", () => {
+    const path = join(cwd, "app", "error.tsx");
+    const out = patchErrorBoundary(path, "../volato/error-boundary");
+
+    expect(out.status).toBe("created");
+    const body = readFileSync(path, "utf8");
+    expect(body).toContain('"use client"');
+    expect(body).toContain(
+      'import { captureFromErrorBoundary } from "../volato/error-boundary"',
+    );
+    expect(body).toContain("captureFromErrorBoundary(error)");
+    expect(body).toContain("reset()");
+  });
+
+  it("is idempotent when Volato is already wired", () => {
+    const path = join(cwd, "app", "error.tsx");
+    patchErrorBoundary(path, "../volato/error-boundary");
+
+    expect(
+      patchErrorBoundary(path, "../volato/error-boundary").status,
+    ).toBe("skipped");
+  });
+
+  it("leaves an existing application boundary for manual composition", () => {
+    const path = join(cwd, "app", "error.tsx");
+    mkdirSync(join(cwd, "app"), { recursive: true });
+    writeFileSync(path, '"use client";\nexport default function Error() { return null; }\n');
+
+    const out = patchErrorBoundary(path, "../volato/error-boundary");
+
+    expect(out.status).toBe("manual");
+    expect(readFileSync(path, "utf8")).not.toContain(
+      "captureFromErrorBoundary",
+    );
   });
 });
