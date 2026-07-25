@@ -59,9 +59,9 @@ function resolveApiBase(): string {
 }
 
 async function loadToken(): Promise<string> {
-  // Stored token first; fall back to VOLATO_TOKEN so a headless agent or
-  // CI run works with zero `login` step — just set the env var.
-  const token = (await readToken()) ?? process.env.VOLATO_TOKEN?.trim() ?? null;
+  // An explicit environment credential wins so CI can override a stale token
+  // left on a persistent runner. Interactive use falls back to the local file.
+  const token = process.env.VOLATO_TOKEN?.trim() || (await readToken());
   if (!token) {
     throw new CliError(
       "Not authenticated. Run `volato login`, or set VOLATO_TOKEN in the environment.",

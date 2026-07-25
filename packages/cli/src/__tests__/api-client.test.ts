@@ -109,4 +109,20 @@ describe("api-client transport resilience", () => {
       delete process.env.VOLATO_TOKEN;
     }
   });
+
+  it("lets VOLATO_TOKEN override a stale credentials file", async () => {
+    process.env.VOLATO_TOKEN = "ci-token";
+    try {
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(jsonResponse(200, { markdown: "ok" }));
+      await getJson("/v1/errors");
+      const [, init] = fetchMock.mock.calls[0]!;
+      expect((init?.headers as Record<string, string>).Authorization).toBe(
+        "Bearer ci-token",
+      );
+    } finally {
+      delete process.env.VOLATO_TOKEN;
+    }
+  });
 });
