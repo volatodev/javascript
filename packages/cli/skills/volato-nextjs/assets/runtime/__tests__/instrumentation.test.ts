@@ -131,7 +131,6 @@ describe("onRequestError (Next.js 15 instrumentation hook)", () => {
     expect(body.headers).toEqual({
       "user-agent": "vitest/1",
       referer: "https://example.com/from",
-      "x-forwarded-for": "203.0.113.10",
     });
     expect(body.headers).not.toHaveProperty("cookie");
     expect(body.headers).not.toHaveProperty("authorization");

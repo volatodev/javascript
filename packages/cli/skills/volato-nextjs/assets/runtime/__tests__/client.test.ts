@@ -65,7 +65,10 @@ describe("initClient", () => {
     __resetActiveConfigForTests();
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("location", { href: "https://app.example.com/dashboard" });
+    vi.stubGlobal("location", {
+      href: "https://app.example.com/dashboard",
+      origin: "https://app.example.com",
+    });
     vi.stubGlobal("navigator", { userAgent: "vitest-agent/1.0" });
     vi.stubEnv("NODE_ENV", "production");
   });
@@ -113,7 +116,7 @@ describe("initClient", () => {
     const { window, listeners } = makeMockWindow();
     vi.stubGlobal("window", window);
 
-    initClient({ dsn: DSN, environment: "production", tunnel: false });
+    initClient({ dsn: DSN, environment: "production" });
 
     const errorListener = listeners.get("error")?.[0];
     expect(errorListener).toBeTypeOf("function");
@@ -143,6 +146,25 @@ describe("initClient", () => {
     });
     expect(typeof body.stack).toBe("string");
     expect(typeof body.timestamp).toBe("number");
+  });
+
+  it("uses a same-origin tunnel only after explicit opt-in", () => {
+    const { window, listeners } = makeMockWindow();
+    vi.stubGlobal("window", window);
+    initClient({
+      dsn: DSN,
+      environment: "production",
+      tunnel: "/monitoring",
+    });
+
+    listeners.get("error")?.[0]?.({
+      error: new Error("boom"),
+      message: "boom",
+    } as ErrorEvent);
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://app.example.com/monitoring",
+    );
   });
 
   it("scrubs sensitive query params from the captured event.url (location.href)", () => {

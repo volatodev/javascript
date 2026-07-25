@@ -3,8 +3,7 @@
  * Next.js project tree and figures out where the layout lives
  * (`app/` vs `src/app/`), whether they're on TypeScript or
  * JavaScript, where their `next.config.{ts,js,mjs,cjs}` is, and
- * whether they already have an `instrumentation.ts` /
- * `middleware.ts`.
+ * whether they already have an `instrumentation.ts` / `middleware.ts`.
  *
  * Lives separately from `init.ts` and `patch.ts` so each rule is
  * a pure function with no I/O wrapper — the test suite hands it
@@ -25,8 +24,6 @@ export type ProjectShape = {
   middlewarePath: string | null;
   /** Absolute path to the existing next.config.{ts,mjs,js,cjs}, or null. */
   nextConfigPath: string | null;
-  /** Absolute path where the tunnel route should live (app/monitoring/route.{ts,js}). */
-  tunnelRoutePath: string;
   /** Absolute path where the App Router render error boundary should live. */
   errorBoundaryPath: string;
   /** Confirmed major version from the package.json dependency specifier. */
@@ -153,13 +150,6 @@ export function detectProject(cwd: string): ProjectShape {
   const nextConfigPath =
     nextConfigCandidates.find((p) => existsSync(p)) ?? null;
 
-  const tunnelRouteExt = language === "ts" ? "ts" : "js";
-  const tunnelRoutePath = join(
-    cwd,
-    appDir,
-    "monitoring",
-    `route.${tunnelRouteExt}`,
-  );
   const errorBoundaryPath = join(
     cwd,
     appDir,
@@ -173,7 +163,6 @@ export function detectProject(cwd: string): ProjectShape {
     instrumentationPath,
     middlewarePath,
     nextConfigPath,
-    tunnelRoutePath,
     errorBoundaryPath,
     nextMajor,
     language,

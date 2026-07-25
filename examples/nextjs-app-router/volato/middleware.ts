@@ -25,7 +25,12 @@ import { unwrapCauseChain } from "./internal/linked-errors";
 import { runBeforeSend } from "./internal/before-send";
 import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
-import { scrubSearchParams, scrubUrl } from "./internal/scrub-url";
+import { serializeEnvelope } from "./internal/serialize";
+import {
+  scrubPath,
+  scrubSearchParams,
+  scrubUrl,
+} from "./internal/scrub-url";
 import { sendEnvelope } from "./internal/transport";
 import type { VolatoConfig } from "./index";
 import type { LinkedError } from "./protocol";
@@ -51,7 +56,7 @@ function summarizeEdgeRequest(req: Request): EdgeErrorPayload["request"] {
   let searchParams: Record<string, string | string[]> | undefined;
   try {
     const u = new URL(req.url);
-    pathname = u.pathname;
+    pathname = scrubPath(u.pathname);
     const sp: Record<string, string | string[]> = {};
     for (const key of new Set(u.searchParams.keys())) {
       const all = u.searchParams.getAll(key);
@@ -126,10 +131,11 @@ export async function captureException(
     if (!shouldSend(asEvent)) return;
     const filtered = runBeforeSend(config.beforeSend, asEvent);
     if (filtered === null) return;
+    const serialized = serializeEnvelope(filtered);
     await sendEnvelope(
       dsnToIngestUrl(config.dsn),
       { [VOLATO_DSN_HEADER]: config.dsn },
-      JSON.stringify(filtered),
+      serialized.body,
       { keepalive: true },
     );
   } catch {

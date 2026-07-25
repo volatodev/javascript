@@ -15,7 +15,6 @@
  *                                ate adjacent `export const`
  *                                lines — the walker stops at
  *                                the right statement boundary)
- *   - `patchTunnelRoute`         create `app/monitoring/route.ts`
  *   - `patchErrorBoundary`       create `app/error.tsx`
  *   - `buildMiddlewareSnippet`   the only one that doesn't write
  *                                — middleware shapes vary too
@@ -582,35 +581,6 @@ function findExportDefaultExpression(
     return finish(source.length, source.length);
   }
   return null;
-}
-
-/**
- * Create the same-origin tunnel route at `app/monitoring/route.ts`. The
- * Generated browser transport posts to `/monitoring` by default.
- */
-export function patchTunnelRoute(
-  path: string,
-  language: "ts" | "js",
-  modulePath = "../../../volato/server",
-): PatchOutcome {
-  const existing = readIfExists(path);
-  if (existing && existing.includes("createTunnelHandler")) {
-    return { path, status: "skipped", detail: "tunnel handler already present" };
-  }
-  if (existing) {
-    return {
-      path,
-      status: "manual",
-      detail: 'route.ts exists — add `export const POST = createTunnelHandler()` manually',
-    };
-  }
-  ensureDir(path);
-  const body =
-    language === "ts"
-      ? `import { createTunnelHandler } from "${modulePath}";\n\nexport const POST = createTunnelHandler();\n`
-      : `const { createTunnelHandler } = require("${modulePath}");\n\nexports.POST = createTunnelHandler();\n`;
-  writeFileSync(path, body, "utf8");
-  return { path, status: "created" };
 }
 
 /**

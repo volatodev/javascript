@@ -11,7 +11,7 @@
  * Generated capture reads `NEXT_PUBLIC_VOLATO_DSN` from `process.env`.
  */
 
-import { scrubUrl } from "./internal/scrub-url";
+import { scrubPath, scrubUrl } from "./internal/scrub-url";
 import { captureException, type ServerRuntime } from "./server";
 
 type NextRouteType = "render" | "route" | "action" | "middleware";
@@ -61,15 +61,14 @@ function buildRequestSummary(
 ): { method: string; url: string; pathname?: string } | undefined {
   if (!request) return undefined;
   // `request.path` from Next.js is `pathname + search` in App Router, so
-  // it can carry sensitive query params. The pathname-only field stays
-  // raw — it's the bare path without the query string.
+  // it can carry sensitive query params and token-bearing path segments.
   const queryIdx = request.path.indexOf("?");
   const pathname =
     queryIdx === -1 ? request.path : request.path.slice(0, queryIdx);
   return {
     method: request.method,
     url: scrubUrl(request.path),
-    pathname,
+    pathname: scrubPath(pathname),
   };
 }
 
@@ -82,9 +81,10 @@ export async function onRequestError(
   request: NextRequestInfo,
   context: NextErrorContext,
 ): Promise<void> {
+  const route = context.routePath ?? request?.path;
   await captureException(error, {
     runtime: mapRuntime(context.routeType),
-    route: context.routePath ?? request?.path,
+    route: route ? scrubPath(route) : undefined,
     headers: buildHeaders(request?.headers),
     capturedVia: "on_request_error",
     request: buildRequestSummary(request),

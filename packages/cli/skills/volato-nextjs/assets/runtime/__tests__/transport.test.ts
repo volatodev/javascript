@@ -40,6 +40,7 @@ describe("sendEnvelope — happy path", () => {
     const init = fetchMock.mock.calls[0]![1] as RequestInit;
     expect(init.method).toBe("POST");
     expect(init.body).toBe('{"a":1}');
+    expect(init.signal).toBeInstanceOf(AbortSignal);
     const headers = init.headers as Record<string, string>;
     expect(headers["Content-Type"]).toBe("application/json");
     expect(headers.x).toBe("y");
@@ -121,10 +122,16 @@ describe("sendEnvelope — 429 with Retry-After", () => {
 
 describe("sendEnvelope — non-retryable", () => {
   it("does not retry on 4xx (other than 429)", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 400 }));
     await sendEnvelope(URL_, {}, "x", { sleep: fastSleep });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(sleepCalls.length).toBe(0);
+    expect(
+      warnSpy.mock.calls.some((call) =>
+        String(call[0]).includes("rejected the event with 400"),
+      ),
+    ).toBe(true);
   });
 
   it("retries on network failure then resolves", async () => {
@@ -148,6 +155,38 @@ describe("sendEnvelope — non-retryable", () => {
         sleep: fastSleep,
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("aborts a stalled request and releases capacity for the next event", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    fetchMock.mockImplementationOnce(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        }),
+    );
+
+    await sendEnvelope(URL_, {}, "stalled", {
+      maxRetries: 0,
+      timeoutMs: 5,
+      maxElapsedMs: 10,
+    });
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 202 }));
+    await sendEnvelope(URL_, {}, "next", {
+      maxRetries: 0,
+      timeoutMs: 5,
+      maxElapsedMs: 10,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      warnSpy.mock.calls.some((call) =>
+        String(call[0]).includes("transport deadline exceeded"),
+      ),
+    ).toBe(true);
   });
 });
 

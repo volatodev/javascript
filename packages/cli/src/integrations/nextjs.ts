@@ -14,7 +14,6 @@ import {
   patchInstrumentation,
   patchLayout,
   patchNextConfig,
-  patchTunnelRoute,
   type PatchOutcome,
 } from "../commands/init/patch";
 import {
@@ -24,7 +23,7 @@ import {
   writeManifest,
 } from "./manifest";
 
-export const NEXTJS_RECIPE_VERSION = "1.0.0";
+export const NEXTJS_RECIPE_VERSION = "2.0.0";
 
 export type GenerateNextjsOptions = {
   cwd: string;
@@ -140,14 +139,6 @@ export function generateNextjsIntegration(
             join(runtimeRoot, "withVolato"),
           )
         : "./volato/withVolato",
-    ),
-    patchTunnelRoute(
-      options.project.tunnelRoutePath,
-      options.project.language,
-      modulePath(
-        options.project.tunnelRoutePath,
-        join(runtimeRoot, "server"),
-      ),
     ),
   ];
 

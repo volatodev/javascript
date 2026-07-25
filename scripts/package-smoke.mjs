@@ -135,7 +135,6 @@ try {
     ".agents/skills/volato-nextjs/SKILL.md",
     ".volato/manifest.json",
     "app/error.tsx",
-    "app/monitoring/route.ts",
     "instrumentation.ts",
     "volato/server.ts",
   ]) {

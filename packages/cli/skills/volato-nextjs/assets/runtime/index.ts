@@ -71,11 +71,17 @@ export type VolatoConfig = {
    */
   ignoreErrors?: ReadonlyArray<string | RegExp>;
   /**
-   * Same-origin tunnel route. When set, browser captures POST to this
+   * Include `x-forwarded-for` in server-side event headers. Disabled by
+   * default because IP addresses are personal data and most debugging does not
+   * need them.
+   */
+  captureIp?: boolean;
+  /**
+   * Optional same-origin tunnel route. When set, browser captures POST to this
    * path on the host's own origin instead of going straight to the
    * ingest endpoint — sidesteps adblockers that filter requests to
-   * `*.ingest.*` domains. Defaults to `"/monitoring"`. Set `false` to
-   * disable and send straight to ingest.
+   * third-party domains. Disabled by default; direct ingest preserves the
+   * browser Origin boundary and avoids exposing a public proxy in the host app.
    *
    * The server-side route handler is provided by
    * `createTunnelHandler()` from the generated server module.

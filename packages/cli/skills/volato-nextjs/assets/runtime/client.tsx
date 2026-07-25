@@ -54,6 +54,7 @@ import {
   shouldSend,
 } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
+import { serializeEnvelope } from "./internal/serialize";
 import { scrubUrl } from "./internal/scrub-url";
 import { sendEnvelope } from "./internal/transport";
 import type { VolatoConfig } from "./index";
@@ -203,13 +204,10 @@ function serialize(
   return payload;
 }
 
-const DEFAULT_TUNNEL_PATH = "/monitoring";
-
 function resolveTransportUrl(config: VolatoConfig): string {
-  if (config.tunnel === false) return dsnToIngestUrl(config.dsn);
-  const path = typeof config.tunnel === "string" ? config.tunnel : DEFAULT_TUNNEL_PATH;
+  if (typeof config.tunnel !== "string") return dsnToIngestUrl(config.dsn);
   if (typeof location === "undefined") return dsnToIngestUrl(config.dsn);
-  return `${location.origin}${path.startsWith("/") ? path : `/${path}`}`;
+  return `${location.origin}${config.tunnel.startsWith("/") ? config.tunnel : `/${config.tunnel}`}`;
 }
 
 /**
@@ -242,10 +240,11 @@ function post(config: VolatoConfig, payload: ClientErrorPayload): void {
   if (!shouldSend(asEvent)) return;
   const filtered = runBeforeSend(config.beforeSend, asEvent);
   if (filtered === null) return;
+  const serialized = serializeEnvelope(filtered);
   void sendEnvelope(
     resolveTransportUrl(config),
     { [VOLATO_DSN_HEADER]: config.dsn },
-    JSON.stringify(filtered),
+    serialized.body,
     { keepalive: true },
   );
 }

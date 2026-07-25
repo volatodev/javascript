@@ -12,8 +12,8 @@ judgment only to hook that code into an existing application.
 
 1. Confirm Next.js 15+ and an App Router root at `app/` or `src/app/`.
 2. Run `volato init`; do not hand-copy runtime implementations.
-3. Inspect changes to the layout, instrumentation hook, Next config, tunnel
-   route, environment file and `.volato/manifest.json`.
+3. Inspect changes to the layout, error boundary, instrumentation hook, Next
+   config, environment file and `.volato/manifest.json`.
 4. Handle pre-existing instrumentation, middleware or unusual config exports
    explicitly. Preserve user behavior and compose the generated hooks.
 5. Remove obsolete Volato package dependencies and imports.
@@ -33,6 +33,9 @@ gate and runtime matrix.
   layout in a competing error boundary.
 - Upload sourcemaps during the production build and remove `sourcesContent`
   before transit.
+- Browser capture sends directly to ingest by default. Add a same-origin tunnel
+  only when the application explicitly needs it, then use the generated
+  `createTunnelHandler()` with strict DSN, body-size, and timeout controls.
 
 ## Completion
 

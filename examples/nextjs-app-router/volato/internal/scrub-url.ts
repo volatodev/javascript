@@ -32,6 +32,17 @@ const SENSITIVE_FRAGMENTS: readonly string[] = [
   "email",
 ];
 
+const SENSITIVE_PATH_LABELS = new Set([
+  "activate",
+  "activation",
+  "invite",
+  "invitation",
+  "magic",
+  "reset",
+  "verify",
+  "verification",
+]);
+
 export function isSensitiveParamName(name: string): boolean {
   const lower = name.toLowerCase();
   for (const f of SENSITIVE_FRAGMENTS) {
@@ -41,16 +52,18 @@ export function isSensitiveParamName(name: string): boolean {
 }
 
 export function scrubUrl(url: string): string {
-  const q = url.indexOf("?");
-  if (q === -1) return url;
+  const hashIndex = url.indexOf("#");
+  const beforeHash = hashIndex === -1 ? url : url.slice(0, hashIndex);
+  const fragment = hashIndex === -1 ? "" : url.slice(hashIndex);
+  const q = beforeHash.indexOf("?");
+  const rawPath = q === -1 ? beforeHash : beforeHash.slice(0, q);
+  const path = scrubPath(rawPath);
+  const pathChanged = path !== rawPath;
+  if (q === -1) return `${path}${fragment}`;
 
-  const path = url.slice(0, q);
-  const rest = url.slice(q + 1);
-  const hashIdx = rest.indexOf("#");
-  const queryStr = hashIdx === -1 ? rest : rest.slice(0, hashIdx);
-  const fragment = hashIdx === -1 ? "" : rest.slice(hashIdx);
+  const queryStr = beforeHash.slice(q + 1);
 
-  if (!queryStr) return url;
+  if (!queryStr) return `${path}?${fragment}`;
 
   const parts = queryStr.split("&");
   let changed = false;
@@ -69,8 +82,42 @@ export function scrubUrl(url: string): string {
       changed = true;
     }
   }
-  if (!changed) return url;
+  if (!changed && !pathChanged) return url;
   return `${path}?${parts.join("&")}${fragment}`;
+}
+
+/**
+ * Redact the segment following an explicit credential-bearing route label.
+ * Opaque IDs on ordinary resource routes stay visible: `/users/<uuid>` is
+ * useful debugging context, while `/reset/<token>` is not.
+ */
+export function scrubPath(path: string): string {
+  const absolute = /^([a-z][a-z0-9+.-]*:\/\/[^/]+)(\/.*)?$/i.exec(path);
+  const prefix = absolute?.[1] ?? "";
+  const pathname = absolute ? absolute[2] ?? "/" : path;
+  const segments = pathname.split("/");
+  let changed = false;
+
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    let decoded = segments[i] ?? "";
+    try {
+      decoded = decodeURIComponent(decoded);
+    } catch {
+      // Keep the raw segment for matching when percent-decoding fails.
+    }
+    const label = decoded.toLowerCase();
+    if (
+      SENSITIVE_PATH_LABELS.has(label) ||
+      isSensitiveParamName(label)
+    ) {
+      if (segments[i + 1] && segments[i + 1] !== FILTERED) {
+        segments[i + 1] = FILTERED;
+        changed = true;
+      }
+    }
+  }
+
+  return changed ? `${prefix}${segments.join("/")}` : path;
 }
 
 /**

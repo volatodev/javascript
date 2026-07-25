@@ -148,7 +148,7 @@ describe("detectProject", () => {
     expect(() => detectProject(cwd)).toThrow(/App Router/);
   });
 
-  it("locates next.config.ts and computes the tunnel route path", () => {
+  it("locates next.config.ts and computes the error boundary path", () => {
     makePackageJson();
     mkdirSync(join(cwd, "app"));
     writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
@@ -156,9 +156,6 @@ describe("detectProject", () => {
 
     const project = detectProject(cwd);
     expect(project.nextConfigPath).toBe(join(cwd, "next.config.ts"));
-    expect(project.tunnelRoutePath).toBe(
-      join(cwd, "app", "monitoring", "route.ts"),
-    );
     expect(project.errorBoundaryPath).toBe(join(cwd, "app", "error.tsx"));
   });
 
@@ -180,14 +177,12 @@ describe("detectProject", () => {
     expect(detectProject(cwd).nextConfigPath).toBeNull();
   });
 
-  it("uses the right extension for the tunnel route in JS projects", () => {
+  it("uses the right extension for the error boundary in JS projects", () => {
     makePackageJson();
     mkdirSync(join(cwd, "app"));
     writeFileSync(join(cwd, "app", "layout.jsx"), "export default () => null;");
 
     const project = detectProject(cwd);
-    expect(project.tunnelRoutePath).toBe(
-      join(cwd, "app", "monitoring", "route.js"),
-    );
+    expect(project.errorBoundaryPath).toBe(join(cwd, "app", "error.jsx"));
   });
 });

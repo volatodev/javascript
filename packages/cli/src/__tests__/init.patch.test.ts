@@ -15,7 +15,6 @@ import {
   patchInstrumentation,
   patchLayout,
   patchNextConfig,
-  patchTunnelRoute,
 } from "../commands/init/patch";
 
 let cwd: string;
@@ -334,40 +333,6 @@ describe("patchNextConfig", () => {
     expect(next).toContain(
       "export default withVolato({ reactStrictMode: true })",
     );
-  });
-});
-
-describe("patchTunnelRoute", () => {
-  it("creates app/monitoring/route.ts with createTunnelHandler", () => {
-    const path = join(cwd, "app", "monitoring", "route.ts");
-    const out = patchTunnelRoute(path, "ts");
-    expect(out.status).toBe("created");
-    const body = readFileSync(path, "utf8");
-    expect(body).toContain('from "../../../volato/server"');
-    expect(body).toContain("export const POST = createTunnelHandler()");
-  });
-
-  it("creates the JS variant with require(...) when language is js", () => {
-    const path = join(cwd, "app", "monitoring", "route.js");
-    patchTunnelRoute(path, "js");
-    const body = readFileSync(path, "utf8");
-    expect(body).toContain('require("../../../volato/server")');
-    expect(body).toContain("exports.POST = createTunnelHandler()");
-  });
-
-  it("is idempotent — second call skips", () => {
-    const path = join(cwd, "app", "monitoring", "route.ts");
-    patchTunnelRoute(path, "ts");
-    const out = patchTunnelRoute(path, "ts");
-    expect(out.status).toBe("skipped");
-  });
-
-  it("returns manual when the file exists but lacks the marker", () => {
-    const path = join(cwd, "app", "monitoring", "route.ts");
-    mkdirSync(join(cwd, "app", "monitoring"), { recursive: true });
-    writeFileSync(path, "export const POST = () => new Response();\n");
-    const out = patchTunnelRoute(path, "ts");
-    expect(out.status).toBe("manual");
   });
 });
 

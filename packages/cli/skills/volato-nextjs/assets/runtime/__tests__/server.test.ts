@@ -13,7 +13,9 @@ import {
 
 import {
   captureException,
+  initServer,
   reportActionError,
+  setExtra,
   wrapAction,
   wrapRoute,
 } from "../server";
@@ -28,6 +30,7 @@ describe("captureException (server / RSC)", () => {
     fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
     vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
+    initServer({ captureIp: false });
   });
 
   afterEach(() => {
@@ -80,10 +83,63 @@ describe("captureException (server / RSC)", () => {
     expect(body.headers).toEqual({
       "user-agent": "vitest/1",
       referer: "https://example.com/from",
-      "x-forwarded-for": "203.0.113.10",
     });
     expect(body.headers).not.toHaveProperty("cookie");
     expect(body.headers).not.toHaveProperty("authorization");
+  });
+
+  it("captures forwarded IP only after explicit opt-in", async () => {
+    initServer({ captureIp: true });
+    await captureException(new Error("ip"), {
+      headers: new Headers({ "x-forwarded-for": "203.0.113.10" }),
+    });
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as { headers: Record<string, string> };
+    expect(body.headers["x-forwarded-for"]).toBe("203.0.113.10");
+  });
+
+  it("scrubs secrets from referer, pathname, and route", async () => {
+    await captureException(new Error("private path"), {
+      route: "/reset/route-token",
+      headers: new Headers({
+        referer: "https://app.test/invite/link-token?email=alice@example.com",
+      }),
+      request: new Request("https://app.test/reset/request-token?view=1"),
+    });
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as {
+      route: string;
+      headers: Record<string, string>;
+      request: { pathname: string; url: string };
+    };
+    expect(body.route).toBe("/reset/[FILTERED]");
+    expect(body.headers.referer).toBe(
+      "https://app.test/invite/[FILTERED]?email=[FILTERED]",
+    );
+    expect(body.request.pathname).toBe("/reset/[FILTERED]");
+    expect(body.request.url).toBe(
+      "https://app.test/reset/[FILTERED]?view=1",
+    );
+  });
+
+  it("keeps the original application error when scope data is cyclic", async () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    const original = new Error("host failure");
+    const wrapped = wrapAction(async () => {
+      setExtra("cyclic", cyclic);
+      throw original;
+    });
+
+    await expect(wrapped()).rejects.toBe(original);
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as Record<string, unknown>;
+    expect(body.volatoTruncated).toBe(true);
   });
 
   it("defaults route=null and headers={} when ctx is omitted", async () => {
@@ -314,7 +370,6 @@ describe("wrapRoute", () => {
     expect(body.headers).toEqual({
       "user-agent": "vitest/1",
       referer: "https://example.com/from",
-      "x-forwarded-for": "203.0.113.10",
     });
     expect(body.headers).not.toHaveProperty("cookie");
     expect(body.headers).not.toHaveProperty("authorization");

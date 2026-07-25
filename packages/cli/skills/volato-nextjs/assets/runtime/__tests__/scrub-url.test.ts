@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { scrubSearchParams, scrubUrl } from "../internal/scrub-url";
+import {
+  scrubPath,
+  scrubSearchParams,
+  scrubUrl,
+} from "../internal/scrub-url";
 
 describe("scrubUrl", () => {
   it("returns the URL unchanged when there is no query string", () => {
     expect(scrubUrl("/api/users")).toBe("/api/users");
     expect(scrubUrl("https://app.example.com/page")).toBe(
       "https://app.example.com/page",
+    );
+  });
+
+  it("redacts tokens embedded in explicitly sensitive paths", () => {
+    expect(scrubUrl("/reset/secret-token")).toBe("/reset/[FILTERED]");
+    expect(scrubUrl("https://app.example.com/invite/abc123?view=accept")).toBe(
+      "https://app.example.com/invite/[FILTERED]?view=accept",
     );
   });
 
@@ -108,6 +119,24 @@ describe("scrubUrl", () => {
     for (const [name] of cases) {
       expect(scrubUrl(`/x?${name}=v`)).toBe(`/x?${name}=[FILTERED]`);
     }
+  });
+});
+
+describe("scrubPath", () => {
+  it("keeps ordinary resource UUIDs for debugging", () => {
+    expect(
+      scrubPath("/api/users/11111111-2222-4333-8444-555555555555"),
+    ).toBe("/api/users/11111111-2222-4333-8444-555555555555");
+  });
+
+  it("redacts the segment after reset, verification, and token labels", () => {
+    expect(scrubPath("/reset/abc/confirm")).toBe(
+      "/reset/[FILTERED]/confirm",
+    );
+    expect(scrubPath("/email-verification/abc")).toBe(
+      "/email-verification/[FILTERED]",
+    );
+    expect(scrubPath("/api/token/abc")).toBe("/api/token/[FILTERED]");
   });
 });
 

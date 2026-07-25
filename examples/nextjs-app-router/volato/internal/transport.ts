@@ -25,6 +25,8 @@ import {
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_BASE_BACKOFF_MS = 250;
+const DEFAULT_ATTEMPT_TIMEOUT_MS = 1_500;
+const DEFAULT_TOTAL_TIMEOUT_MS = 5_000;
 const MAX_BACKOFF_MS = 30_000;
 const MAX_INFLIGHT = 50;
 
@@ -32,19 +34,28 @@ let inflight = 0;
 let warnedInflight = false;
 let warnedUsage = false;
 let warnedReason: string | null = null;
-let warnedDrop = false;
+const warnedDrops = new Set<DropReason>();
 
-type DropReason = "network" | "server_5xx" | "rate_limited";
+type DropReason =
+  | "network"
+  | "timeout"
+  | "server_5xx"
+  | "rate_limited"
+  | "client_4xx";
 
 function warnDropOnce(reason: DropReason, status?: number): void {
-  if (warnedDrop) return;
-  warnedDrop = true;
+  if (warnedDrops.has(reason)) return;
+  warnedDrops.add(reason);
   if (typeof console !== "undefined" && console.warn) {
     const detail =
       reason === "server_5xx"
         ? `ingest returned ${status ?? "5xx"} after retries`
         : reason === "rate_limited"
           ? "ingest 429 after retries"
+          : reason === "client_4xx"
+            ? `ingest rejected the event with ${status ?? "4xx"}`
+            : reason === "timeout"
+              ? "transport deadline exceeded"
           : "network failure after retries";
     console.warn(
       `[Volato] Event dropped: ${detail}. Subsequent drops are silent until the page reloads.`,
@@ -56,6 +67,10 @@ export type SendOptions = {
   keepalive?: boolean;
   maxRetries?: number;
   baseBackoffMs?: number;
+  /** Per-attempt network deadline. Default: 1500 ms. */
+  timeoutMs?: number;
+  /** Whole send budget, including retries/backoff. Default: 5000 ms. */
+  maxElapsedMs?: number;
   /** Override the clock (for tests). */
   now?: () => number;
   /** Override the random source (for tests — jitter is otherwise Math.random). */
@@ -131,21 +146,50 @@ export async function sendEnvelope(
   const sleep = opts.sleep ?? defaultSleep;
   const random = opts.random ?? Math.random;
   const now = opts.now ?? Date.now;
+  const timeoutMs = Math.max(1, opts.timeoutMs ?? DEFAULT_ATTEMPT_TIMEOUT_MS);
+  const maxElapsedMs = Math.max(
+    timeoutMs,
+    opts.maxElapsedMs ?? DEFAULT_TOTAL_TIMEOUT_MS,
+  );
+  const deadline = now() + maxElapsedMs;
+  const waitWithinBudget = async (delayMs: number): Promise<boolean> => {
+    const remaining = deadline - now();
+    if (remaining <= 0) return false;
+    await sleep(Math.min(delayMs, remaining));
+    return delayMs <= remaining;
+  };
 
   inflight += 1;
   try {
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      const remaining = deadline - now();
+      if (remaining <= 0) {
+        warnDropOnce("timeout");
+        return;
+      }
       let res: Response | null = null;
+      let timedOut = false;
+      const controller = new AbortController();
+      const timer = setTimeout(
+        () => {
+          timedOut = true;
+          controller.abort();
+        },
+        Math.min(timeoutMs, remaining),
+      );
       try {
         const init: RequestInit = {
           method: "POST",
           body,
           headers: { "Content-Type": "application/json", ...headers },
+          signal: controller.signal,
         };
         if (opts.keepalive) init.keepalive = true;
         res = await fetch(url, init);
       } catch {
         // network-level failure — retry until exhausted
+      } finally {
+        clearTimeout(timer);
       }
 
       if (res) {
@@ -154,11 +198,19 @@ export async function sendEnvelope(
         if (res.status === 429) {
           const ra = parseRetryAfter(res.headers.get("Retry-After"), now());
           if (ra !== null && attempt < maxRetries) {
-            await sleep(ra);
+            if (!(await waitWithinBudget(ra))) {
+              warnDropOnce("timeout");
+              return;
+            }
             continue;
           }
           if (attempt < maxRetries) {
-            await sleep(backoffMs(attempt, base, random));
+            if (
+              !(await waitWithinBudget(backoffMs(attempt, base, random)))
+            ) {
+              warnDropOnce("timeout");
+              return;
+            }
             continue;
           }
           warnDropOnce("rate_limited", res.status);
@@ -166,24 +218,32 @@ export async function sendEnvelope(
         }
         if (res.status >= 500 && res.status < 600) {
           if (attempt < maxRetries) {
-            await sleep(backoffMs(attempt, base, random));
+            if (
+              !(await waitWithinBudget(backoffMs(attempt, base, random)))
+            ) {
+              warnDropOnce("timeout");
+              return;
+            }
             continue;
           }
           warnDropOnce("server_5xx", res.status);
           return;
         }
-        // 4xx other than 429 — don't retry, drop. The server already
-        // surfaced the cause via X-Volato-Reason (handled by
-        // noteServerHeaders), so no extra warning here.
+        // 4xx other than 429 are terminal and must still be visible even when
+        // a proxy stripped the explanatory X-Volato-Reason header.
+        warnDropOnce("client_4xx", res.status);
         return;
       }
 
       // network failure
       if (attempt < maxRetries) {
-        await sleep(backoffMs(attempt, base, random));
+        if (!(await waitWithinBudget(backoffMs(attempt, base, random)))) {
+          warnDropOnce("timeout");
+          return;
+        }
         continue;
       }
-      warnDropOnce("network");
+      warnDropOnce(timedOut ? "timeout" : "network");
       return;
     }
   } finally {
@@ -197,5 +257,5 @@ export function __resetTransportForTests(): void {
   warnedInflight = false;
   warnedUsage = false;
   warnedReason = null;
-  warnedDrop = false;
+  warnedDrops.clear();
 }

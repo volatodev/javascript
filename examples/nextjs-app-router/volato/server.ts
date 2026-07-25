@@ -25,7 +25,12 @@ import { applyReleaseTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
 import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
-import { scrubSearchParams, scrubUrl } from "./internal/scrub-url";
+import {
+  scrubPath,
+  scrubSearchParams,
+  scrubUrl,
+} from "./internal/scrub-url";
+import { serializeEnvelope } from "./internal/serialize";
 import { sendEnvelope } from "./internal/transport";
 export { createTunnelHandler, type TunnelOptions } from "./tunnel";
 import type { LinkedError } from "./protocol";
@@ -33,7 +38,12 @@ import type { VolatoConfig } from "./index";
 
 type ServerExtras = Pick<
   VolatoConfig,
-  "beforeSend" | "release" | "environment" | "dist" | "ignoreErrors"
+  | "beforeSend"
+  | "release"
+  | "environment"
+  | "dist"
+  | "ignoreErrors"
+  | "captureIp"
 >;
 let serverExtras: ServerExtras = {};
 
@@ -50,7 +60,6 @@ export function initServer(config: ServerExtras): void {
 const WHITELISTED_HEADERS = [
   "user-agent",
   "referer",
-  "x-forwarded-for",
 ] as const;
 
 export type ServerRuntime =
@@ -100,15 +109,22 @@ export type ServerErrorPayload = {
 
 function summarizeRequest(input: Request | RequestSummary): RequestSummary {
   if ("method" in input && typeof (input as Request).headers === "undefined") {
-    // Plain RequestSummary already.
-    return input as RequestSummary;
+    const summary = input as RequestSummary;
+    return {
+      method: summary.method,
+      url: scrubUrl(summary.url),
+      ...(summary.pathname ? { pathname: scrubPath(summary.pathname) } : {}),
+      ...(summary.searchParams
+        ? { searchParams: scrubSearchParams(summary.searchParams) }
+        : {}),
+    };
   }
   const req = input as Request;
   let pathname: string | undefined;
   let searchParams: Record<string, string | string[]> | undefined;
   try {
     const url = new URL(req.url);
-    pathname = url.pathname;
+    pathname = scrubPath(url.pathname);
     const sp: Record<string, string | string[]> = {};
     for (const key of new Set(url.searchParams.keys())) {
       const all = url.searchParams.getAll(key);
@@ -131,7 +147,11 @@ function whitelist(headers: Headers | undefined): Record<string, string> {
   if (!headers) return out;
   for (const name of WHITELISTED_HEADERS) {
     const value = headers.get(name);
-    if (value !== null) out[name] = value;
+    if (value !== null) out[name] = name === "referer" ? scrubUrl(value) : value;
+  }
+  if (serverExtras.captureIp) {
+    const forwardedFor = headers.get("x-forwarded-for");
+    if (forwardedFor !== null) out["x-forwarded-for"] = forwardedFor;
   }
   return out;
 }
@@ -144,7 +164,7 @@ function serialize(
     type: "Error",
     message: "Unknown error",
     stack: null,
-    route: ctx?.route ?? null,
+    route: ctx?.route ? scrubPath(ctx.route) : null,
     headers: whitelist(ctx?.headers),
     runtime: ctx?.runtime ?? "rsc",
     timestamp: Date.now(),
@@ -185,21 +205,10 @@ function serialize(
  * No-ops with a `console.warn` when the env var is unset — by design,
  * a missing DSN must never crash the host app.
  *
- * Fire-and-forget: the network POST is started but NOT awaited. The
- * function returns as soon as the local pipeline (filter / dedupe /
- * beforeSend) decides to ship. This matters for `wrapAction` /
- * `wrapRoute` / `onRequestError` where the user-facing 500 was
- * previously delayed by the ingest round-trip (~250 ms typical).
- *
- * Caveat for serverless / Edge: the request may be torn down before
- * the in-flight POST resolves. Hosts that need guaranteed delivery
- * should wrap their handler in their platform's `waitUntil` /
- * `event.waitUntil` and surface the returned promise from
- * `__pendingFlushPromiseForTests` if they really need to await — but
- * the design choice is: a delivered 500 page beats a dropped event.
+ * The returned promise covers the bounded transport attempt. Next.js request
+ * lifecycle hooks can therefore await capture without risking an unbounded
+ * hang, while callers that cannot wait may still explicitly discard it.
  */
-let lastInflight: Promise<void> | null = null;
-
 export async function captureException(
   err: unknown,
   ctx?: ServerCaptureContext,
@@ -221,19 +230,12 @@ export async function captureException(
   const filtered = runBeforeSend(serverExtras.beforeSend, asEvent);
   if (filtered === null) return;
 
-  lastInflight = sendEnvelope(
+  const serialized = serializeEnvelope(filtered);
+  await sendEnvelope(
     dsnToIngestUrl(dsn),
     { [VOLATO_DSN_HEADER]: dsn },
-    JSON.stringify(filtered),
+    serialized.body,
   );
-}
-
-/**
- * Test-only handle on the most recent in-flight send. Lets tests await
- * the network call without making the public API block on it.
- */
-export function __pendingFlushPromiseForTests(): Promise<void> | null {
-  return lastInflight;
 }
 
 /** Alias matching the user-facing convention from the package spec. */
