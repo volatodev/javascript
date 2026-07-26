@@ -55,7 +55,7 @@
     "commander": "^14.0.3",
     "esbuild": "0.28.1",
     "happy-dom": "^20.10.6",
-    "next": "^15.5.18",
+    "next": "^15.5.21",
     "picocolors": "^1.1.1",
     "prompts": "^2.4.2",
     "react": "^19.0.0",
