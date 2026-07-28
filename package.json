@@ -19,7 +19,7 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "changeset": "changeset",
     "version": "changeset version",
-    "release:beta": "pnpm --filter @volatodev/cli publish --tag beta --no-git-checks"
+    "release:beta": "pnpm --filter @volatodev/cli publish --tag beta --no-git-checks && node scripts/sync-alpha-dist-tags.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.10",

@@ -72,7 +72,9 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Verify beta dist-tag
+      - name: Verify alpha dist-tags
         env:
           EXPECTED_VERSION: ${{ inputs.version }}
-        run: test "$(npm view @volatodev/cli@beta version)" = "$EXPECTED_VERSION"
+        run: |
+          test "$(npm view @volatodev/cli@beta version)" = "$EXPECTED_VERSION"
+          test "$(npm view @volatodev/cli@latest version)" = "$EXPECTED_VERSION"
