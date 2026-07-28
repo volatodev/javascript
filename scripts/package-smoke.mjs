@@ -15,6 +15,7 @@ import { spawnSync } from "node:child_process";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const cliRoot = join(repositoryRoot, "packages", "cli");
 const scratch = mkdtempSync(join(tmpdir(), "volato-package-smoke-"));
+const packageSpec = process.argv[2];
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -39,15 +40,24 @@ function assert(condition, message) {
 }
 
 try {
+  const packArgs = packageSpec
+    ? [
+        "pack",
+        packageSpec,
+        "--ignore-scripts",
+        "--pack-destination",
+        scratch,
+      ]
+    : [
+        "pack",
+        "--ignore-scripts",
+        "--pack-destination",
+        scratch,
+      ];
   run(
     "npm",
-    [
-      "pack",
-      "--ignore-scripts",
-      "--pack-destination",
-      scratch,
-    ],
-    { cwd: cliRoot },
+    packArgs,
+    { cwd: packageSpec ? repositoryRoot : cliRoot },
   );
   const filename = readdirSync(scratch).find((name) => name.endsWith(".tgz"));
   assert(filename, "npm pack returned no archive");
@@ -151,7 +161,7 @@ try {
   );
 
   process.stdout.write(
-    `✓ packed ${filename} and exercised skills install + dependency-free init\n`,
+    `✓ packed ${packageSpec ?? filename} and exercised skills install + dependency-free init\n`,
   );
 } finally {
   rmSync(scratch, { recursive: true, force: true });
