@@ -19,7 +19,7 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "turbo run build --filter=./packages/* && changeset publish"
+    "release:beta": "pnpm --filter @volatodev/cli publish --tag beta --no-git-checks"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.10",

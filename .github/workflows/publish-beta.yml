@@ -1,0 +1,78 @@
+name: Publish beta CLI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact beta version to publish (for example 0.1.0-beta.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-beta-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish @volatodev/cli
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: npm-beta
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate release input
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/assert-beta-release.mjs "$RELEASE_VERSION"
+
+      - name: Read published versions
+        run: npm view @volatodev/cli versions --json > "$RUNNER_TEMP/volato-cli-versions.json"
+
+      - name: Enforce immutable version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/assert-beta-release.mjs "$RELEASE_VERSION" "$RUNNER_TEMP/volato-cli-versions.json"
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Smoke packed CLI artifact
+        run: pnpm smoke:package
+
+      - name: Publish beta dist-tag
+        run: pnpm release:beta
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Verify beta dist-tag
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: test "$(npm view @volatodev/cli@beta version)" = "$EXPECTED_VERSION"
