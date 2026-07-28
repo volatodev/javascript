@@ -33,6 +33,9 @@ describe("scrubUrl", () => {
     expect(scrubUrl("/api/auth?token=abc123")).toBe(
       "/api/auth?token=[FILTERED]",
     );
+    expect(scrubUrl("/oauth/callback?code=abc&countryCode=FR")).toBe(
+      "/oauth/callback?code=[FILTERED]&countryCode=FR",
+    );
   });
 
   it("redacts case-insensitively", () => {
@@ -78,6 +81,16 @@ describe("scrubUrl", () => {
     ).toBe("/api/users?page=2&token=[FILTERED]&sort=asc#section");
   });
 
+  it("redacts OAuth credentials carried in URL fragments", () => {
+    expect(
+      scrubUrl("/callback#access_token=abc&token_type=bearer"),
+    ).toBe("/callback#access_token=[FILTERED]&token_type=[FILTERED]");
+    expect(scrubUrl("/callback#/finish?code=abc&view=done")).toBe(
+      "/callback#/finish?code=[FILTERED]&view=done",
+    );
+    expect(scrubUrl("/docs#installation")).toBe("/docs#installation");
+  });
+
   it("works with absolute URLs", () => {
     expect(
       scrubUrl("https://app.example.com/dashboard?session=xyz&view=grid"),
@@ -115,6 +128,8 @@ describe("scrubUrl", () => {
       ["sessid", "sessid"],
       ["apikey", "apikey"],
       ["api-key", "api-key"],
+      ["code", "code"],
+      ["otp", "otp"],
     ];
     for (const [name] of cases) {
       expect(scrubUrl(`/x?${name}=v`)).toBe(`/x?${name}=[FILTERED]`);

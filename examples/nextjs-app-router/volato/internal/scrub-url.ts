@@ -32,6 +32,14 @@ const SENSITIVE_FRAGMENTS: readonly string[] = [
   "email",
 ];
 
+const SENSITIVE_EXACT_PARAM_NAMES = new Set([
+  "code",
+  "otp",
+  "auth_code",
+  "one_time_code",
+  "verification_code",
+]);
+
 const SENSITIVE_PATH_LABELS = new Set([
   "activate",
   "activation",
@@ -45,6 +53,7 @@ const SENSITIVE_PATH_LABELS = new Set([
 
 export function isSensitiveParamName(name: string): boolean {
   const lower = name.toLowerCase();
+  if (SENSITIVE_EXACT_PARAM_NAMES.has(lower)) return true;
   for (const f of SENSITIVE_FRAGMENTS) {
     if (lower.includes(f)) return true;
   }
@@ -54,7 +63,8 @@ export function isSensitiveParamName(name: string): boolean {
 export function scrubUrl(url: string): string {
   const hashIndex = url.indexOf("#");
   const beforeHash = hashIndex === -1 ? url : url.slice(0, hashIndex);
-  const fragment = hashIndex === -1 ? "" : url.slice(hashIndex);
+  const rawFragment = hashIndex === -1 ? "" : url.slice(hashIndex);
+  const fragment = scrubFragment(rawFragment);
   const q = beforeHash.indexOf("?");
   const rawPath = q === -1 ? beforeHash : beforeHash.slice(0, q);
   const path = scrubPath(rawPath);
@@ -82,8 +92,41 @@ export function scrubUrl(url: string): string {
       changed = true;
     }
   }
-  if (!changed && !pathChanged) return url;
+  if (!changed && !pathChanged && fragment === rawFragment) return url;
   return `${path}?${parts.join("&")}${fragment}`;
+}
+
+/**
+ * Preserve ordinary anchors while redacting credential-bearing hash params.
+ * OAuth implicit callbacks commonly put access tokens after `#`, outside the
+ * regular query string parsed above.
+ */
+function scrubFragment(fragment: string): string {
+  if (!fragment.startsWith("#") || fragment.length === 1) return fragment;
+  const value = fragment.slice(1);
+  if (value.startsWith("/")) {
+    return `#${scrubUrl(value)}`;
+  }
+  if (!value.includes("=")) return fragment;
+
+  const parts = value.split("&");
+  let changed = false;
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i]!;
+    const eq = part.indexOf("=");
+    const rawName = eq === -1 ? part : part.slice(0, eq);
+    let decodedName: string;
+    try {
+      decodedName = decodeURIComponent(rawName);
+    } catch {
+      decodedName = rawName;
+    }
+    if (isSensitiveParamName(decodedName)) {
+      parts[i] = `${rawName}=${FILTERED}`;
+      changed = true;
+    }
+  }
+  return changed ? `#${parts.join("&")}` : fragment;
 }
 
 /**
