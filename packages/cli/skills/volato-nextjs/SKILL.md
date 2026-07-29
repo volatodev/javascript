@@ -17,8 +17,12 @@ judgment only to hook that code into an existing application.
 4. Handle pre-existing instrumentation, middleware or unusual config exports
    explicitly. Preserve user behavior and compose the generated hooks.
 5. Remove obsolete Volato package dependencies and imports.
-6. Run the project build and the CLI verification.
-7. Exercise each capture surface used by the application.
+6. Detect browser-facing production origins from the repository's deployment
+   config and public app/auth URL variables. If the result is unambiguous, run
+   `volato projects origins set <id> <origin...>`; otherwise leave the existing
+   policy unchanged and report the ambiguity rather than guessing.
+7. Run the project build and the CLI verification.
+8. Exercise each capture surface used by the application.
 
 Next.js 16 uses Turbopack by default, while the current privacy-stripped
 sourcemap uploader uses the webpack compiler hook. The recipe therefore adds

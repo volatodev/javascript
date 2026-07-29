@@ -44,6 +44,18 @@ generated files.
 The advanced \`--dsn\` path remains available when an authenticated project
 lookup is not possible, but it cannot retrieve the server-only ingest token.
 
+## Project configuration
+
+Replace the complete browser-origin allowlist after setup:
+
+    volato projects origins set <project_id> https://app.example.com https://example.com
+    volato projects origins set <project_id> --clear
+
+The command canonicalises each URL to its \`scheme://host[:port]\` origin and
+removes duplicates. \`--clear\` intentionally accepts browser events from
+anywhere. Server-side Next.js and Node events are not filtered by this setting.
+This is misuse reduction for a browser-safe DSN, not an authentication boundary.
+
 ## Reading errors
 
     volato errors list [--status <s>] [--release <r>] [--query <q>] [--project-id <id>] [--limit <n>] [--json]

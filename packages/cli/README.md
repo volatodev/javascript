@@ -30,6 +30,8 @@ volato errors reopen <id>
 volato errors ignore <id>
 volato skills install                     # install agent-facing setup skills
 volato init --project <id> --yes --send-test-event
+volato projects origins set <id> https://app.example.com
+volato projects origins set <id> --clear
 volato init --dsn <dsn> --yes             # advanced fallback without project lookup
 volato readme                             # print every command (point your agent here)
 ```
@@ -40,6 +42,12 @@ Authenticated `volato init --project` retrieves the project DSN and server-only
 ingest token without printing either credential, protects `.env.local`, installs
 the setup skills, generates versioned source and records integrity hashes in
 `.volato/manifest.json`. It adds no Volato runtime package.
+
+The project-origins command replaces the complete browser-origin allowlist.
+It canonicalises URLs, removes duplicates, and is safe for an agent to rerun.
+`--clear` accepts browser events from any origin. This setting reduces casual
+DSN misuse; it is not an authentication boundary and does not filter
+server-side events.
 
 ## For agents
 

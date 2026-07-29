@@ -1,5 +1,17 @@
 # @volatodev/cli
 
+## 0.1.0-beta.3
+
+### Minor Changes
+
+- Add an authenticated project command that lets coding agents replace or clear
+  the browser-origin allowlist during setup.
+
+### Patch Changes
+
+- bd90b75: Use one automatically detected Git commit for runtime events and sourcemap
+  uploads, removing the need for users to configure or publish a Volato release.
+
 ## 0.1.0-beta.2
 
 ### Minor Changes

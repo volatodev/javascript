@@ -17,11 +17,18 @@ path. Do not invent capture code from scratch.
 3. Run `volato init --project <id>` from the application root. Review every
    reported file change before continuing. Use `--dsn` only when authenticated
    project lookup is intentionally unavailable.
-4. Confirm that no Volato runtime dependency was added.
-5. Build the application and run the framework skill's conformance checks.
-6. Send a synthetic error and confirm the ingest response.
-7. Verify a production sourcemap when build credentials are available.
-8. Report the generated files, any manual integration points, and every check
+4. Inspect deployment config and public application/auth URL variables. When
+   the browser-facing production origins are unambiguous, replace the project
+   allowlist with `volato projects origins set <id> <origin...>`. Do not add API
+   or ingest origins unless the browser application is actually served there.
+   If deployment identity is ambiguous, leave the current policy unchanged and
+   report the single missing decision instead of guessing.
+5. Confirm that no Volato runtime dependency was added.
+6. Build the application and run the framework skill's conformance checks.
+7. Send a synthetic error and confirm the ingest response.
+8. Verify a production sourcemap when build credentials are available.
+9. Report the generated files, configured browser origins, any manual
+   integration points, and every check
    that could not be completed.
 
 Read [references/protocol.md](references/protocol.md) before changing
@@ -33,6 +40,7 @@ transport, credentials, event fields, privacy filtering or sourcemap upload.
 - Never overwrite a generated file whose hash differs from the manifest.
 - Never expose `VOLATO_INGEST_TOKEN` to browser code.
 - Never upload source text.
+- Treat allowed origins as browser DSN misuse reduction, not authentication.
 - Never declare success from file generation alone; compile and exercise the
   capture path.
 - Keep unsupported capture surfaces explicit. Partial silent coverage violates

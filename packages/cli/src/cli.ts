@@ -13,6 +13,7 @@
  *   volato errors resolve <id>        — mark resolved (append a note)
  *   volato errors reopen  <id>        — reopen (note preserved on history)
  *   volato errors ignore  <id>        — mark ignored
+ *   volato projects origins set       — replace a browser-origin allowlist
  *
  * Every command accepts --json for the structured payload instead of
  * the default markdown. The markdown is agent-ready (the same string
@@ -29,6 +30,7 @@ import {
 } from "./commands/errors.js";
 import { runReadme } from "./commands/readme.js";
 import { runSkillsInstall } from "./commands/skills.js";
+import { runProjectOriginsSet } from "./commands/projects.js";
 import { CliError } from "./lib/api-client.js";
 import { printLocalError } from "./lib/output.js";
 
@@ -134,6 +136,34 @@ program
   .action(() => {
     runReadme();
   });
+
+const projects = program
+  .command("projects")
+  .description("Configure projects through the authenticated CLI");
+
+const projectOrigins = projects
+  .command("origins")
+  .description("Manage browser origins allowed to submit events");
+
+projectOrigins
+  .command("set")
+  .argument("<project-id>", "project id")
+  .argument("[origins...]", "complete list of allowed http(s) origins")
+  .option(
+    "--clear",
+    "clear the restriction and accept browser events from any origin",
+  )
+  .option("--json", "emit the structured payload instead of markdown")
+  .description("Replace or clear a project's browser-origin allowlist")
+  .action(
+    async (
+      projectId: string,
+      origins: string[],
+      opts: { clear?: boolean; json?: boolean },
+    ) => {
+      await runProjectOriginsSet({ projectId, origins, ...opts });
+    },
+  );
 
 const errors = program
   .command("errors")
