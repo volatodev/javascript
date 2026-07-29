@@ -7,23 +7,20 @@ export const PMF_SKILL = "detect-pmf" as const;
 export const DEFAULT_PMF_FILE = ".volato/pmf.json";
 
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
-const PROPERTY_KEY_PATTERN = /^[a-z][a-z0-9_]{0,47}$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_CONFIG_BYTES = 32 * 1024;
 const MAX_EVENTS = 32;
-const MAX_PROPERTIES = 12;
 const MAX_RETENTION_DAYS = 90;
 const MIN_REPEAT_HOURS = 24;
 const MAX_REPEAT_HOURS = MAX_RETENTION_DAYS * 24;
 
-export type PmfPropertyType = "string" | "number" | "boolean";
 export type PmfDedupe = "actor" | "key" | "none";
 
 export type PmfEventDefinition = {
   name: string;
   description: string;
-  properties: Record<string, PmfPropertyType>;
+  properties: Record<string, never>;
   dedupe: PmfDedupe;
 };
 
@@ -200,28 +197,10 @@ export function validatePmfConfig(value: unknown): PmfConfig {
       256,
     );
     const rawProperties = objectAt(event.properties, `${path}.properties`);
-    const propertyEntries = Object.entries(rawProperties);
-    if (propertyEntries.length > MAX_PROPERTIES) {
-      invalid(
-        `${path}.properties cannot contain more than ${MAX_PROPERTIES} keys`,
-      );
+    if (Object.keys(rawProperties).length > 0) {
+      invalid(`${path}.properties must be empty in schema version 1`);
     }
-    const properties: Record<string, PmfPropertyType> = {};
-    for (const [key, rawType] of propertyEntries) {
-      if (!PROPERTY_KEY_PATTERN.test(key)) {
-        invalid(`${path}.properties.${key} has an invalid key`);
-      }
-      if (
-        rawType !== "string" &&
-        rawType !== "number" &&
-        rawType !== "boolean"
-      ) {
-        invalid(
-          `${path}.properties.${key} must be string, number or boolean`,
-        );
-      }
-      properties[key] = rawType;
-    }
+    const properties: Record<string, never> = {};
 
     if (
       event.dedupe !== "actor" &&

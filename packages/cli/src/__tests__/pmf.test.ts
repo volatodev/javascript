@@ -27,13 +27,13 @@ const config = {
     {
       name: "account_registered",
       description: "An eligible account enters the cohort.",
-      properties: { source: "string" },
+      properties: {},
       dedupe: "actor",
     },
     {
       name: "error_resolved",
       description: "A production error is resolved through the agent loop.",
-      properties: { plan: "string" },
+      properties: {},
       dedupe: "key",
     },
   ],
@@ -134,6 +134,28 @@ describe("volato pmf validate", () => {
     ).toThrow("cohort.windowDays must be >= retention.maxDays");
   });
 
+  it("rejects event properties in the privacy-minimal v1 contract", () => {
+    expect(() =>
+      validatePmfConfig({
+        ...config,
+        events: [
+          {
+            ...config.events[0],
+            properties: { source: "string" },
+          },
+        ],
+        cohort: { event: "account_registered", windowDays: 90 },
+        activation: { event: "account_registered" },
+        repeat: { event: "account_registered", minHours: 24 },
+        retention: {
+          event: "account_registered",
+          minDays: 7,
+          maxDays: 35,
+        },
+      }),
+    ).toThrow("properties must be empty in schema version 1");
+  });
+
   it.each([
     {
       label: "future UUID versions",
@@ -152,32 +174,6 @@ describe("volato pmf validate", () => {
         })),
       },
       message: "cannot contain more than 32 events",
-    },
-    {
-      label: "more than 12 properties",
-      value: {
-        ...config,
-        events: [
-          {
-            ...config.events[0],
-            properties: Object.fromEntries(
-              Array.from({ length: 13 }, (_, index) => [
-                `property_${index}`,
-                "string",
-              ]),
-            ),
-          },
-        ],
-        cohort: { event: "account_registered", windowDays: 90 },
-        activation: { event: "account_registered" },
-        repeat: { event: "account_registered", minHours: 24 },
-        retention: {
-          event: "account_registered",
-          minDays: 7,
-          maxDays: 35,
-        },
-      },
-      message: "cannot contain more than 12 keys",
     },
     {
       label: "equal retention boundaries",
