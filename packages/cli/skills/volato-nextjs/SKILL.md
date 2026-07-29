@@ -1,6 +1,6 @@
 ---
 name: volato-nextjs
-description: Generate, adapt, and verify the dependency-free Volato integration for a Next.js 15 or 16 App Router application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, server action, route handler, middleware, release, or sourcemap capture must be checked.
+description: Generate, adapt, and verify the dependency-free Volato integration for a Next.js 15 or 16 App Router application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, server action, route handler, middleware, build identity, or sourcemap capture must be checked.
 ---
 
 # Set up Volato for Next.js
@@ -25,8 +25,10 @@ sourcemap uploader uses the webpack compiler hook. The recipe therefore adds
 `--webpack` to the production build command on Next.js 16. Do not remove it
 until Volato ships a native Turbopack build adapter.
 
-Read [references/capabilities.md](references/capabilities.md) for the release
-gate and runtime matrix.
+Read [references/capabilities.md](references/capabilities.md) for the automatic
+build-identity gate and runtime matrix. The user does not create or publish a
+Volato release: `withVolato()` derives the Git commit during the build and uses
+it for both runtime events and sourcemap uploads.
 
 ## Runtime boundaries
 

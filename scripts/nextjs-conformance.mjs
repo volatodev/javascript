@@ -17,10 +17,20 @@ const cli = join(repositoryRoot, "packages", "cli", "dist", "cli.cjs");
 const scratch = mkdtempSync(join(tmpdir(), "volato-nextjs-conformance-"));
 const AUTH_TOKEN = "conformance-agent-token";
 const INGEST_TOKEN = "conformance-ingest-token";
-const MATRIX = [
+const FULL_MATRIX = [
   { label: "Next.js 15", next: "15.5.22", react: "19.2.8" },
   { label: "Next.js 16", next: "16.2.12", react: "19.2.8" },
 ];
+const requestedNextVersion = process.env.VOLATO_NEXTJS_VERSION;
+const MATRIX = requestedNextVersion
+  ? FULL_MATRIX.filter((entry) => entry.next === requestedNextVersion)
+  : FULL_MATRIX;
+
+if (MATRIX.length === 0) {
+  throw new Error(
+    `Unsupported VOLATO_NEXTJS_VERSION=${requestedNextVersion ?? ""}`,
+  );
+}
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -96,6 +106,10 @@ function writeFixture(root, entry) {
 `,
   );
   writeFileSync(join(root, "next.config.ts"), "export default {};\n");
+  writeFileSync(
+    join(root, ".gitignore"),
+    "node_modules\n.next\n.env*.local\n",
+  );
 }
 
 const state = {
@@ -227,11 +241,22 @@ try {
       `${entry.label} setup did not protect local credentials.`,
     );
 
-    const beforeMaps = state.sourcemaps;
-    await run("pnpm", ["build"], {
+    // Commit the generated integration so `withVolato()` must derive the
+    // actual checkout SHA. The user never configures or publishes a release.
+    await run("git", ["init", "-q"], { cwd: fixture });
+    await run("git", ["config", "user.name", "Volato Conformance"], {
       cwd: fixture,
-      env: { VOLATO_RELEASE: `conformance-next-${entry.next}` },
     });
+    await run("git", ["config", "user.email", "conformance@volato.dev"], {
+      cwd: fixture,
+    });
+    await run("git", ["add", "."], { cwd: fixture });
+    await run("git", ["commit", "-qm", "conformance fixture"], {
+      cwd: fixture,
+    });
+
+    const beforeMaps = state.sourcemaps;
+    await run("pnpm", ["build"], { cwd: fixture });
     assert(
       state.sourcemaps > beforeMaps,
       `${entry.label} build uploaded no sourcemaps.`,

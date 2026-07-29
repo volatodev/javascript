@@ -29,9 +29,9 @@ export type WithVolatoOptions = {
    */
   dsn?: string;
   /**
-   * Release identifier the maps belong to. Defaults to
-   * `detectRelease()` (VOLATO_RELEASE / NEXT_PUBLIC_VOLATO_RELEASE).
-   * Source-map symbolication keys on this.
+   * Advanced override for the build identifier attached to maps and events.
+   * Normally Volato derives the current Git commit automatically, so users do
+   * not need to configure or publish a release.
    */
   release?: string;
   /**
@@ -296,8 +296,8 @@ export class __VolatoSourceMapsPlugin {
         const release = this.opts.release ?? detectRelease();
         if (!release) {
           warn(
-            "no release tag — sourcemaps will not be uploaded. Set VOLATO_RELEASE in your CI " +
-              "or run `npx volato init` to wire your provider's commit SHA.",
+            "no build commit could be detected — sourcemaps will not be uploaded. " +
+              "Ensure the build receives the checkout commit SHA.",
           );
           return;
         }
@@ -474,11 +474,19 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
   nextConfig: T,
   options: WithVolatoOptions = {},
 ): T {
+  // Resolve once and reuse the exact same build identifier for both sides of
+  // symbolication: the value inlined into runtime events and the value sent
+  // with uploaded sourcemaps. Re-detecting inside the webpack plugin breaks in
+  // container builds where `.git` is intentionally absent from the build
+  // context, and previously allowed the two paths to disagree.
+  const release = resolveRelease(options);
+  const resolvedOptions = release ? { ...options, release } : options;
+
   if (options.disableUpload) {
     return {
       ...nextConfig,
       productionBrowserSourceMaps: true,
-      env: buildEnvWithRelease(nextConfig.env, resolveRelease(options)),
+      env: buildEnvWithRelease(nextConfig.env, release),
     };
   }
 
@@ -506,7 +514,7 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
   return {
     ...nextConfig,
     productionBrowserSourceMaps: true,
-    env: buildEnvWithRelease(nextConfig.env, resolveRelease(options)),
+    env: buildEnvWithRelease(nextConfig.env, release),
     webpack(
       config: { plugins?: unknown[] } & Record<string, unknown>,
       ctx: { isServer?: boolean },
@@ -521,7 +529,7 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
         "plugins" in next
       ) {
         const plugins = (next as { plugins?: unknown[] }).plugins ?? [];
-        plugins.push(new __VolatoSourceMapsPlugin(options));
+        plugins.push(new __VolatoSourceMapsPlugin(resolvedOptions));
         (next as { plugins?: unknown[] }).plugins = plugins;
       }
       return next;

@@ -9,7 +9,7 @@ Treat an integration as complete only when all applicable surfaces pass:
 | Server action | thrown error and explicit reported failure |
 | Route handler | thrown handler error |
 | Middleware | thrown Edge-runtime error |
-| Build | release injection and browser sourcemap upload |
+| Build | automatic commit identity and browser sourcemap upload |
 
 Also verify:
 

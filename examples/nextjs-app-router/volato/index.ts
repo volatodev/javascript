@@ -36,10 +36,9 @@ export type VolatoConfig = {
    */
   environment?: string;
   /**
-   * Release identifier — usually a Git SHA or a semver tag. Auto-detected on
-   * client + server from `VOLATO_RELEASE` (and `NEXT_PUBLIC_VOLATO_RELEASE`
-   * for the browser bundle). Pass explicitly to override or to populate the
-   * Edge runtime, where env auto-detection is disabled.
+   * Advanced build-identity override. `withVolato()` normally derives the Git
+   * commit and attaches it automatically, so application setup does not need
+   * to configure or publish a release.
    */
   release?: string;
   /**

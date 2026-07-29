@@ -471,7 +471,7 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     expect(warnSpy.mock.calls[0]?.[0]).toMatch(/not a valid DSN/);
   });
 
-  it("missing release → loud warning + no fetch", async () => {
+  it("missing build identity → loud warning + no fetch", async () => {
     delete process.env.VOLATO_RELEASE;
     __resetReleaseCacheForTests();
     const { root } = makeBuildDir();
@@ -484,7 +484,7 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
 
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0]?.[0]).toMatch(/no release tag/);
+    expect(warnSpy.mock.calls[0]?.[0]).toMatch(/no build commit/);
   });
 
   it("explicit uploadUrl overrides DSN-derived endpoint", async () => {

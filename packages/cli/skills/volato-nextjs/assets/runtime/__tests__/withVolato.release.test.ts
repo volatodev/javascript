@@ -24,6 +24,7 @@ import {
 import {
   __buildEnvWithReleaseForTests,
   __detectGitShaForTests,
+  __VolatoSourceMapsPlugin,
   withVolato,
 } from "../withVolato";
 
@@ -158,6 +159,35 @@ describe("withVolato — end-to-end release injection", () => {
     expect(env).toBeDefined();
     expect(env?.VOLATO_RELEASE).toMatch(/^[a-f0-9]{40}$/);
     expect(env?.NEXT_PUBLIC_VOLATO_RELEASE).toBe(env?.VOLATO_RELEASE);
+  });
+
+  it("passes the same auto-detected build SHA to the sourcemap uploader", () => {
+    delete process.env.VOLATO_RELEASE;
+    const out = withVolato({});
+    const env = (out as { env?: Record<string, string> }).env;
+    const webpack = (
+      out as {
+        webpack?: (
+          config: { plugins?: unknown[] },
+          ctx: { isServer: boolean },
+        ) => { plugins?: unknown[] };
+      }
+    ).webpack;
+
+    expect(webpack).toBeDefined();
+    const compiled = webpack!({ plugins: [] }, { isServer: false });
+    const plugin = compiled.plugins?.find(
+      (candidate) => candidate instanceof __VolatoSourceMapsPlugin,
+    );
+
+    expect(plugin).toBeDefined();
+    expect(
+      (
+        plugin as unknown as {
+          opts: { release?: string };
+        }
+      ).opts.release,
+    ).toBe(env?.VOLATO_RELEASE);
   });
 
   it("honours an explicit VOLATO_RELEASE in process.env over git", () => {
