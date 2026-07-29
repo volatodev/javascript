@@ -108,6 +108,28 @@ The project id is derived from the DSN; do not send `projectId` or `tenantId`.
 The DSN is browser-safe and selects a project. It is not a server credential.
 Never use a workspace token or ingest token for product events.
 
+Emit only after the authoritative business write commits, and detach telemetry
+from the response path:
+
+```ts
+export async function resolveProductionError(input: ResolveInput) {
+  const resolution = await resolveAndCommit(input);
+
+  void pmfTracker.track("production_error_resolved", {
+    actorId: resolution.actorId,
+    dedupeKey: resolution.errorGroupId,
+    properties: { plan: resolution.plan },
+  });
+
+  return resolution;
+}
+```
+
+Do not put the tracker call inside the transaction and do not `await` it before
+returning the product response. The boolean delivery result is diagnostic only;
+the tracker reports rejected or unreachable ingest once per reason without
+changing the committed transition.
+
 `actorId` is 1-128 characters. `occurredAt` is a canonical ISO-8601 UTC
 timestamp. A key-deduped event requires a 1-128 character `dedupeKey`; other
 dedupe modes forbid it. All declared properties are required, undeclared

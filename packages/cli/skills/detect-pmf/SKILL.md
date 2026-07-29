@@ -28,10 +28,12 @@ delivered value.
    server-only application module. Create an `as const` event catalog matching
    `.volato/pmf.json`, then instantiate it with the existing public Volato DSN.
    Do not add a package dependency or a server secret.
-7. Add `track()` calls immediately after durable, server-owned business
-   transitions succeed. Never emit before a transaction commits. Never
-   instrument UI intent when the backend can observe the delivered outcome.
-   Tracking delivery must not roll back or fail the product transition.
+7. Add `void tracker.track(...)` immediately after durable, server-owned
+   business transitions commit. Never `await` telemetry on the product response
+   path and never emit from inside the business transaction. Never instrument
+   UI intent when the backend can observe the delivered outcome. Tracking adds
+   no response latency and its delivery result must not roll back, fail, or
+   change the committed product transition.
 8. Run focused tests and the production build. Exercise at least one real
    instrumented transition and verify its request uses `/api/skill-events`.
 9. Run `volato pmf sync`, then `volato pmf report`. Interpret immature cohorts
