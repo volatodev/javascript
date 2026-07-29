@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "protocolVersion": 1,
   "recipe": "nextjs-app-router",
-  "recipeVersion": "2.0.0",
+  "recipeVersion": "2.0.1",
   "generatedFiles": {
     "volato/client.tsx": "4fbdd5e51dc76091a8354340eeaac0cdab1eae0e6d51ec8885ab854cf49d0ab7",
     "volato/error-boundary.tsx": "752e518fd666088bc187503b160480a5955216dec6dd0abfd50c408a96dff1fc",
@@ -19,10 +19,10 @@
     "volato/internal/scope.ts": "aabbe6d0b82a9a6a51b30210ebb94c4e1b162c4a676b20516848c7203d3d03e4",
     "volato/internal/scrub-url.ts": "5a130c13a75627160c953a99876b2e94ad987361dac12853afb15aff3c692ba2",
     "volato/internal/serialize.ts": "58531762e50d4c8447e13c459fc55918f0527308aee008ca6c4ab3f5e22162d6",
-    "volato/internal/transport.ts": "3dde1a15375ee5cbcb62718f74d8c43febcc07f942f1ef67217125c79b6f6992",
+    "volato/internal/transport.ts": "469c027e971857dbc501dcbed44492efcaa72d9e82f19e3909d8164066fd345b",
     "volato/middleware.ts": "48d9d9b68b8390ece8d74aebdc37182e75418fbb4685d861228d17c1a4bb940c",
     "volato/protocol.ts": "e7b9549df82366f1c94e954f80939825b2baabbeb883c03bdeb1b0f3bbeb6383",
-    "volato/server.ts": "1b09e3902d939048cd3826c7472f1e966911b2616f93a98e4f02460ae3df520c",
+    "volato/server.ts": "ee9fe2b0f8feb335e6ea8fc522ac4f64fd450a68cfd914c7759d48bf53977483",
     "volato/tunnel.ts": "29d5a57b9527d7191e0cf745afe34fcd95c2369065c9875a58b60f74fe982453",
     "volato/withVolato.ts": "955bae6fedfab3f169a27b21f93edd8c08e6f9d5b703020d27f803686ddd615a"
   }

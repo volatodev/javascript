@@ -24,7 +24,7 @@ import {
   writeManifest,
 } from "./manifest";
 
-export const NEXTJS_RECIPE_VERSION = "2.0.0";
+export const NEXTJS_RECIPE_VERSION = "2.0.1";
 
 export type GenerateNextjsOptions = {
   cwd: string;

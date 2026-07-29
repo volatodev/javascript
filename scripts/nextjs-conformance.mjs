@@ -53,7 +53,7 @@ function run(command, args, options = {}) {
     });
     child.on("error", rejectRun);
     child.on("close", (status) => {
-      if (status !== 0) {
+      if (status !== 0 && !options.allowFailure) {
         rejectRun(
           new Error(
             `${command} ${args.join(" ")} failed (${status})\n${stdout}\n${stderr}`,
@@ -61,7 +61,7 @@ function run(command, args, options = {}) {
         );
         return;
       }
-      resolveRun({ stdout, stderr });
+      resolveRun({ stdout, stderr, status });
     });
   });
 }
@@ -113,7 +113,8 @@ function writeFixture(root, entry) {
 }
 
 const state = {
-  testEvents: 0,
+  testEvents: [],
+  rejectTestEvents: false,
   sourcemaps: 0,
 };
 
@@ -147,10 +148,21 @@ const server = createServer((req, res) => {
     return;
   }
   if (req.method === "POST" && url.pathname === "/api/ingest") {
-    state.testEvents += 1;
-    req.resume();
-    res.writeHead(202, { "content-type": "application/json" });
-    res.end(JSON.stringify({ accepted: true }));
+    let body = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      if (state.rejectTestEvents) {
+        res.writeHead(401, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "invalid_dsn" }));
+      } else {
+        state.testEvents.push(JSON.parse(body));
+        res.writeHead(202, { "content-type": "application/json" });
+        res.end(JSON.stringify({ accepted: true }));
+      }
+    });
     return;
   }
   if (req.method === "POST" && url.pathname === "/api/sourcemaps") {
@@ -185,7 +197,7 @@ try {
     writeFixture(fixture, entry);
 
     await run("pnpm", ["install", "--ignore-scripts"], { cwd: fixture });
-    const beforeEvents = state.testEvents;
+    const beforeEvents = state.testEvents.length;
     const init = await run(
       process.execPath,
       [
@@ -206,8 +218,29 @@ try {
     );
 
     assert(
-      state.testEvents === beforeEvents + 1,
-      `${entry.label} setup did not send its test event.`,
+      state.testEvents.length === beforeEvents + 1,
+      `${entry.label} setup did not send its test event.\n${init.stdout}\n${init.stderr}`,
+    );
+    const testEvent = state.testEvents.at(-1);
+    assert(
+      testEvent.message ===
+        "Volato integration test — generated Next.js runtime",
+      `${entry.label} setup bypassed the generated integration.`,
+    );
+    assert(
+      typeof testEvent.stack === "string" &&
+        testEvent.stack.includes("Volato integration test") &&
+        testEvent.stack.includes("\n    at "),
+      `${entry.label} setup test event did not include an Error stack.`,
+    );
+    assert(
+      testEvent.runtime === "route_handler" &&
+        testEvent.capturedVia === "manual",
+      `${entry.label} setup test event did not use the generated server capture path.`,
+    );
+    assert(
+      !existsSync(join(fixture, "app", "api")),
+      `${entry.label} setup left its temporary verification route behind.`,
     );
     assert(
       !`${init.stdout}${init.stderr}`.includes(INGEST_TOKEN),
@@ -240,6 +273,44 @@ try {
       ),
       `${entry.label} setup did not protect local credentials.`,
     );
+
+    if (index === 0) {
+      state.rejectTestEvents = true;
+      const rejected = await run(
+        process.execPath,
+        [
+          cli,
+          "init",
+          "--project",
+          projectId,
+          "--yes",
+          "--send-test-event",
+        ],
+        {
+          cwd: fixture,
+          env: {
+            VOLATO_API_URL: apiOrigin,
+            VOLATO_TOKEN: AUTH_TOKEN,
+          },
+          allowFailure: true,
+        },
+      );
+      state.rejectTestEvents = false;
+      assert(
+        rejected.status !== 0 &&
+          `${rejected.stdout}${rejected.stderr}`.includes(
+            "ingest did not accept the generated capture",
+          ) &&
+          !`${rejected.stdout}${rejected.stderr}`.includes(
+            "captured a test error with a stack",
+          ),
+        `${entry.label} setup reported a false success after ingest rejected the event.`,
+      );
+      assert(
+        !existsSync(join(fixture, "app", "api")),
+        `${entry.label} failed verification left its temporary route behind.`,
+      );
+    }
 
     // Commit the generated integration so `withVolato()` must derive the
     // actual checkout SHA. The user never configures or publishes a release.

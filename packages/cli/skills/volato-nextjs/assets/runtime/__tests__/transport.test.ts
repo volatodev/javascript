@@ -35,7 +35,10 @@ const URL_ = "https://ingest.volato.dev/api/ingest";
 describe("sendEnvelope — happy path", () => {
   it("sends one POST and resolves on 202", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 202 }));
-    await sendEnvelope(URL_, { x: "y" }, '{"a":1}', { sleep: fastSleep });
+    const accepted = await sendEnvelope(URL_, { x: "y" }, '{"a":1}', {
+      sleep: fastSleep,
+    });
+    expect(accepted).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const init = fetchMock.mock.calls[0]![1] as RequestInit;
     expect(init.method).toBe("POST");
@@ -154,7 +157,7 @@ describe("sendEnvelope — non-retryable", () => {
         baseBackoffMs: 1,
         sleep: fastSleep,
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(false);
   });
 
   it("aborts a stalled request and releases capacity for the next event", async () => {

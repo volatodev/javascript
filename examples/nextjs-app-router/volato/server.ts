@@ -209,10 +209,10 @@ function serialize(
  * lifecycle hooks can therefore await capture without risking an unbounded
  * hang, while callers that cannot wait may still explicitly discard it.
  */
-export async function captureException(
+async function captureExceptionWithDelivery(
   err: unknown,
   ctx?: ServerCaptureContext,
-): Promise<void> {
+): Promise<boolean> {
   const dsn = process.env.NEXT_PUBLIC_VOLATO_DSN;
   if (!dsn) {
     if (typeof console !== "undefined" && console.warn) {
@@ -220,23 +220,36 @@ export async function captureException(
         "[Volato] captureException skipped: NEXT_PUBLIC_VOLATO_DSN env var is not set",
       );
     }
-    return;
+    return false;
   }
 
   const payload = serialize(err, ctx);
   const asEvent = payload as unknown as Record<string, unknown>;
-  if (!shouldKeep(asEvent, serverExtras)) return;
-  if (!shouldSend(asEvent)) return;
+  if (!shouldKeep(asEvent, serverExtras)) return false;
+  if (!shouldSend(asEvent)) return false;
   const filtered = runBeforeSend(serverExtras.beforeSend, asEvent);
-  if (filtered === null) return;
+  if (filtered === null) return false;
 
   const serialized = serializeEnvelope(filtered);
-  await sendEnvelope(
+  return sendEnvelope(
     dsnToIngestUrl(dsn),
     { [VOLATO_DSN_HEADER]: dsn },
     serialized.body,
   );
 }
+
+export async function captureException(
+  err: unknown,
+  ctx?: ServerCaptureContext,
+): Promise<void> {
+  await captureExceptionWithDelivery(err, ctx);
+}
+
+/**
+ * Internal hook used only by the CLI's temporary local verification route.
+ * Application capture keeps the stable Promise<void> contract above.
+ */
+export const __captureExceptionWithDelivery = captureExceptionWithDelivery;
 
 /** Alias matching the user-facing convention from the package spec. */
 export const captureServerError = captureException;

@@ -32,6 +32,7 @@ import {
 import { generateNextjsIntegration } from "../../integrations/nextjs";
 import { runSkillsInstall } from "../skills.js";
 import { fetchProjectSetup } from "./project-setup.js";
+import { verifyGeneratedNextjsIntegration } from "./verify-nextjs.js";
 
 export type InitOptions = {
   cwd: string;
@@ -203,7 +204,12 @@ export async function runInit(options: InitOptions): Promise<void> {
 
   if (manualOutcomes.length === 0) {
     await maybeSendTestEvent(
-      setup.dsn,
+      {
+        cwd,
+        appDir: project.appDir,
+        runtimeRoot: generated.runtimeRoot,
+        dsn: setup.dsn,
+      },
       options.nonInteractive,
       options.sendTestEvent,
     );
@@ -321,19 +327,17 @@ async function ensureGitignoreCoversEnvLocal(
 }
 
 /**
- * Offer to send a test event immediately after `init` succeeds.
- * Posts a synthetic error directly to the ingest endpoint with the
- * resolved DSN — same wire format as the generated runtime so the project's
- * checklist step 3 flips green right away. The user has a "yes it
- * actually works" moment in the same terminal session, before they
- * even restart their dev server.
+ * Offer to verify the generated integration immediately after `init`
+ * succeeds. The verifier starts the project's real Next.js runtime with a
+ * temporary Route Handler, captures an Error through the generated server
+ * module, and requires the ingest endpoint to accept it.
  *
- * The post is best-effort: a failure here doesn't abort init (the
- * project files are already patched). We print the error so the
- * user sees why and can debug separately.
+ * Interactive verification is best-effort because the project files are
+ * already patched. An explicit `--send-test-event` is a machine-checkable
+ * contract, so a rejected capture makes the command fail.
  */
 async function maybeSendTestEvent(
-  dsn: string,
+  verification: Parameters<typeof verifyGeneratedNextjsIntegration>[0],
   nonInteractive = false,
   sendExplicitly = false,
 ): Promise<void> {
@@ -355,48 +359,19 @@ async function maybeSendTestEvent(
   if (!response.send) return;
 
   try {
-    await sendTestEvent(dsn);
+    await verifyGeneratedNextjsIntegration(verification);
     process.stdout.write(
-      `  ${pc.green("✓")} Test event sent — the project should now show ${pc.green("Receiving")}.\n\n`,
+      `  ${pc.green("✓")} Generated Next.js integration captured a test error with a stack.\n\n`,
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     process.stdout.write(
       `  ${pc.red("✗")} Could not send test event: ${pc.dim(msg)}\n` +
-        `    ${pc.dim("Your project files were still patched — fix the ingest URL / network and retry.")}\n\n`,
+        `    ${pc.dim("Your project files were still patched — fix the local Next.js / ingest error and retry.")}\n\n`,
     );
-  }
-}
-
-async function sendTestEvent(dsn: string): Promise<void> {
-  const url = new URL(dsn);
-  const host = `${url.protocol}//${url.host}`;
-  const event = {
-    type: "error",
-    timestamp: Date.now(),
-    message: "Volato CLI test event — delete this group once captured",
-    fingerprint: ["volato-cli-test"],
-    runtime: "server_action",
-    environment: "development",
-  };
-
-  const res = await fetch(`${host}/api/ingest`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Volato-DSN": dsn,
-    },
-    body: JSON.stringify(event),
-  });
-  if (!res.ok) {
-    let detail = `${res.status} ${res.statusText}`;
-    try {
-      const body = (await res.json()) as { error?: string };
-      if (body.error) detail = `${detail} — ${body.error}`;
-    } catch {
-      /* ignore body parse errors */
+    if (sendExplicitly) {
+      throw err instanceof Error ? err : new Error(msg);
     }
-    throw new Error(detail);
   }
 }
 

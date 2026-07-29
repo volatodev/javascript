@@ -121,16 +121,15 @@ function noteServerHeaders(res: Response): void {
 
 /**
  * POST `body` to `url` with the supplied headers, retrying on transient
- * failures. Resolves when the request is complete (success, fatal failure,
- * or retries exhausted). Never rejects.
+ * failures. Resolves to whether ingest accepted the envelope. Never rejects.
  */
 export async function sendEnvelope(
   url: string,
   headers: Record<string, string>,
   body: string,
   opts: SendOptions = {},
-): Promise<void> {
-  if (typeof fetch === "undefined") return;
+): Promise<boolean> {
+  if (typeof fetch === "undefined") return false;
   if (inflight >= MAX_INFLIGHT) {
     if (!warnedInflight && typeof console !== "undefined" && console.warn) {
       warnedInflight = true;
@@ -138,7 +137,7 @@ export async function sendEnvelope(
         `[Volato] Backpressure: ${MAX_INFLIGHT} ingest requests in flight, dropping new events. Likely a hot loop or a stalled network. Subsequent drops are silent.`,
       );
     }
-    return;
+    return false;
   }
 
   const maxRetries = opts.maxRetries ?? DEFAULT_MAX_RETRIES;
@@ -165,7 +164,7 @@ export async function sendEnvelope(
       const remaining = deadline - now();
       if (remaining <= 0) {
         warnDropOnce("timeout");
-        return;
+        return false;
       }
       let res: Response | null = null;
       let timedOut = false;
@@ -194,13 +193,13 @@ export async function sendEnvelope(
 
       if (res) {
         noteServerHeaders(res);
-        if (res.status >= 200 && res.status < 300) return;
+        if (res.status >= 200 && res.status < 300) return true;
         if (res.status === 429) {
           const ra = parseRetryAfter(res.headers.get("Retry-After"), now());
           if (ra !== null && attempt < maxRetries) {
             if (!(await waitWithinBudget(ra))) {
               warnDropOnce("timeout");
-              return;
+              return false;
             }
             continue;
           }
@@ -209,12 +208,12 @@ export async function sendEnvelope(
               !(await waitWithinBudget(backoffMs(attempt, base, random)))
             ) {
               warnDropOnce("timeout");
-              return;
+              return false;
             }
             continue;
           }
           warnDropOnce("rate_limited", res.status);
-          return;
+          return false;
         }
         if (res.status >= 500 && res.status < 600) {
           if (attempt < maxRetries) {
@@ -222,33 +221,34 @@ export async function sendEnvelope(
               !(await waitWithinBudget(backoffMs(attempt, base, random)))
             ) {
               warnDropOnce("timeout");
-              return;
+              return false;
             }
             continue;
           }
           warnDropOnce("server_5xx", res.status);
-          return;
+          return false;
         }
         // 4xx other than 429 are terminal and must still be visible even when
         // a proxy stripped the explanatory X-Volato-Reason header.
         warnDropOnce("client_4xx", res.status);
-        return;
+        return false;
       }
 
       // network failure
       if (attempt < maxRetries) {
         if (!(await waitWithinBudget(backoffMs(attempt, base, random)))) {
           warnDropOnce("timeout");
-          return;
+          return false;
         }
         continue;
       }
       warnDropOnce(timedOut ? "timeout" : "network");
-      return;
+      return false;
     }
   } finally {
     inflight = Math.max(0, inflight - 1);
   }
+  return false;
 }
 
 /** Test-only — reset transport counters/warnings between tests. */
