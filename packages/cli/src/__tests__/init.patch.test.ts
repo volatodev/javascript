@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildMiddlewareSnippet,
+  patchNextBuildScript,
   patchEnvLocal,
   patchErrorBoundary,
   patchInstrumentation,
@@ -42,6 +43,15 @@ describe("patchEnvLocal", () => {
     expect(contents).not.toMatch(/^VOLATO_DSN=/m);
   });
 
+  it("writes the server-only ingest token returned by project setup", () => {
+    const out = patchEnvLocal(cwd, DSN, "server-only-token");
+
+    expect(out.status).toBe("created");
+    const contents = readFileSync(join(cwd, ".env.local"), "utf8");
+    expect(contents).toContain(`NEXT_PUBLIC_VOLATO_DSN=${DSN}`);
+    expect(contents).toContain("VOLATO_INGEST_TOKEN=server-only-token");
+  });
+
   it("does not duplicate the key when it already exists", () => {
     writeFileSync(
       join(cwd, ".env.local"),
@@ -57,6 +67,36 @@ describe("patchEnvLocal", () => {
     ).toBe(1);
   });
 
+  it("refreshes existing credentials during authenticated project setup", () => {
+    writeFileSync(
+      join(cwd, ".env.local"),
+      [
+        "# Keep this comment",
+        "FOO=bar",
+        "NEXT_PUBLIC_VOLATO_DSN=https://stale@volato.dev",
+        "VOLATO_INGEST_TOKEN=stale-token",
+        "VOLATO_INGEST_TOKEN=duplicate-stale-token",
+        "",
+      ].join("\n"),
+    );
+
+    const out = patchEnvLocal(cwd, DSN, "fresh-token");
+
+    expect(out.status).toBe("updated");
+    expect(out.detail).toBe("refreshed Volato project credentials");
+    const contents = readFileSync(join(cwd, ".env.local"), "utf8");
+    expect(contents).toContain("# Keep this comment");
+    expect(contents).toContain("FOO=bar");
+    expect(contents).toContain(`NEXT_PUBLIC_VOLATO_DSN=${DSN}`);
+    expect(contents).toContain("VOLATO_INGEST_TOKEN=fresh-token");
+    expect(contents).not.toContain("stale@volato.dev");
+    expect(contents).not.toContain("stale-token");
+    expect(
+      contents.match(/^NEXT_PUBLIC_VOLATO_DSN=/gm)?.length,
+    ).toBe(1);
+    expect(contents.match(/^VOLATO_INGEST_TOKEN=/gm)?.length).toBe(1);
+  });
+
   it("preserves missing trailing newlines on append", () => {
     writeFileSync(join(cwd, ".env.local"), "FOO=bar");
 
@@ -67,6 +107,30 @@ describe("patchEnvLocal", () => {
       "FOO=bar",
       `NEXT_PUBLIC_VOLATO_DSN=${DSN}`,
     ]);
+  });
+});
+
+describe("patchNextBuildScript", () => {
+  it("keeps Volato's sourcemap plugin active on Next.js 16 builds", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify(
+        {
+          scripts: { dev: "next dev", build: "next build" },
+          dependencies: { next: "16.2.12" },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    const out = patchNextBuildScript(cwd, 16);
+
+    expect(out.status).toBe("updated");
+    const pkg = JSON.parse(
+      readFileSync(join(cwd, "package.json"), "utf8"),
+    ) as { scripts: { build: string } };
+    expect(pkg.scripts.build).toBe("next build --webpack");
   });
 });
 

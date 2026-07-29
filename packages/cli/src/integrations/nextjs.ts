@@ -13,6 +13,7 @@ import {
   patchErrorBoundary,
   patchInstrumentation,
   patchLayout,
+  patchNextBuildScript,
   patchNextConfig,
   type PatchOutcome,
 } from "../commands/init/patch";
@@ -28,6 +29,7 @@ export const NEXTJS_RECIPE_VERSION = "2.0.0";
 export type GenerateNextjsOptions = {
   cwd: string;
   dsn: string;
+  ingestToken?: string;
   project: ProjectShape;
   sourceRoot?: string;
 };
@@ -111,7 +113,7 @@ export function generateNextjsIntegration(
   const generatedFiles = copyRuntime(sourceRoot, runtimeRoot);
 
   const outcomes: PatchOutcome[] = [
-    patchEnvLocal(options.cwd, options.dsn),
+    patchEnvLocal(options.cwd, options.dsn, options.ingestToken),
     patchInstrumentation(
       options.project.instrumentationPath,
       options.project.language,
@@ -140,6 +142,7 @@ export function generateNextjsIntegration(
           )
         : "./volato/withVolato",
     ),
+    patchNextBuildScript(options.cwd, options.project.nextMajor),
   ];
 
   const manifest = createManifest(options.cwd, {

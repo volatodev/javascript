@@ -50,6 +50,7 @@ program
 program
   .command("init")
   .description("Generate the dependency-free Volato integration for this project")
+  .option("--project <id>", "load this project's setup through the authenticated CLI")
   .option("--dsn <dsn>", "project DSN (avoids the interactive prompt)")
   .option("--yes", "apply safe setup defaults without prompts")
   .option(
@@ -57,6 +58,7 @@ program
     "send a synthetic event after non-interactive setup",
   )
   .action(async (opts: {
+    project?: string;
     dsn?: string;
     yes?: boolean;
     sendTestEvent?: boolean;
@@ -64,6 +66,7 @@ program
     try {
       await runInit({
         cwd: process.cwd(),
+        projectId: opts.project,
         dsn: opts.dsn,
         nonInteractive: opts.yes,
         sendTestEvent: opts.sendTestEvent,

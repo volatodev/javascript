@@ -48,6 +48,9 @@ jobs:
       - name: Smoke packed CLI artifact
         run: pnpm smoke:package
 
+      - name: Conformance on Next.js 15 and 16
+        run: pnpm smoke:nextjs
+
   version:
     name: Prepare version pull request
     needs: ci

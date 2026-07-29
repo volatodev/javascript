@@ -30,10 +30,13 @@ import {
   type PatchStatus,
 } from "./patch";
 import { generateNextjsIntegration } from "../../integrations/nextjs";
+import { runSkillsInstall } from "../skills.js";
+import { fetchProjectSetup } from "./project-setup.js";
 
 export type InitOptions = {
   cwd: string;
   dsn?: string;
+  projectId?: string;
   nonInteractive?: boolean;
   sendTestEvent?: boolean;
 };
@@ -153,14 +156,26 @@ export async function runInit(options: InitOptions): Promise<void> {
     throw err;
   }
 
-  const dsn = await resolveDsn(options);
-  if (!isValidDsn(dsn)) {
-    throw new Error(`Invalid DSN: ${dsn}`);
+  if (options.projectId && options.dsn) {
+    throw new Error("Use either --project or --dsn, not both.");
   }
+  const setup = options.projectId
+    ? await fetchProjectSetup(options.projectId)
+    : { dsn: await resolveDsn(options), ingestToken: undefined };
+  if (!isValidDsn(setup.dsn)) {
+    throw new Error(`Invalid DSN returned for this project.`);
+  }
+
+  // Protect the local secret before any integration code writes `.env.local`.
+  // A non-interactive agent must never create a commit-ready token file first
+  // and patch `.gitignore` afterwards.
+  await ensureGitignoreCoversEnvLocal(cwd, options.nonInteractive);
+  runSkillsInstall({ cwd });
 
   const generated = generateNextjsIntegration({
     cwd,
-    dsn,
+    dsn: setup.dsn,
+    ingestToken: setup.ingestToken,
     project,
   });
   const outcomes: PatchOutcome[] = [
@@ -183,11 +198,9 @@ export async function runInit(options: InitOptions): Promise<void> {
     (outcome) => outcome.status === "manual",
   );
 
-  await ensureGitignoreCoversEnvLocal(cwd, options.nonInteractive);
-
   if (manualOutcomes.length === 0) {
     await maybeSendTestEvent(
-      dsn,
+      setup.dsn,
       options.nonInteractive,
       options.sendTestEvent,
     );

@@ -31,16 +31,18 @@ Headless / CI — skip \`login\` and set the token in the environment:
 ## Install into a Next.js app
 
     volato skills install
-    volato init --dsn "https://<public_key>@api.volato.dev/<project_id>" --yes
+    volato init --project "<project_id>" --yes --send-test-event
 
-Installs the generic and Next.js agent skills, then generates local capture
-source in a Next.js 15 App Router project. No Volato runtime dependency is
-added. The recipe patches env vars, layout bootstrap, instrumentation hook,
-tunnel route and build-time sourcemap upload. Re-running is idempotent and
-refuses to overwrite locally edited generated files.
+Uses the authenticated workspace token to retrieve that project's credentials,
+protects .env.local before writing them, installs the generic and Next.js agent
+skills, then generates local capture source in a Next.js 15 or 16 App Router
+project. No Volato runtime dependency is added. The recipe patches env vars,
+layout bootstrap, instrumentation hook, tunnel route and build-time sourcemap
+upload. Re-running is idempotent and refuses to overwrite locally edited
+generated files.
 
-Add \`--send-test-event\` to a non-interactive init when network verification
-is wanted immediately.
+The advanced \`--dsn\` path remains available when an authenticated project
+lookup is not possible, but it cannot retrieve the server-only ingest token.
 
 ## Reading errors
 

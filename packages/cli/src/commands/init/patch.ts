@@ -4,6 +4,9 @@
  * focused, idempotent function:
  *
  *   - `patchEnvLocal`            append the two DSN env vars
+ *   - `patchNextBuildScript`     keep Next.js 16 on Webpack while
+ *                                Volato's sourcemap upload hook
+ *                                depends on the webpack compiler API
  *   - `patchInstrumentation`     create `instrumentation.ts`
  *   - `patchLayout`              insert `<VolatoBootstrap>` next
  *                                to `{children}` in the root
@@ -50,30 +53,84 @@ function readIfExists(path: string): string | null {
 }
 
 /**
- * Append the Volato DSN to `.env.local`, preserving any existing file
- * content. Idempotent: a key that already exists is never duplicated.
+ * Add the Volato DSN to `.env.local`, preserving unrelated content.
+ * Idempotent: a key that already exists is never duplicated. Authenticated
+ * project setup is authoritative, so it refreshes stale project credentials
+ * after key rotation; the manual DSN fallback leaves existing values alone.
  *
  * Single source of truth: `NEXT_PUBLIC_VOLATO_DSN`. Next.js exposes
  * `NEXT_PUBLIC_*` to server-side code too, so we don't need a separate
- * `VOLATO_DSN` server twin. The `VOLATO_INGEST_TOKEN` is *not* written
- * by the CLI — the developer copies it from the dashboard themselves
- * (only used at build / CI time, not at application runtime).
+ * `VOLATO_DSN` server twin. When authenticated project setup returns the
+ * server-only sourcemap token, it is written alongside the DSN.
  */
-export function patchEnvLocal(cwd: string, dsn: string): PatchOutcome {
+export function patchEnvLocal(
+  cwd: string,
+  dsn: string,
+  ingestToken?: string,
+): PatchOutcome {
   const path = `${cwd}/.env.local`;
   const existing = readIfExists(path) ?? "";
 
   const keys: Array<{ key: string; value: string }> = [
     { key: "NEXT_PUBLIC_VOLATO_DSN", value: dsn },
+    ...(ingestToken
+      ? [{ key: "VOLATO_INGEST_TOKEN", value: ingestToken }]
+      : []),
   ];
 
-  const lines = existing.split("\n");
-  const present = new Set(
-    lines
-      .map((l) => l.match(/^([A-Z0-9_]+)\s*=/))
-      .filter((m): m is RegExpMatchArray => m !== null)
-      .map((m) => m[1]!),
-  );
+  const projectSetup = ingestToken !== undefined;
+  const values = new Map(keys.map(({ key, value }) => [key, value]));
+  const present = new Set<string>();
+  let refreshed = false;
+
+  const lines = existing.split("\n").filter((line) => {
+    const match = line.match(/^([A-Z0-9_]+)\s*=/);
+    const key = match?.[1];
+    if (!projectSetup || !key || !values.has(key)) return true;
+
+    if (present.has(key)) {
+      refreshed = true;
+      return false;
+    }
+
+    present.add(key);
+    const replacement = `${key}=${values.get(key)}`;
+    if (line !== replacement) refreshed = true;
+    return true;
+  });
+
+  if (projectSetup && refreshed) {
+    const seen = new Set<string>();
+    const refreshedLines = lines.map((line) => {
+      const key = line.match(/^([A-Z0-9_]+)\s*=/)?.[1];
+      if (!key || !values.has(key) || seen.has(key)) return line;
+      seen.add(key);
+      return `${key}=${values.get(key)}`;
+    });
+    const missing = keys.filter(({ key }) => !seen.has(key));
+    const normalized = refreshedLines.join("\n");
+    const prefix =
+      missing.length === 0 ||
+      normalized.length === 0 ||
+      normalized.endsWith("\n")
+        ? ""
+        : "\n";
+    const block = missing.map(({ key, value }) => `${key}=${value}`).join("\n");
+    const suffix = missing.length > 0 ? "\n" : "";
+    writeFileSync(path, `${normalized}${prefix}${block}${suffix}`, "utf8");
+    return {
+      path,
+      status: existing.length === 0 ? "created" : "updated",
+      detail: "refreshed Volato project credentials",
+    };
+  }
+
+  if (!projectSetup) {
+    for (const line of lines) {
+      const key = line.match(/^([A-Z0-9_]+)\s*=/)?.[1];
+      if (key) present.add(key);
+    }
+  }
 
   const toAppend = keys.filter((k) => !present.has(k.key));
   if (toAppend.length === 0) {
@@ -93,6 +150,81 @@ export function patchEnvLocal(cwd: string, dsn: string): PatchOutcome {
     path,
     status: existing.length === 0 ? "created" : "updated",
     detail: `wrote ${toAppend.map((k) => k.key).join(", ")}`,
+  };
+}
+
+/**
+ * Next.js 16 switched `next build` to Turbopack by default. Volato's current
+ * sourcemap uploader is a webpack plugin, so silently accepting Turbopack
+ * would produce a green build with no maps. Add the explicit `--webpack`
+ * selector to the project's build script until the uploader has a native
+ * Turbopack build adapter.
+ */
+export function patchNextBuildScript(
+  cwd: string,
+  nextMajor: number,
+): PatchOutcome {
+  const path = `${cwd}/package.json`;
+  if (nextMajor < 16) {
+    return {
+      path,
+      status: "skipped",
+      detail: "Next.js 15 already builds with Webpack",
+    };
+  }
+
+  const raw = readIfExists(path);
+  if (!raw) {
+    return { path, status: "manual", detail: "package.json is missing" };
+  }
+  let pkg: Record<string, unknown>;
+  try {
+    pkg = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return { path, status: "manual", detail: "package.json is invalid JSON" };
+  }
+  const scripts =
+    pkg.scripts && typeof pkg.scripts === "object"
+      ? (pkg.scripts as Record<string, unknown>)
+      : null;
+  const build = scripts?.build;
+  if (typeof build !== "string") {
+    return {
+      path,
+      status: "manual",
+      detail: 'add "--webpack" to the Next.js 16 build command',
+    };
+  }
+  if (/(?:^|\s)--webpack(?:\s|$)/.test(build)) {
+    return {
+      path,
+      status: "skipped",
+      detail: "Next.js 16 build already selects Webpack",
+    };
+  }
+  if (/(?:^|\s)--turbo(?:pack)?(?:\s|$)/.test(build)) {
+    return {
+      path,
+      status: "manual",
+      detail:
+        "build explicitly selects Turbopack — choose Webpack to keep Volato sourcemap uploads",
+    };
+  }
+  const matches = build.match(/\bnext\s+build\b/g) ?? [];
+  if (matches.length !== 1) {
+    return {
+      path,
+      status: "manual",
+      detail: 'add "--webpack" to the Next.js 16 build command',
+    };
+  }
+
+  scripts!.build = build.replace(/\bnext\s+build\b/, "next build --webpack");
+  writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
+  return {
+    path,
+    status: "updated",
+    detail: "Next.js 16 build pinned to Webpack for sourcemap uploads",
   };
 }
 

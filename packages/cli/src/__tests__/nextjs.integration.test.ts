@@ -59,6 +59,7 @@ describe("Next.js generated integration", () => {
     const result = generateNextjsIntegration({
       cwd,
       dsn: "https://pk@api.volato.dev/project",
+      ingestToken: "server-only-token",
       project,
       sourceRoot,
     });
@@ -83,6 +84,9 @@ describe("Next.js generated integration", () => {
       next: "15.5.0",
       react: "19.0.0",
     });
+    expect(readFileSync(join(cwd, ".env.local"), "utf8")).toContain(
+      "VOLATO_INGEST_TOKEN=server-only-token",
+    );
 
     const manifest = readManifest(cwd);
     expect(manifest?.recipe).toBe("nextjs-app-router");
@@ -106,6 +110,37 @@ describe("Next.js generated integration", () => {
         sourceRoot,
       }),
     ).not.toThrow();
+  });
+
+  it("keeps the sourcemap uploader active on Next.js 16 production builds", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify(
+        {
+          name: "fixture",
+          scripts: { build: "next build" },
+          dependencies: {
+            next: "16.2.12",
+            react: "19.2.8",
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    const project = detectProject(cwd);
+
+    generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+
+    const pkg = JSON.parse(
+      readFileSync(join(cwd, "package.json"), "utf8"),
+    ) as { scripts: { build: string } };
+    expect(pkg.scripts.build).toBe("next build --webpack");
   });
 
   it("refuses to overwrite a locally edited generated runtime", () => {

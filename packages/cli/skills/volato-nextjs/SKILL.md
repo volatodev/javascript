@@ -1,6 +1,6 @@
 ---
 name: volato-nextjs
-description: Generate, adapt, and verify the dependency-free Volato integration for a Next.js 15 App Router application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, server action, route handler, middleware, release, or sourcemap capture must be checked.
+description: Generate, adapt, and verify the dependency-free Volato integration for a Next.js 15 or 16 App Router application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, server action, route handler, middleware, release, or sourcemap capture must be checked.
 ---
 
 # Set up Volato for Next.js
@@ -11,7 +11,7 @@ judgment only to hook that code into an existing application.
 ## Workflow
 
 1. Confirm Next.js 15+ and an App Router root at `app/` or `src/app/`.
-2. Run `volato init`; do not hand-copy runtime implementations.
+2. Run `volato init --project <id>`; do not hand-copy runtime implementations.
 3. Inspect changes to the layout, error boundary, instrumentation hook, Next
    config, environment file and `.volato/manifest.json`.
 4. Handle pre-existing instrumentation, middleware or unusual config exports
@@ -19,6 +19,11 @@ judgment only to hook that code into an existing application.
 5. Remove obsolete Volato package dependencies and imports.
 6. Run the project build and the CLI verification.
 7. Exercise each capture surface used by the application.
+
+Next.js 16 uses Turbopack by default, while the current privacy-stripped
+sourcemap uploader uses the webpack compiler hook. The recipe therefore adds
+`--webpack` to the production build command on Next.js 16. Do not remove it
+until Volato ships a native Turbopack build adapter.
 
 Read [references/capabilities.md](references/capabilities.md) for the release
 gate and runtime matrix.

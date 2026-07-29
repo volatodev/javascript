@@ -13,8 +13,8 @@ npm install -g @volatodev/cli
 ## Authenticate
 
 ```bash
-volato login <token>      # workspace token from https://app.volato.dev
-volato whoami             # confirm who you're authenticated as
+volato login              # browser code flow through app.volato.dev
+volato whoami             # confirm the local credential exists
 ```
 
 The token is stored at `~/.config/volato/credentials` (mode `0600`). Override the location with `VOLATO_CREDENTIALS_FILE` or the standard `XDG_CONFIG_HOME`.
@@ -29,14 +29,17 @@ volato errors resolve <id> --note "..."  # mark resolved (append-only history)
 volato errors reopen <id>
 volato errors ignore <id>
 volato skills install                     # install agent-facing setup skills
-volato init --dsn <dsn> --yes             # generate local capture source
+volato init --project <id> --yes --send-test-event
+volato init --dsn <dsn> --yes             # advanced fallback without project lookup
 volato readme                             # print every command (point your agent here)
 ```
 
 Every command prints agent-ready markdown by default. Pass `--json` for the structured payload, scriptable exit codes for the rest (`3` auth, `4` not-found, `5` rate-limited).
 
-`volato init` adds no Volato runtime package. It generates versioned source in
-the application and records integrity hashes in `.volato/manifest.json`.
+Authenticated `volato init --project` retrieves the project DSN and server-only
+ingest token without printing either credential, protects `.env.local`, installs
+the setup skills, generates versioned source and records integrity hashes in
+`.volato/manifest.json`. It adds no Volato runtime package.
 
 ## For agents
 

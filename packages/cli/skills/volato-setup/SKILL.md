@@ -14,8 +14,9 @@ path. Do not invent capture code from scratch.
    scripts and existing `.volato/manifest.json`.
 2. Select a bundled framework skill. Stop with a clear unsupported-framework
    result when none applies.
-3. Run `volato init` from the application root. Review every reported file
-   change before continuing.
+3. Run `volato init --project <id>` from the application root. Review every
+   reported file change before continuing. Use `--dsn` only when authenticated
+   project lookup is intentionally unavailable.
 4. Confirm that no Volato runtime dependency was added.
 5. Build the application and run the framework skill's conformance checks.
 6. Send a synthetic error and confirm the ingest response.
