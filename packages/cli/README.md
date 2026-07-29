@@ -32,6 +32,9 @@ volato skills install                     # install agent-facing setup skills
 volato init --project <id> --yes --send-test-event
 volato projects origins set <id> https://app.example.com
 volato projects origins set <id> --clear
+volato pmf validate                       # validate .volato/pmf.json locally
+volato pmf sync                           # publish the outcome event catalog
+volato pmf report                         # read activation and retention evidence
 volato init --dsn <dsn> --yes             # advanced fallback without project lookup
 volato readme                             # print every command (point your agent here)
 ```
@@ -48,6 +51,11 @@ It canonicalises URLs, removes duplicates, and is safe for an agent to rerun.
 `--clear` accepts browser events from any origin. This setting reduces casual
 DSN misuse; it is not an authentication boundary and does not filter
 server-side events.
+
+The PMF commands use the versioned `.volato/pmf.json` contract. `validate`
+performs the same structural checks as the API without making a request,
+`sync` publishes the complete event catalog, and `report` reads outcome-led
+activation, repeat-use, and retention evidence.
 
 ## For agents
 

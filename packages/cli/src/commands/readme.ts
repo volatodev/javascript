@@ -56,6 +56,20 @@ removes duplicates. \`--clear\` intentionally accepts browser events from
 anywhere. Server-side Next.js and Node events are not filtered by this setting.
 This is misuse reduction for a browser-safe DSN, not an authentication boundary.
 
+## Product-market-fit evidence
+
+The \`detect-pmf\` skill creates a versioned \`.volato/pmf.json\` catalog.
+Validate it locally, publish it, then read the outcome-led report:
+
+    volato pmf validate [--file <path>] [--project-id <id>] [--json]
+    volato pmf sync [--file <path>] [--project-id <id>] [--json]
+    volato pmf report [--file <path>] [--project-id <id>] [--json]
+
+\`validate\` makes no network request. \`sync\` refuses documents that cannot
+produce a mature retention cohort, then replaces the active project catalog.
+\`report\` returns activation, repeat-use, and retention evidence as agent-ready
+markdown by default.
+
 ## Reading errors
 
     volato errors list [--status <s>] [--release <r>] [--query <q>] [--project-id <id>] [--limit <n>] [--json]

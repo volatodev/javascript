@@ -14,6 +14,9 @@
  *   volato errors reopen  <id>        — reopen (note preserved on history)
  *   volato errors ignore  <id>        — mark ignored
  *   volato projects origins set       — replace a browser-origin allowlist
+ *   volato pmf validate                — validate .volato/pmf.json locally
+ *   volato pmf sync                    — publish the outcome event catalog
+ *   volato pmf report                  — read activation and retention evidence
  *
  * Every command accepts --json for the structured payload instead of
  * the default markdown. The markdown is agent-ready (the same string
@@ -31,6 +34,11 @@ import {
 import { runReadme } from "./commands/readme.js";
 import { runSkillsInstall } from "./commands/skills.js";
 import { runProjectOriginsSet } from "./commands/projects.js";
+import {
+  runPmfReport,
+  runPmfSync,
+  runPmfValidate,
+} from "./commands/pmf.js";
 import { CliError } from "./lib/api-client.js";
 import { printLocalError } from "./lib/output.js";
 
@@ -163,6 +171,58 @@ projectOrigins
       opts: { clear?: boolean; json?: boolean },
     ) => {
       await runProjectOriginsSet({ projectId, origins, ...opts });
+    },
+  );
+
+const pmf = program
+  .command("pmf")
+  .description("Configure and assess outcome-led PMF signals");
+
+pmf
+  .command("validate")
+  .description("Validate .volato/pmf.json locally")
+  .option(
+    "-f, --file <path>",
+    "project-relative PMF config path",
+    ".volato/pmf.json",
+  )
+  .option("-p, --project-id <id>", "override the project id")
+  .option("--json", "emit the structured payload instead of markdown")
+  .action(
+    (opts: { file: string; projectId?: string; json?: boolean }) => {
+      runPmfValidate({ cwd: process.cwd(), ...opts });
+    },
+  );
+
+pmf
+  .command("sync")
+  .description("Validate and publish the PMF event catalog")
+  .option(
+    "-f, --file <path>",
+    "project-relative PMF config path",
+    ".volato/pmf.json",
+  )
+  .option("-p, --project-id <id>", "override the project id")
+  .option("--json", "emit the structured payload instead of markdown")
+  .action(
+    async (opts: { file: string; projectId?: string; json?: boolean }) => {
+      await runPmfSync({ cwd: process.cwd(), ...opts });
+    },
+  );
+
+pmf
+  .command("report")
+  .description("Read activation, repeat-use, and retention evidence")
+  .option(
+    "-f, --file <path>",
+    "project-relative PMF config path",
+    ".volato/pmf.json",
+  )
+  .option("-p, --project-id <id>", "override the project id")
+  .option("--json", "emit the structured payload instead of markdown")
+  .action(
+    async (opts: { file: string; projectId?: string; json?: boolean }) => {
+      await runPmfReport({ cwd: process.cwd(), ...opts });
     },
   );
 
