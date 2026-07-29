@@ -1,5 +1,12 @@
 # @volatodev/cli
 
+## 0.1.0-beta.4
+
+### Patch Changes
+
+- Keep release, environment, and dist reads statically analyzable so Next.js
+  inlines the build commit into runtime events and matches uploaded sourcemaps.
+
 ## 0.1.0-beta.3
 
 ### Minor Changes

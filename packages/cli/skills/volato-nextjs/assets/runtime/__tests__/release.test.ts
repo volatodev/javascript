@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetReleaseCacheForTests,
@@ -17,6 +19,23 @@ afterEach(() => {
 });
 
 describe("detectRelease", () => {
+  it("keeps every injected Next.js env read statically analyzable", () => {
+    const source = readFileSync(
+      fileURLToPath(new URL("../internal/release.ts", import.meta.url)),
+      "utf8",
+    );
+    for (const name of [
+      "VOLATO_RELEASE",
+      "NEXT_PUBLIC_VOLATO_RELEASE",
+      "VOLATO_ENVIRONMENT",
+      "NEXT_PUBLIC_VOLATO_ENVIRONMENT",
+      "VOLATO_DIST",
+      "NEXT_PUBLIC_VOLATO_DIST",
+    ]) {
+      expect(source).toContain(`process.env.${name}`);
+    }
+  });
+
   it("reads VOLATO_RELEASE", () => {
     vi.stubEnv("VOLATO_RELEASE", "v1.2.3");
     expect(detectRelease()).toBe("v1.2.3");

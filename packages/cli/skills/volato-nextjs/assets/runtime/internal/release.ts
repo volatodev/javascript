@@ -33,22 +33,22 @@ function trimmed(v: unknown): string | undefined {
   return s.length > 0 ? s : undefined;
 }
 
-function readProcessEnv(): NodeJS.ProcessEnv | undefined {
-  return typeof process !== "undefined" && process.env ? process.env : undefined;
-}
-
 let cachedRelease: string | null | undefined;
 let cachedEnvironment: string | null | undefined;
 let cachedDist: string | null | undefined;
 
 export function detectRelease(): string | undefined {
   if (cachedRelease === undefined) {
-    const env = readProcessEnv();
-    // Static accesses — DefinePlugin replaces these at build time on
-    // the client. Server reads them at runtime from the real env.
-    const fromServer = env ? trimmed(env.VOLATO_RELEASE) : undefined;
-    const fromPublic = env
-      ? trimmed(env.NEXT_PUBLIC_VOLATO_RELEASE)
+    // Keep the complete `process.env.NAME` expression intact. Next.js's
+    // DefinePlugin cannot replace an aliased access such as
+    // `const env = process.env; env.NAME`.
+    const hasProcessEnv =
+      typeof process !== "undefined" && Boolean(process.env);
+    const fromServer = hasProcessEnv
+      ? trimmed(process.env.VOLATO_RELEASE)
+      : undefined;
+    const fromPublic = hasProcessEnv
+      ? trimmed(process.env.NEXT_PUBLIC_VOLATO_RELEASE)
       : undefined;
     cachedRelease = fromServer ?? fromPublic ?? null;
   }
@@ -57,12 +57,15 @@ export function detectRelease(): string | undefined {
 
 export function detectEnvironment(): string | undefined {
   if (cachedEnvironment === undefined) {
-    const env = readProcessEnv();
-    const fromServer = env ? trimmed(env.VOLATO_ENVIRONMENT) : undefined;
-    const fromPublic = env
-      ? trimmed(env.NEXT_PUBLIC_VOLATO_ENVIRONMENT)
+    const hasProcessEnv =
+      typeof process !== "undefined" && Boolean(process.env);
+    const fromServer = hasProcessEnv
+      ? trimmed(process.env.VOLATO_ENVIRONMENT)
       : undefined;
-    const fromNode = env ? trimmed(env.NODE_ENV) : undefined;
+    const fromPublic = hasProcessEnv
+      ? trimmed(process.env.NEXT_PUBLIC_VOLATO_ENVIRONMENT)
+      : undefined;
+    const fromNode = hasProcessEnv ? trimmed(process.env.NODE_ENV) : undefined;
     cachedEnvironment = fromServer ?? fromPublic ?? fromNode ?? null;
   }
   return cachedEnvironment ?? undefined;
@@ -70,9 +73,14 @@ export function detectEnvironment(): string | undefined {
 
 export function detectDist(): string | undefined {
   if (cachedDist === undefined) {
-    const env = readProcessEnv();
-    const fromServer = env ? trimmed(env.VOLATO_DIST) : undefined;
-    const fromPublic = env ? trimmed(env.NEXT_PUBLIC_VOLATO_DIST) : undefined;
+    const hasProcessEnv =
+      typeof process !== "undefined" && Boolean(process.env);
+    const fromServer = hasProcessEnv
+      ? trimmed(process.env.VOLATO_DIST)
+      : undefined;
+    const fromPublic = hasProcessEnv
+      ? trimmed(process.env.NEXT_PUBLIC_VOLATO_DIST)
+      : undefined;
     cachedDist = fromServer ?? fromPublic ?? null;
   }
   return cachedDist ?? undefined;
