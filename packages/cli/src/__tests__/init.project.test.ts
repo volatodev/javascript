@@ -92,7 +92,10 @@ describe("volato init --project", () => {
     expect(fetchProjectSetup).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
     );
-    expect(runSkillsInstall).toHaveBeenCalledWith({ cwd });
+    expect(runSkillsInstall).toHaveBeenCalledWith({
+      cwd,
+      force: true,
+    });
     expect(generateNextjsIntegration).toHaveBeenCalledWith(
       expect.objectContaining({
         cwd,

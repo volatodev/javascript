@@ -170,7 +170,10 @@ export async function runInit(options: InitOptions): Promise<void> {
   // A non-interactive agent must never create a commit-ready token file first
   // and patch `.gitignore` afterwards.
   await ensureGitignoreCoversEnvLocal(cwd, options.nonInteractive);
-  runSkillsInstall({ cwd });
+  await runSkillsInstall({
+    cwd,
+    force: options.nonInteractive,
+  });
 
   const generated = generateNextjsIntegration({
     cwd,

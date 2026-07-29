@@ -1,5 +1,13 @@
 # @volatodev/cli
 
+## 0.1.0-beta.5
+
+### Patch Changes
+
+- Prompt to update differing installed skills, refresh them automatically during
+  non-interactive init, and forward the build-injected Git release through the
+  generated middleware setup.
+
 ## 0.1.0-beta.4
 
 ### Patch Changes

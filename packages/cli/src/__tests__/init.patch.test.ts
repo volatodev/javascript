@@ -272,6 +272,7 @@ describe("buildMiddlewareSnippet", () => {
   it("reads the DSN from NEXT_PUBLIC_VOLATO_DSN so it is reachable from the Edge runtime", () => {
     const snippet = buildMiddlewareSnippet();
     expect(snippet).toContain("process.env.NEXT_PUBLIC_VOLATO_DSN");
+    expect(snippet).toContain("process.env.NEXT_PUBLIC_VOLATO_RELEASE");
     expect(snippet).not.toMatch(/process\.env\.VOLATO_DSN(?!_)/);
   });
 });

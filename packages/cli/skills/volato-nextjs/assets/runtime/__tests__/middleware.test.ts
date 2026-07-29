@@ -63,6 +63,20 @@ describe("captureException (middleware / Edge)", () => {
     expect(typeof body.timestamp).toBe("number");
   });
 
+  it("attaches the release passed by the generated middleware snippet", async () => {
+    const req = new Request("https://app.test/protected");
+
+    await captureException(new Error("boom"), req, {
+      ...config,
+      release: "0123456789abcdef",
+    });
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as Record<string, unknown>;
+    expect(body.release).toBe("0123456789abcdef");
+  });
+
   it("coerces non-Error throws into an Error payload", async () => {
     const req = new Request("https://app.test/", { method: "GET" });
 

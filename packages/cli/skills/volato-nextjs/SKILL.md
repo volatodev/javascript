@@ -38,6 +38,10 @@ it for both runtime events and sourcemap uploads.
 
 - Keep browser code free of Node built-ins and server-only variables.
 - Keep Edge code free of unsupported Node APIs.
+- In the host `middleware.ts`, pass both
+  `process.env.NEXT_PUBLIC_VOLATO_DSN` and
+  `process.env.NEXT_PUBLIC_VOLATO_RELEASE` to `wrapMiddleware`; Next inlines
+  them while the generated Edge module remains free of `process.env`.
 - Isolate concurrent server request scope.
 - Use Next's `onRequestError` hook for leaked RSC errors.
 - Use the generated React helper from `app/error.tsx`; do not wrap the root

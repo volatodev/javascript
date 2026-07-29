@@ -93,12 +93,13 @@ skills
     ".agents/skills",
   )
   .option("--force", "replace differing installed skill files")
-  .action((opts: { target: string; force?: boolean }) => {
+  .action(async (opts: { target: string; force?: boolean }) => {
     try {
-      runSkillsInstall({
+      await runSkillsInstall({
         cwd: process.cwd(),
         target: opts.target,
         force: opts.force,
+        nonInteractive: !process.stdin.isTTY || !process.stdout.isTTY,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

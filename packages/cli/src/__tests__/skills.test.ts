@@ -1,4 +1,5 @@
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -7,8 +8,9 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import prompts from "prompts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { installSkills } from "../commands/skills";
+import { installSkills, runSkillsInstall } from "../commands/skills";
 
 let cwd: string;
 let sourceRoot: string;
@@ -72,8 +74,49 @@ describe("installSkills", () => {
 
     expect(
       installSkills({ cwd, sourceRoot, force: true })[0]?.status,
-    ).toBe("created");
+    ).toBe("updated");
     expect(readFileSync(installed, "utf8")).toBe("generic");
+  });
+
+  it("offers to update installed skills when bundled files differ", async () => {
+    installSkills({ cwd, sourceRoot });
+    writeFileSync(
+      join(sourceRoot, "volato-setup", "SKILL.md"),
+      "updated generic",
+    );
+    prompts.inject([true]);
+
+    await runSkillsInstall({ cwd, sourceRoot });
+
+    expect(
+      readFileSync(
+        join(cwd, ".agents", "skills", "volato-setup", "SKILL.md"),
+        "utf8",
+      ),
+    ).toBe("updated generic");
+  });
+
+  it("removes files that are no longer part of an updated skill", async () => {
+    installSkills({ cwd, sourceRoot });
+    rmSync(
+      join(sourceRoot, "volato-setup", "agents", "openai.yaml"),
+    );
+    prompts.inject([true]);
+
+    await runSkillsInstall({ cwd, sourceRoot });
+
+    expect(
+      existsSync(
+        join(
+          cwd,
+          ".agents",
+          "skills",
+          "volato-setup",
+          "agents",
+          "openai.yaml",
+        ),
+      ),
+    ).toBe(false);
   });
 
   it("supports a portable target directory", () => {

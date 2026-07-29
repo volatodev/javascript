@@ -14,6 +14,8 @@ Treat an integration as complete only when all applicable surfaces pass:
 Also verify:
 
 - browser, server and Edge bundles contain only APIs available in their runtime;
+- middleware forwards the build-injected `NEXT_PUBLIC_VOLATO_RELEASE` to
+  `wrapMiddleware`, so Edge events select the same sourcemaps as other runtimes;
 - the ingest token is absent from browser output;
 - query-string secrets are redacted everywhere;
 - capture remains idempotent under React Strict Mode;
