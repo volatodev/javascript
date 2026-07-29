@@ -53,7 +53,7 @@ const program = new Command();
 program
   .name("volato")
   .description(
-    "Volato CLI — agent-native error tracking. Run `volato readme` for the full surface.",
+    "Volato CLI — operational skills and observability for AI agents. Run `volato readme` for the full surface.",
   )
   .version(CLI_VERSION, "-v, --version", "print the volato CLI version");
 
@@ -94,7 +94,7 @@ const skills = program
 
 skills
   .command("install")
-  .description("Install the generic Volato skill and supported framework skills")
+  .description("Install Volato operational and framework skills for AI agents")
   .option(
     "--target <directory>",
     "project-relative agent skills directory",

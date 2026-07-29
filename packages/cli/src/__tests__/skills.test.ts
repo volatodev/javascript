@@ -27,6 +27,7 @@ beforeEach(() => {
   sourceRoot = join(cwd, "bundled");
   addSkill("volato-setup", "generic");
   addSkill("volato-nextjs", "next");
+  addSkill("detect-pmf", "pmf");
 });
 
 afterEach(() => {
@@ -40,6 +41,7 @@ describe("installSkills", () => {
     expect(outcomes.map(({ skill, status }) => ({ skill, status }))).toEqual([
       { skill: "volato-setup", status: "created" },
       { skill: "volato-nextjs", status: "created" },
+      { skill: "detect-pmf", status: "created" },
     ]);
     expect(
       readFileSync(
@@ -54,7 +56,7 @@ describe("installSkills", () => {
 
     expect(
       installSkills({ cwd, sourceRoot }).map((outcome) => outcome.status),
-    ).toEqual(["unchanged", "unchanged"]);
+    ).toEqual(["unchanged", "unchanged", "unchanged"]);
   });
 
   it("does not overwrite a locally modified skill without force", () => {

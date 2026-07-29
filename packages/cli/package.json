@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=18"
   },
-  "description": "Volato CLI — the agent-facing surface for reading, triaging, and resolving errors from any terminal.",
+  "description": "Volato CLI — operational skills and observability for AI agents.",
   "license": "MIT",
   "author": "Wrenchy SASU",
   "homepage": "https://github.com/volatodev/javascript#readme",

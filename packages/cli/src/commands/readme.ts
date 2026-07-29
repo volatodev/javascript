@@ -10,9 +10,9 @@
 
 const README = `# volato — Volato CLI
 
-Volato is agent-native error tracking. The CLI is the primary surface
-for AI agents to read, triage, and resolve errors. Use it from any
-terminal or have your agent shell out.
+Volato provides operational skills and observability for AI agents. The CLI is
+the primary surface for agents to install workflows, instrument outcomes, and
+read, triage, and resolve errors from any terminal.
 
 ## Setup
 
@@ -34,12 +34,12 @@ Headless / CI — skip \`login\` and set the token in the environment:
     volato init --project "<project_id>" --yes --send-test-event
 
 Uses the authenticated workspace token to retrieve that project's credentials,
-protects .env.local before writing them, installs the generic and Next.js agent
-skills, then generates local capture source in a Next.js 15 or 16 App Router
-project. No Volato runtime dependency is added. The recipe patches env vars,
-layout bootstrap, instrumentation hook, tunnel route and build-time sourcemap
-upload. Re-running is idempotent and refuses to overwrite locally edited
-generated files.
+protects .env.local before writing them, installs the operational and Next.js
+agent skills, then generates local capture source in a Next.js 15 or 16 App
+Router project. No Volato runtime dependency is added. The recipe patches env
+vars, layout bootstrap, instrumentation hook, tunnel route and build-time
+sourcemap upload. Re-running is idempotent and refuses to overwrite locally
+edited generated files.
 
 The advanced \`--dsn\` path remains available when an authenticated project
 lookup is not possible, but it cannot retrieve the server-only ingest token.

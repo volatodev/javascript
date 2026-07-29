@@ -11,7 +11,11 @@ import { dirname, join, resolve } from "node:path";
 import pc from "picocolors";
 import prompts from "prompts";
 
-const BUNDLED_SKILLS = ["volato-setup", "volato-nextjs"] as const;
+const BUNDLED_SKILLS = [
+  "volato-setup",
+  "volato-nextjs",
+  "detect-pmf",
+] as const;
 
 export type SkillInstallStatus =
   | "created"

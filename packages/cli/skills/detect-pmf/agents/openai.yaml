@@ -1,0 +1,4 @@
+interface:
+  display_name: "Detect PMF"
+  short_description: "Instrument and assess outcome-led PMF signals"
+  default_prompt: "Use $detect-pmf to map and instrument product outcomes, sync the event catalog, and assess PMF evidence."

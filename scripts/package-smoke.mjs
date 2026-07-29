@@ -75,6 +75,10 @@ try {
     "skills/volato-nextjs/SKILL.md",
     "skills/volato-nextjs/assets/runtime/server.ts",
     "skills/volato-nextjs/assets/runtime/withVolato.ts",
+    "skills/detect-pmf/SKILL.md",
+    "skills/detect-pmf/agents/openai.yaml",
+    "skills/detect-pmf/references/contract.md",
+    "skills/detect-pmf/assets/pmf-tracker.ts",
   ]) {
     assert(paths.has(required), `packed CLI is missing ${required}`);
   }
@@ -100,6 +104,10 @@ try {
   assert(
     bundledCli.includes("Generate the dependency-free Volato integration"),
     "packed CLI still exposes the legacy setup surface",
+  );
+  assert(
+    bundledCli.includes("volato pmf validate"),
+    "packed CLI is missing the PMF command surface",
   );
 
   const fixture = join(scratch, "fixture");
@@ -143,6 +151,8 @@ try {
   for (const required of [
     ".agents/skills/volato-setup/SKILL.md",
     ".agents/skills/volato-nextjs/SKILL.md",
+    ".agents/skills/detect-pmf/SKILL.md",
+    ".agents/skills/detect-pmf/assets/pmf-tracker.ts",
     ".volato/manifest.json",
     "app/error.tsx",
     "instrumentation.ts",

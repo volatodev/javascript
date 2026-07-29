@@ -249,6 +249,7 @@ try {
     for (const required of [
       ".agents/skills/volato-setup/SKILL.md",
       ".agents/skills/volato-nextjs/SKILL.md",
+      ".agents/skills/detect-pmf/SKILL.md",
       ".volato/manifest.json",
       ".env.local",
       ".gitignore",

@@ -1,8 +1,11 @@
 # @volatodev/cli
 
-The agent-facing CLI for [Volato](https://volato.dev) — agent-native error tracking.
+The agent-facing CLI for [Volato](https://volato.dev) — operational skills and
+observability for AI agents.
 
-Install it once. Your AI agent (Claude Code, Cursor, …) shells out to `volato` from any terminal to read, triage, and resolve errors — getting the full fix context (stack, originating commit, source location) in a single call.
+Install it once. Your AI coding agent shells out to `volato` from any terminal
+to install workflows, instrument product outcomes, and resolve production
+errors with source-aware context.
 
 ## Install
 
