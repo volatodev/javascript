@@ -2,38 +2,21 @@
  * Dependency-free, server-only tracker for the detect-pmf skill.
  *
  * Copy this file into the application and call it only after an authoritative
- * business transition succeeds. The DSN is browser-safe; no workspace or
- * ingest token belongs in this module.
+ * business transition succeeds. It reads the public DSN for routing and the
+ * server-only ingest token for write authorization. Never hard-code either
+ * value in source.
  */
 
 const SKILL = "detect-pmf";
 const DSN_HEADER = "X-Volato-DSN";
+const DELIVERY_TIMEOUT_MS = 2_000;
 
-export type PmfPropertyType = "string" | "number" | "boolean";
 export type PmfEventDefinition = {
   readonly name: string;
   readonly description: string;
-  readonly properties: Readonly<Record<string, PmfPropertyType>>;
+  readonly properties: Readonly<Record<string, never>>;
   readonly dedupe: "actor" | "key" | "none";
 };
-
-type PropertyValue<Type extends PmfPropertyType> =
-  Type extends "string"
-    ? string
-    : Type extends "number"
-      ? number
-      : boolean;
-
-type EventProperties<Event extends PmfEventDefinition> = {
-  [Key in keyof Event["properties"]]: PropertyValue<
-    Event["properties"][Key]
-  >;
-};
-
-type PropertyInput<Event extends PmfEventDefinition> =
-  keyof Event["properties"] extends never
-    ? { properties?: Record<string, never> }
-    : { properties: EventProperties<Event> };
 
 type DedupeInput<Event extends PmfEventDefinition> =
   Event["dedupe"] extends "key"
@@ -43,7 +26,8 @@ type DedupeInput<Event extends PmfEventDefinition> =
 export type PmfTrackInput<Event extends PmfEventDefinition> = {
   actorId: string;
   occurredAt?: string;
-} & PropertyInput<Event> &
+  properties?: Record<string, never>;
+} &
   DedupeInput<Event>;
 
 export type PmfTracker<
@@ -58,7 +42,6 @@ export type PmfTracker<
 export type CreatePmfTrackerOptions<
   Events extends readonly PmfEventDefinition[],
 > = {
-  dsn: string;
   events: Events;
   fetch?: typeof globalThis.fetch;
 };
@@ -107,9 +90,8 @@ function timestamp(value: string | undefined): string {
 }
 
 function validatedProperties(
-  definition: PmfEventDefinition,
   value: unknown,
-): Record<string, string | number | boolean> {
+): Record<string, never> {
   const properties =
     value === undefined ? {} : value;
   if (
@@ -121,36 +103,10 @@ function validatedProperties(
   }
 
   const raw = properties as Record<string, unknown>;
-  for (const key of Object.keys(raw)) {
-    if (!(key in definition.properties)) {
-      throw new Error(`properties.${key} is not declared`);
-    }
+  if (Object.keys(raw).length > 0) {
+    throw new Error("properties must be empty in schema version 1");
   }
-
-  const validated: Record<string, string | number | boolean> = {};
-  for (const [key, expectedType] of Object.entries(
-    definition.properties,
-  )) {
-    const property = raw[key];
-    if (typeof property !== expectedType) {
-      throw new Error(`properties.${key} must be a ${expectedType}`);
-    }
-    if (
-      typeof property === "string" &&
-      (property.length === 0 || property.length > 256)
-    ) {
-      throw new Error(`properties.${key} must be 1-256 characters`);
-    }
-    if (
-      typeof property === "number" &&
-      (!Number.isFinite(property) ||
-        Math.abs(property) > Number.MAX_SAFE_INTEGER)
-    ) {
-      throw new Error(`properties.${key} must be a finite safe number`);
-    }
-    validated[key] = property as string | number | boolean;
-  }
-  return validated;
+  return {};
 }
 
 async function rejectionReason(response: Response): Promise<string> {
@@ -186,61 +142,136 @@ export function createPmfTracker<
 >(
   options: CreatePmfTrackerOptions<Events>,
 ): PmfTracker<Events> {
-  const endpoint = ingestUrl(options.dsn);
+  const dsn = process.env.NEXT_PUBLIC_VOLATO_DSN ?? "";
+  const ingestToken = process.env.VOLATO_INGEST_TOKEN ?? "";
+  const ingestTokenValid =
+    ingestToken.length > 0 &&
+    ingestToken.length <= 512 &&
+    !/\s/.test(ingestToken);
+  let endpoint: string | undefined;
+  try {
+    endpoint = ingestUrl(dsn);
+  } catch {
+    // Report configuration failures from track so detached calls never throw.
+  }
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const catalog = new Map<string, PmfEventDefinition>();
+  let catalogError: string | undefined;
   const warnedReasons = new Set<string>();
   const warnOnce = (reason: string, message: string): void => {
     if (warnedReasons.has(reason)) return;
     warnedReasons.add(reason);
-    console.warn(message);
+    try {
+      if (typeof console !== "undefined" && console.warn) {
+        console.warn(message);
+      }
+    } catch {
+      // Diagnostics must never turn detached telemetry into a rejection.
+    }
   };
   for (const definition of options.events) {
     if (catalog.has(definition.name)) {
-      throw new Error(`PMF event ${JSON.stringify(definition.name)} is duplicated`);
+      catalogError = `PMF event ${JSON.stringify(definition.name)} is duplicated`;
+      break;
     }
     catalog.set(definition.name, definition);
   }
 
   return {
     async track(event, input): Promise<boolean> {
+      if (typeof window !== "undefined") {
+        warnOnce(
+          "browser_runtime",
+          "[volato:detect-pmf] event delivery disabled: the PMF tracker is server-only. Move this call behind an authoritative server transition.",
+        );
+        return false;
+      }
+      if (!endpoint) {
+        warnOnce(
+          "invalid_dsn",
+          "[volato:detect-pmf] event delivery disabled: NEXT_PUBLIC_VOLATO_DSN is missing or malformed. Run `volato init` for this project.",
+        );
+        return false;
+      }
+      if (!ingestTokenValid) {
+        warnOnce(
+          "invalid_ingest_token",
+          "[volato:detect-pmf] event delivery disabled: VOLATO_INGEST_TOKEN is missing or malformed. Run `volato init` for this project.",
+        );
+        return false;
+      }
+      if (catalogError) {
+        warnOnce(
+          "invalid_catalog",
+          `[volato:detect-pmf] event delivery disabled: ${catalogError}. Run \`volato pmf validate\`.`,
+        );
+        return false;
+      }
+
       const definition = catalog.get(event);
       if (!definition) {
-        throw new Error(`PMF event ${JSON.stringify(event)} is not declared`);
-      }
-
-      const actorId = boundedString(input.actorId, "actorId", 128);
-      const properties = validatedProperties(
-        definition,
-        input.properties,
-      );
-      let dedupeKey: string | undefined;
-      if (definition.dedupe === "key") {
-        dedupeKey = boundedString(input.dedupeKey, "dedupeKey", 128);
-      } else if (input.dedupeKey !== undefined) {
-        throw new Error(
-          `dedupeKey is not allowed when dedupe is ${definition.dedupe}`,
+        warnOnce(
+          "invalid_input",
+          "[volato:detect-pmf] event not sent: its name is not declared. Update .volato/pmf.json and run `volato pmf sync`.",
         );
+        return false;
       }
 
-      const payload = {
-        schemaVersion: 1,
-        skill: SKILL,
-        event,
-        actorId,
-        occurredAt: timestamp(input.occurredAt),
-        ...(dedupeKey ? { dedupeKey } : {}),
-        properties,
+      let payload: {
+        schemaVersion: number;
+        skill: string;
+        event: string;
+        actorId: string;
+        occurredAt: string;
+        dedupeKey?: string;
+        properties: Record<string, never>;
       };
+      try {
+        if (Object.keys(definition.properties).length > 0) {
+          throw new Error(
+            "event catalog properties must be empty in schema version 1",
+          );
+        }
+        const actorId = boundedString(input.actorId, "actorId", 128);
+        const properties = validatedProperties(input.properties);
+        let dedupeKey: string | undefined;
+        if (definition.dedupe === "key") {
+          dedupeKey = boundedString(input.dedupeKey, "dedupeKey", 128);
+        } else if (input.dedupeKey !== undefined) {
+          throw new Error(
+            `dedupeKey is not allowed when dedupe is ${definition.dedupe}`,
+          );
+        }
+
+        payload = {
+          schemaVersion: 1,
+          skill: SKILL,
+          event,
+          actorId,
+          occurredAt: timestamp(input.occurredAt),
+          ...(dedupeKey ? { dedupeKey } : {}),
+          properties,
+        };
+      } catch (error) {
+        const reason =
+          error instanceof Error ? error.message : "input is invalid";
+        warnOnce(
+          "invalid_input",
+          `[volato:detect-pmf] event not sent: ${reason}. Validate the call against .volato/pmf.json.`,
+        );
+        return false;
+      }
 
       try {
         const response = await fetchImpl(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            [DSN_HEADER]: options.dsn,
+            [DSN_HEADER]: dsn,
+            Authorization: `Bearer ${ingestToken}`,
           },
           body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
         });
         if (response.ok) return true;
         const reason = await rejectionReason(response);

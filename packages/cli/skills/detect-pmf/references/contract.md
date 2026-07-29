@@ -17,17 +17,13 @@
     {
       "name": "eligible_account_created",
       "description": "An eligible account enters the measurement cohort.",
-      "properties": {
-        "source": "string"
-      },
+      "properties": {},
       "dedupe": "actor"
     },
     {
       "name": "production_error_resolved",
       "description": "A production error is resolved through the product loop.",
-      "properties": {
-        "plan": "string"
-      },
+      "properties": {},
       "dedupe": "key"
     }
   ],
@@ -55,9 +51,8 @@ No additional fields are accepted. The complete JSON document must be at most
 are 1-256 characters.
 
 The catalog contains 1-32 events. Event names are 1-64 characters matching
-`[a-z][a-z0-9_-]*`. Each event has at most 12 properties. Property keys are
-1-48 characters matching `[a-z][a-z0-9_]*`; property types are `string`,
-`number`, or `boolean`. Dedupe is `actor`, `key`, or `none`.
+`[a-z][a-z0-9_-]*`. Every event must declare exactly
+`"properties": {}` in schema version 1. Dedupe is `actor`, `key`, or `none`.
 
 `cohort.windowDays` is 1-90 and must be at least `retention.maxDays`.
 `repeat.minHours` is 24-2160. Retention values are 1-90 and `maxDays` must be
@@ -88,6 +83,7 @@ Post to the origin encoded by the project's public DSN:
 POST /api/skill-events
 Content-Type: application/json
 X-Volato-DSN: <public DSN>
+Authorization: Bearer <server ingest token>
 ```
 
 ```json
@@ -98,15 +94,17 @@ X-Volato-DSN: <public DSN>
   "actorId": "opaque_internal_actor_id",
   "occurredAt": "2026-07-29T16:00:00.000Z",
   "dedupeKey": "stable_business_transition_id",
-  "properties": {
-    "plan": "pro"
-  }
+  "properties": {}
 }
 ```
 
 The project id is derived from the DSN; do not send `projectId` or `tenantId`.
-The DSN is browser-safe and selects a project. It is not a server credential.
-Never use a workspace token or ingest token for product events.
+The DSN selects the project and derives the ingest origin. The server-only
+`VOLATO_INGEST_TOKEN` authorizes the write and must match that project. The
+tracker reads both `NEXT_PUBLIC_VOLATO_DSN` and `VOLATO_INGEST_TOKEN`, which
+`volato init --project` already writes to the protected `.env.local`. Never use
+the workspace token, never add a third credential, and never send with the DSN
+alone.
 
 Emit only after the authoritative business write commits, and detach telemetry
 from the response path:
@@ -118,7 +116,6 @@ export async function resolveProductionError(input: ResolveInput) {
   void pmfTracker.track("production_error_resolved", {
     actorId: resolution.actorId,
     dedupeKey: resolution.errorGroupId,
-    properties: { plan: resolution.plan },
   });
 
   return resolution;
@@ -132,6 +129,10 @@ changing the committed transition.
 
 `actorId` is 1-128 characters. `occurredAt` is a canonical ISO-8601 UTC
 timestamp. A key-deduped event requires a 1-128 character `dedupeKey`; other
-dedupe modes forbid it. All declared properties are required, undeclared
-properties are rejected, strings are 1-256 characters, and numbers must be
-finite safe values.
+dedupe modes forbid it. `properties` is always `{}` in schema version 1.
+
+The tracker is server-only, adds a two-second `AbortSignal` timeout, and never
+rejects: invalid configuration, invalid input, a missing token, an ingest
+rejection, or a network failure resolves to `false` and emits one warning per
+reason. Keep `void pmfTracker.track(...)` detached from the product response
+path.

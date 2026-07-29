@@ -160,6 +160,17 @@ try {
   ]) {
     assert(existsSync(join(fixture, required)), `packed CLI did not create ${required}`);
   }
+  const installedPmfTracker = readFileSync(
+    join(fixture, ".agents/skills/detect-pmf/assets/pmf-tracker.ts"),
+    "utf8",
+  );
+  assert(
+    installedPmfTracker.includes("process.env.NEXT_PUBLIC_VOLATO_DSN") &&
+      installedPmfTracker.includes("process.env.VOLATO_INGEST_TOKEN") &&
+      installedPmfTracker.includes("Authorization: `Bearer ${ingestToken}`") &&
+      installedPmfTracker.includes("AbortSignal.timeout(DELIVERY_TIMEOUT_MS)"),
+    "packed PMF tracker is missing server authorization or bounded delivery",
+  );
   const fixturePackage = JSON.parse(
     readFileSync(join(fixture, "package.json"), "utf8"),
   );

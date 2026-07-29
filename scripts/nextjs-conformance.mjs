@@ -274,6 +274,17 @@ try {
       ),
       `${entry.label} setup did not protect local credentials.`,
     );
+    const pmfTracker = readFileSync(
+      join(fixture, ".agents/skills/detect-pmf/assets/pmf-tracker.ts"),
+      "utf8",
+    );
+    assert(
+      pmfTracker.includes("process.env.NEXT_PUBLIC_VOLATO_DSN") &&
+        pmfTracker.includes("process.env.VOLATO_INGEST_TOKEN") &&
+        pmfTracker.includes("Authorization: `Bearer ${ingestToken}`") &&
+        pmfTracker.includes("AbortSignal.timeout(DELIVERY_TIMEOUT_MS)"),
+      `${entry.label} setup installed an unauthenticated or unbounded PMF tracker.`,
+    );
 
     if (index === 0) {
       state.rejectTestEvents = true;
