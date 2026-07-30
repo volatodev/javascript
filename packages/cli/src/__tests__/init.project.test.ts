@@ -104,4 +104,40 @@ describe("volato init --project", () => {
       }),
     );
   });
+
+  it("does not create a nested .gitignore when the monorepo root covers local env files", async () => {
+    const appCwd = join(cwd, "apps", "web");
+    mkdirSync(join(cwd, ".git"));
+    mkdirSync(join(appCwd, "app"), { recursive: true });
+    writeFileSync(join(cwd, ".gitignore"), ".env*.local\n");
+    writeFileSync(
+      join(appCwd, "package.json"),
+      JSON.stringify({
+        name: "web",
+        dependencies: { next: "15.5.21", react: "19.0.0" },
+      }),
+    );
+    writeFileSync(
+      join(appCwd, "app", "layout.tsx"),
+      "export default function Layout({ children }) { return <html><body>{children}</body></html>; }\n",
+    );
+    writeFileSync(join(appCwd, "next.config.ts"), "export default {};\n");
+    generateNextjsIntegration.mockReturnValueOnce({
+      runtimeRoot: join(appCwd, "volato"),
+      generatedFiles: [join(appCwd, "volato", "client.tsx")],
+      manifestPath: join(appCwd, ".volato", "manifest.json"),
+      outcomes: [],
+    });
+
+    await runInit({
+      cwd: appCwd,
+      projectId: "11111111-1111-4111-8111-111111111111",
+      nonInteractive: true,
+    });
+
+    expect(existsSync(join(appCwd, ".gitignore"))).toBe(false);
+    expect(readFileSync(join(cwd, ".gitignore"), "utf8")).toBe(
+      ".env*.local\n",
+    );
+  });
 });

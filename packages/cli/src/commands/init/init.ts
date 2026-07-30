@@ -235,8 +235,8 @@ export async function runInit(options: InitOptions): Promise<void> {
  * and a token leaked into the first commit is a real incident.
  *
  * Flow:
- *   - Read `.gitignore`. If it already covers `.env*.local` (or `.env.local`
- *     literally), do nothing.
+ *   - Read `.gitignore` from the project up to its Git root. If one already
+ *     covers `.env*.local` (or `.env.local` literally), do nothing.
  *   - Otherwise prompt the dev with the reason in plain English. On Y, append
  *     a Volato-tagged block. On n, print a red warning and continue — we
  *     don't block init, but we make it loud that the token will leak.
@@ -249,14 +249,7 @@ async function ensureGitignoreCoversEnvLocal(
   const fileExists = existsSync(path);
   const content = fileExists ? readFileSync(path, "utf8") : "";
 
-  const lines = content
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("#"));
-  const alreadyCovered = lines.some(
-    (l) => l === ".env*.local" || l === ".env.local" || l === ".env*",
-  );
-  if (alreadyCovered) return;
+  if (gitignoreCoversEnvLocal(cwd)) return;
 
   // Two distinct cases: the file is missing entirely, or it exists but
   // doesn't cover `.env*.local`. Same risk in both — a `git add .` after
@@ -324,6 +317,44 @@ async function ensureGitignoreCoversEnvLocal(
       ".env*.local",
     )}.\n\n`,
   );
+}
+
+function gitignoreCoversEnvLocal(cwd: string): boolean {
+  const gitRoot = findGitRoot(cwd);
+  let directory = cwd;
+
+  while (true) {
+    const path = join(directory, ".gitignore");
+    const content = existsSync(path) ? readFileSync(path, "utf8") : "";
+    const lines = content
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"));
+    if (
+      lines.some(
+        (line) =>
+          line === ".env*.local" ||
+          line === ".env.local" ||
+          line === ".env*",
+      )
+    ) {
+      return true;
+    }
+
+    if (!gitRoot || directory === gitRoot) return false;
+    directory = dirname(directory);
+  }
+}
+
+function findGitRoot(cwd: string): string | null {
+  let directory = cwd;
+
+  while (true) {
+    if (existsSync(join(directory, ".git"))) return directory;
+    const parent = dirname(directory);
+    if (parent === directory) return null;
+    directory = parent;
+  }
 }
 
 /**
