@@ -20,6 +20,19 @@ const emptyEvents = [
     dedupe: "actor",
   },
 ] as const;
+const branchedEvents = [
+  {
+    name: "skill_started",
+    description: "An actor starts a declared catalog skill.",
+    properties: {
+      skill: {
+        type: "enum",
+        values: ["production-errors", "detect-pmf"],
+      },
+    },
+    dedupe: "key",
+  },
+] as const;
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
@@ -65,6 +78,31 @@ describe("detect-pmf tracker asset", () => {
       actorId: "user_42",
       occurredAt: "2026-07-29T16:00:00.000Z",
       properties: {},
+    });
+  });
+
+  it("sends only an exact declared enum property value", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(null, { status: 202 }),
+    );
+    const tracker = createPmfTracker({
+      events: branchedEvents,
+      fetch: fetchMock,
+    });
+
+    expect(
+      await tracker.track("skill_started", {
+        actorId: "user_42",
+        dedupeKey: "run_7",
+        properties: { skill: "detect-pmf" },
+      }),
+    ).toBe(true);
+
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      event: "skill_started",
+      dedupeKey: "run_7",
+      properties: { skill: "detect-pmf" },
     });
   });
 
@@ -230,7 +268,7 @@ describe("detect-pmf tracker asset", () => {
     );
   });
 
-  it("refuses catalogs with properties in the property-free PMF contract", async () => {
+  it("refuses catalogs with non-enum property definitions", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, { status: 202 }),
     );
@@ -255,7 +293,84 @@ describe("detect-pmf tracker asset", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(warning).toHaveBeenCalledWith(
-      expect.stringContaining("does not support properties"),
+      expect.stringContaining("must be an enum definition"),
+    );
+  });
+
+  it.each([
+    {
+      label: "missing",
+      properties: undefined,
+      message: "properties.skill is required",
+    },
+    {
+      label: "unknown",
+      properties: { skill: "detect-pmf", source: "homepage" },
+      message: "properties.source is not declared",
+    },
+    {
+      label: "prototype-named unknown",
+      properties: { skill: "detect-pmf", constructor: "homepage" },
+      message: "properties.constructor is not declared",
+    },
+    {
+      label: "outside enum",
+      properties: { skill: "landing" },
+      message:
+        "properties.skill must be one of production-errors, detect-pmf",
+    },
+  ])(
+    "rejects $label branch properties before network I/O",
+    async ({ properties, message }) => {
+      const fetchMock = vi.fn<typeof fetch>();
+      const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const tracker = createPmfTracker({
+        events: branchedEvents,
+        fetch: fetchMock,
+      });
+
+      expect(
+        await tracker.track("skill_started", {
+          actorId: "user_42",
+          dedupeKey: "run_7",
+          ...(properties === undefined ? {} : { properties }),
+        } as Parameters<typeof tracker.track>[1]),
+      ).toBe(false);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining(message));
+    },
+  );
+
+  it("does not satisfy a required enum property through Object.prototype", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const tracker = createPmfTracker({
+      events: [
+        {
+          name: "workflow_started",
+          description: "An actor starts a workflow.",
+          properties: {
+            constructor: {
+              type: "enum",
+              values: ["workflow-a", "workflow-b"],
+            },
+          },
+          dedupe: "key",
+        },
+      ] as const,
+      fetch: fetchMock,
+    });
+
+    expect(
+      await tracker.track("workflow_started", {
+        actorId: "user_42",
+        dedupeKey: "run_7",
+      } as Parameters<typeof tracker.track>[1]),
+    ).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining("properties.constructor is required"),
     );
   });
 

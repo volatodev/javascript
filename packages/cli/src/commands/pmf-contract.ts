@@ -13,7 +13,6 @@ const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_CONFIG_BYTES = 32 * 1024;
-const MAX_EVENTS = 32;
 const MIN_MILESTONES = 2;
 const MAX_MILESTONES = 8;
 const MAX_RETENTION_DAYS = 90;
@@ -22,10 +21,15 @@ const MAX_REPEAT_HOURS = MAX_RETENTION_DAYS * 24;
 
 export type PmfDedupe = "actor" | "key" | "none";
 
+export type PmfEnumDefinition = {
+  type: "enum";
+  values: string[];
+};
+
 export type PmfEventDefinition = {
   name: string;
   description: string;
-  properties: Record<string, never>;
+  properties: Record<string, PmfEnumDefinition>;
   dedupe: PmfDedupe;
 };
 
@@ -42,6 +46,9 @@ export type PmfConfig = {
     outcome: string;
   };
   events: PmfEventDefinition[];
+  branches?: {
+    property: string;
+  };
   milestones: Array<{
     event: string;
     question: string;
@@ -172,6 +179,7 @@ export function validatePmfConfig(value: unknown): PmfConfig {
       "product",
       "job",
       "events",
+      "branches",
       "milestones",
       "cohort",
       "activation",
@@ -218,11 +226,9 @@ export function validatePmfConfig(value: unknown): PmfConfig {
   if (!Array.isArray(root.events) || root.events.length === 0) {
     invalid("config.events must contain at least one event");
   }
-  if (root.events.length > MAX_EVENTS) {
-    invalid(`config.events cannot contain more than ${MAX_EVENTS} events`);
-  }
 
   const eventNames = new Set<string>();
+  const eventsByName = new Map<string, PmfEventDefinition>();
   const events = root.events.map((rawEvent, index): PmfEventDefinition => {
     const path = `config.events[${index}]`;
     const event = objectAt(rawEvent, path);
@@ -246,10 +252,44 @@ export function validatePmfConfig(value: unknown): PmfConfig {
       256,
     );
     const rawProperties = objectAt(event.properties, `${path}.properties`);
-    if (Object.keys(rawProperties).length > 0) {
-      invalid(`${path}.properties must be empty`);
+    const properties: Record<string, PmfEnumDefinition> = {};
+    for (const [propertyKey, rawDefinition] of Object.entries(rawProperties)) {
+      const propertyPath = `${path}.properties.${propertyKey}`;
+      if (!KEY_PATTERN.test(propertyKey)) {
+        invalid(`${propertyPath} has an invalid property name`);
+      }
+      const definition = objectAt(rawDefinition, propertyPath);
+      exactKeys(definition, ["type", "values"], propertyPath);
+      if (definition.type !== "enum") {
+        invalid(`${propertyPath}.type must be enum`);
+      }
+      if (!Array.isArray(definition.values) || definition.values.length === 0) {
+        invalid(`${propertyPath}.values must contain at least one enum value`);
+      }
+      const seenValues = new Set<string>();
+      const values = Array.from(definition.values).map(
+        (rawValue, valueIndex) => {
+          const enumValue = boundedString(
+            rawValue,
+            `${propertyPath}.values[${valueIndex}]`,
+            64,
+          );
+          if (!KEY_PATTERN.test(enumValue)) {
+            invalid(
+              `${propertyPath}.values[${valueIndex}] has an invalid format`,
+            );
+          }
+          if (seenValues.has(enumValue)) {
+            invalid(
+              `${propertyPath}.values[${valueIndex}] must be unique`,
+            );
+          }
+          seenValues.add(enumValue);
+          return enumValue;
+        },
+      );
+      properties[propertyKey] = { type: "enum", values };
     }
-    const properties: Record<string, never> = {};
 
     if (
       event.dedupe !== "actor" &&
@@ -259,12 +299,14 @@ export function validatePmfConfig(value: unknown): PmfConfig {
       invalid(`${path}.dedupe must be actor, key or none`);
     }
 
-    return {
+    const parsed: PmfEventDefinition = {
       name,
       description,
       properties,
       dedupe: event.dedupe,
     };
+    eventsByName.set(name, parsed);
+    return parsed;
   });
 
   const cohort = objectAt(root.cohort, "config.cohort");
@@ -365,6 +407,52 @@ export function validatePmfConfig(value: unknown): PmfConfig {
     invalid("config.cohort.windowDays must be >= retention.maxDays");
   }
 
+  let branches: PmfConfig["branches"];
+  if (root.branches !== undefined) {
+    const rawBranches = objectAt(root.branches, "config.branches");
+    exactKeys(rawBranches, ["property"], "config.branches");
+    const property = boundedString(
+      rawBranches.property,
+      "config.branches.property",
+      64,
+    );
+    if (!KEY_PATTERN.test(property)) {
+      invalid("config.branches.property has an invalid format");
+    }
+
+    const branchEventNames = new Set([
+      ...milestones.slice(1).map((milestone) => milestone.event),
+      activationEvent,
+      repeatEvent,
+      retentionEvent,
+    ]);
+    let expectedDefinition: PmfEnumDefinition | undefined;
+    for (const eventName of branchEventNames) {
+      const eventDefinition = eventsByName.get(eventName)!;
+      const definition = eventDefinition.properties[property];
+      if (!definition) {
+        invalid(
+          `event ${eventName} must declare enum property ${property} used by config.branches`,
+        );
+      }
+      if (eventDefinition.dedupe === "actor") {
+        invalid(
+          `event ${eventName} cannot use actor dedupe with branch property ${property}`,
+        );
+      }
+      if (
+        expectedDefinition &&
+        JSON.stringify(definition) !== JSON.stringify(expectedDefinition)
+      ) {
+        invalid(
+          `event ${eventName} must declare the same enum property ${property} used by config.branches`,
+        );
+      }
+      expectedDefinition ??= definition;
+    }
+    branches = { property };
+  }
+
   return {
     schemaVersion: PMF_SCHEMA_VERSION,
     projectId,
@@ -372,6 +460,7 @@ export function validatePmfConfig(value: unknown): PmfConfig {
     product: { summary: productSummary, targetActor },
     job: { statement, outcome },
     events,
+    ...(branches ? { branches } : {}),
     milestones,
     cohort: { event: cohortEvent, windowDays },
     activation: { event: activationEvent },

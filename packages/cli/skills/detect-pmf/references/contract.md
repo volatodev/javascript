@@ -10,50 +10,73 @@
   "projectId": "11111111-1111-4111-8111-111111111111",
   "skill": "detect-pmf",
   "product": {
-    "summary": "Volato gives coding agents production context.",
-    "targetActor": "Developers fixing production software with a coding agent."
+    "summary": "The product offers several workflows for completing one job.",
+    "targetActor": "Operators trying to complete that job."
   },
   "job": {
-    "statement": "Help a developer restore a failing production workflow.",
-    "outcome": "The developer resolves a real production error."
+    "statement": "Help an operator complete a painful workflow.",
+    "outcome": "The operator receives the promised result."
   },
   "events": [
     {
-      "name": "eligible_account_created",
-      "description": "An eligible account enters the measurement cohort.",
+      "name": "eligible_actor_entered",
+      "description": "An eligible actor enters the measurement cohort.",
       "properties": {},
       "dedupe": "actor"
     },
     {
-      "name": "production_error_resolved",
-      "description": "A production error is resolved through the product loop.",
-      "properties": {},
+      "name": "workflow_started",
+      "description": "An actor starts one of the product workflows.",
+      "properties": {
+        "workflow": {
+          "type": "enum",
+          "values": ["workflow-a", "workflow-b"]
+        }
+      },
+      "dedupe": "key"
+    },
+    {
+      "name": "outcome_delivered",
+      "description": "A workflow delivers its promised result.",
+      "properties": {
+        "workflow": {
+          "type": "enum",
+          "values": ["workflow-a", "workflow-b"]
+        }
+      },
       "dedupe": "key"
     }
   ],
+  "branches": {
+    "property": "workflow"
+  },
   "milestones": [
     {
-      "event": "eligible_account_created",
-      "question": "Did an eligible developer enter the cohort?"
+      "event": "eligible_actor_entered",
+      "question": "Did an eligible actor enter the cohort?"
     },
     {
-      "event": "production_error_resolved",
-      "question": "Did the developer resolve a real production error?"
+      "event": "workflow_started",
+      "question": "Did the actor start a workflow?"
+    },
+    {
+      "event": "outcome_delivered",
+      "question": "Did the workflow deliver its promised result?"
     }
   ],
   "cohort": {
-    "event": "eligible_account_created",
+    "event": "eligible_actor_entered",
     "windowDays": 90
   },
   "activation": {
-    "event": "production_error_resolved"
+    "event": "outcome_delivered"
   },
   "repeat": {
-    "event": "production_error_resolved",
+    "event": "outcome_delivered",
     "minHours": 24
   },
   "retention": {
-    "event": "production_error_resolved",
+    "event": "outcome_delivered",
     "minDays": 7,
     "maxDays": 35
   }
@@ -67,9 +90,37 @@ document must be at most 32 KiB in UTF-8. The project id is a UUID version 1-5.
 `product.targetActor`, job fields, milestone questions, and event descriptions
 are 1-256 characters.
 
-The catalog contains 1-32 events. Event names are 1-64 characters matching
-`[a-z][a-z0-9_-]*`. Every event must declare exactly
-`"properties": {}`. Dedupe is `actor`, `key`, or `none`.
+The catalog contains one or more events. Its size is bounded by the 32 KiB
+document limit, not by an arbitrary event count. Event names are 1-64
+characters matching `[a-z][a-z0-9_-]*`. Dedupe is `actor`, `key`, or `none`.
+
+Event properties are either `{}` or strict enum definitions:
+
+```json
+{
+  "workflow": {
+    "type": "enum",
+    "values": ["workflow-a", "workflow-b"]
+  }
+}
+```
+
+Property names and enum values are 1-64 characters matching
+`[a-z][a-z0-9_-]*`. Enum values are non-empty and unique. Each definition has
+exactly `type` and `values`; strings, fallback fields and free-form property
+types are rejected.
+
+Use an enum only when the same action has finite, stable product variants.
+Use different events for different actions. The skill proposes the values from
+the customer's product and obtains explicit founder approval; neither the
+backend nor the tracker owns a universal value list.
+
+`branches` is optional. Without it, property-free linear maps remain valid.
+When present, it contains exactly one `property`. Every event referenced by a
+milestone after the cohort, and every activation, repeat and retention event,
+must declare the identical enum definition for that property. Use `dedupe:
+key` for branch-stage events when the same actor can legitimately use more than
+one branch.
 
 The catalog contains 2-8 ordered milestones with unique event references. The
 first milestone is `cohort.event`; the last is `activation.event`.
@@ -139,11 +190,13 @@ Authorization: Bearer <server ingest token>
 {
   "schemaVersion": 1,
   "skill": "detect-pmf",
-  "event": "production_error_resolved",
+  "event": "outcome_delivered",
   "actorId": "opaque_internal_actor_id",
   "occurredAt": "2026-07-29T16:00:00.000Z",
   "dedupeKey": "stable_business_transition_id",
-  "properties": {}
+  "properties": {
+    "workflow": "workflow-a"
+  }
 }
 ```
 
@@ -159,20 +212,21 @@ Emit only after the authoritative business write commits. Await the returned
 promise or register it with a request-lifetime hook:
 
 ```ts
-export async function resolveProductionError(
-  input: ResolveInput,
+export async function deliverOutcome(
+  input: OutcomeInput,
   runtime: { waitUntil(promise: Promise<unknown>): void },
 ) {
-  const resolution = await resolveAndCommit(input);
+  const outcome = await deliverAndCommit(input);
 
   runtime.waitUntil(
-    pmfTracker.track("production_error_resolved", {
-      actorId: resolution.actorId,
-      dedupeKey: resolution.errorGroupId,
+    pmfTracker.track("outcome_delivered", {
+      actorId: outcome.actorId,
+      dedupeKey: outcome.transitionId,
+      properties: { workflow: outcome.workflow },
     }),
   );
 
-  return resolution;
+  return outcome;
 }
 ```
 
@@ -186,8 +240,16 @@ actionable warning per reason without changing the committed transition.
 `[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`; email addresses and values containing `@`
 are rejected locally. `occurredAt` is a canonical ISO-8601 UTC timestamp. A
 key-deduped event requires a 1-128 character `dedupeKey`; other dedupe modes
-forbid it. `properties` is always `{}`. Config, event-envelope and assessment
-`schemaVersion` are each 1 and version their own document shape.
+forbid it. `properties` must contain exactly the keys declared for the event;
+each value is one of its configured enum strings. Missing, unknown,
+out-of-enum and free-form values are rejected locally. Config, event-envelope
+and assessment `schemaVersion` are each 1 and version their own document shape.
+
+The report keeps the overall milestone, activation, repeat and retention
+evidence across all enum values. When `branches` is configured, it also returns
+the same evidence for every declared value under `branches.values[]`. Branch
+repeat distinguishes `sameBranchActors` from `crossBranchActors`, so an agent
+can separate repeat value within one workflow from adoption across a catalog.
 
 The tracker is server-only, adds a two-second `AbortSignal` timeout, and never
 rejects: invalid configuration, invalid input, a missing token, an ingest

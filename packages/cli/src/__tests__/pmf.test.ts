@@ -71,6 +71,26 @@ const config = {
   repeat: { event: "error_resolved", minHours: 24 },
   retention: { event: "error_resolved", minDays: 7, maxDays: 35 },
 } as const;
+const skillEnum = {
+  type: "enum",
+  values: ["production-errors", "detect-pmf"],
+} as const;
+const branchedConfig = {
+  ...config,
+  events: [
+    config.events[0],
+    {
+      ...config.events[1],
+      properties: { skill: skillEnum },
+      dedupe: "key",
+    },
+    {
+      ...config.events[2],
+      properties: { skill: skillEnum },
+    },
+  ],
+  branches: { property: "skill" },
+} as const;
 const assessment = {
   schemaVersion: 1,
   configVersion: 3,
@@ -192,7 +212,35 @@ describe("volato pmf validate", () => {
     ).toThrow("cohort.windowDays must be >= retention.maxDays");
   });
 
-  it("rejects event properties in the property-free contract", () => {
+  it("accepts strict enum properties and a comparable branch dimension", () => {
+    expect(validatePmfConfig(branchedConfig)).toEqual(branchedConfig);
+  });
+
+  it("keeps property-free linear maps valid", () => {
+    expect(validatePmfConfig(config)).toEqual(config);
+  });
+
+  it("accepts 40 declared events when the document remains below 32 KiB", () => {
+    const value = {
+      ...config,
+      events: [
+        ...config.events,
+        ...Array.from({ length: 37 }, (_, index) => ({
+          name: `supporting_event_${index}`,
+          description: "A server-owned business outcome.",
+          properties: {},
+          dedupe: "actor",
+        })),
+      ],
+    };
+
+    expect(Buffer.byteLength(JSON.stringify(value), "utf8")).toBeLessThan(
+      32 * 1024,
+    );
+    expect(validatePmfConfig(value).events).toHaveLength(40);
+  });
+
+  it("rejects free-form property definitions", () => {
     expect(() =>
       validatePmfConfig({
         ...config,
@@ -211,7 +259,113 @@ describe("volato pmf validate", () => {
           maxDays: 35,
         },
       }),
-    ).toThrow("properties must be empty");
+    ).toThrow("properties.source must be an object");
+  });
+
+  it.each([
+    {
+      label: "an enum with unsupported definition fields",
+      mutate: () => ({
+        ...branchedConfig,
+        events: branchedConfig.events.map((event) =>
+          event.name === "integration_connected"
+            ? {
+                ...event,
+                properties: {
+                  skill: { ...skillEnum, fallback: "production-errors" },
+                },
+              }
+            : event,
+        ),
+      }),
+      message: "properties.skill has unsupported field fallback",
+    },
+    {
+      label: "an empty enum",
+      mutate: () => ({
+        ...branchedConfig,
+        events: branchedConfig.events.map((event) =>
+          event.name === "integration_connected"
+            ? {
+                ...event,
+                properties: {
+                  skill: { type: "enum", values: [] },
+                },
+              }
+            : event,
+        ),
+      }),
+      message: "properties.skill.values must contain at least one enum value",
+    },
+    {
+      label: "duplicate enum values",
+      mutate: () => ({
+        ...branchedConfig,
+        events: branchedConfig.events.map((event) =>
+          event.name === "integration_connected"
+            ? {
+                ...event,
+                properties: {
+                  skill: {
+                    type: "enum",
+                    values: ["detect-pmf", "detect-pmf"],
+                  },
+                },
+              }
+            : event,
+        ),
+      }),
+      message: "properties.skill.values[1] must be unique",
+    },
+    {
+      label: "a missing branch property",
+      mutate: () => ({
+        ...branchedConfig,
+        events: branchedConfig.events.map((event) =>
+          event.name === "integration_connected"
+            ? { ...event, properties: {} }
+            : event,
+        ),
+      }),
+      message:
+        "event integration_connected must declare enum property skill used by config.branches",
+    },
+    {
+      label: "different branch enums",
+      mutate: () => ({
+        ...branchedConfig,
+        events: branchedConfig.events.map((event) =>
+          event.name === "error_resolved"
+            ? {
+                ...event,
+                properties: {
+                  skill: {
+                    type: "enum",
+                    values: ["detect-pmf", "production-errors"],
+                  },
+                },
+              }
+            : event,
+        ),
+      }),
+      message:
+        "event error_resolved must declare the same enum property skill used by config.branches",
+    },
+    {
+      label: "actor dedupe on a branch stage",
+      mutate: () => ({
+        ...branchedConfig,
+        events: branchedConfig.events.map((event) =>
+          event.name === "integration_connected"
+            ? { ...event, dedupe: "actor" }
+            : event,
+        ),
+      }),
+      message:
+        "event integration_connected cannot use actor dedupe with branch property skill",
+    },
+  ])("rejects $label", ({ mutate, message }) => {
+    expect(() => validatePmfConfig(mutate())).toThrow(message);
   });
 
   it.each([
@@ -258,19 +412,6 @@ describe("volato pmf validate", () => {
       label: "future UUID versions",
       value: { ...config, projectId: "11111111-1111-8111-8111-111111111111" },
       message: "config.projectId must be a UUID",
-    },
-    {
-      label: "more than 32 events",
-      value: {
-        ...config,
-        events: Array.from({ length: 33 }, (_, index) => ({
-          name: `event_${index}`,
-          description: "A server-owned business outcome.",
-          properties: {},
-          dedupe: "actor",
-        })),
-      },
-      message: "cannot contain more than 32 events",
     },
     {
       label: "equal retention boundaries",

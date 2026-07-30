@@ -11,12 +11,27 @@ const SKILL = "detect-pmf";
 const DSN_HEADER = "X-Volato-DSN";
 const DELIVERY_TIMEOUT_MS = 2_000;
 const ACTOR_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
+
+export type PmfEnumDefinition = {
+  readonly type: "enum";
+  readonly values: readonly string[];
+};
 
 export type PmfEventDefinition = {
   readonly name: string;
   readonly description: string;
-  readonly properties: Readonly<Record<string, never>>;
+  readonly properties: Readonly<Record<string, PmfEnumDefinition>>;
   readonly dedupe: "actor" | "key" | "none";
+};
+
+type EnumValue<Definition> =
+  Definition extends { readonly values: readonly (infer Value extends string)[] }
+    ? Value
+    : never;
+
+type EventProperties<Event extends PmfEventDefinition> = {
+  [Key in keyof Event["properties"]]: EnumValue<Event["properties"][Key]>;
 };
 
 type DedupeInput<Event extends PmfEventDefinition> =
@@ -27,8 +42,10 @@ type DedupeInput<Event extends PmfEventDefinition> =
 export type PmfTrackInput<Event extends PmfEventDefinition> = {
   actorId: string;
   occurredAt?: string;
-  properties?: Record<string, never>;
 } &
+  (keyof Event["properties"] extends never
+    ? { properties?: Record<string, never> }
+    : { properties: EventProperties<Event> }) &
   DedupeInput<Event>;
 
 export type PmfTracker<
@@ -106,9 +123,9 @@ function timestamp(value: string | undefined): string {
 
 function validatedProperties(
   value: unknown,
-): Record<string, never> {
-  const properties =
-    value === undefined ? {} : value;
+  definitions: Readonly<Record<string, PmfEnumDefinition>>,
+): Record<string, string> {
+  const properties = value === undefined ? {} : value;
   if (
     properties === null ||
     typeof properties !== "object" ||
@@ -118,10 +135,86 @@ function validatedProperties(
   }
 
   const raw = properties as Record<string, unknown>;
-  if (Object.keys(raw).length > 0) {
-    throw new Error("detect-pmf events do not support properties");
+  const expectedKeys = Object.keys(definitions);
+  const unknownKey = Object.keys(raw).find(
+    (key) => !Object.prototype.hasOwnProperty.call(definitions, key),
+  );
+  if (unknownKey) {
+    throw new Error(`properties.${unknownKey} is not declared`);
   }
-  return {};
+  const missingKey = expectedKeys.find(
+    (key) => !Object.prototype.hasOwnProperty.call(raw, key),
+  );
+  if (missingKey) {
+    throw new Error(`properties.${missingKey} is required`);
+  }
+
+  const validated: Record<string, string> = {};
+  for (const key of expectedKeys) {
+    const value = raw[key];
+    const definition = definitions[key]!;
+    if (
+      typeof value !== "string" ||
+      !definition.values.includes(value)
+    ) {
+      throw new Error(
+        `properties.${key} must be one of ${definition.values.join(", ")}`,
+      );
+    }
+    validated[key] = value;
+  }
+  return validated;
+}
+
+function validatePropertyDefinitions(
+  definitions: unknown,
+  eventName: string,
+): string | undefined {
+  if (
+    definitions === null ||
+    typeof definitions !== "object" ||
+    Array.isArray(definitions)
+  ) {
+    return `PMF event ${JSON.stringify(eventName)} properties must be an object`;
+  }
+  for (const [key, rawDefinition] of Object.entries(
+    definitions as Record<string, unknown>,
+  )) {
+    if (!KEY_PATTERN.test(key)) {
+      return `PMF event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has an invalid name`;
+    }
+    if (
+      rawDefinition === null ||
+      typeof rawDefinition !== "object" ||
+      Array.isArray(rawDefinition)
+    ) {
+      return `PMF event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be an enum definition`;
+    }
+    const definition = rawDefinition as Record<string, unknown>;
+    const keys = Object.keys(definition);
+    if (
+      keys.length !== 2 ||
+      !keys.includes("type") ||
+      !keys.includes("values") ||
+      definition.type !== "enum" ||
+      !Array.isArray(definition.values) ||
+      definition.values.length === 0
+    ) {
+      return `PMF event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be a strict enum definition`;
+    }
+    const values = Array.from(definition.values);
+    if (
+      values.some(
+        (value) =>
+          typeof value !== "string" ||
+          !KEY_PATTERN.test(value),
+      ) ||
+      new Set(values).size !== values.length
+    ) {
+      return `PMF event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has invalid enum values`;
+    }
+  }
+  return undefined;
 }
 
 async function rejectionReason(response: Response): Promise<string> {
@@ -185,6 +278,14 @@ export function createPmfTracker<
     }
   };
   for (const definition of options.events) {
+    const propertyError = validatePropertyDefinitions(
+      definition.properties,
+      definition.name,
+    );
+    if (propertyError) {
+      catalogError = propertyError;
+      break;
+    }
     if (catalog.has(definition.name)) {
       catalogError = `PMF event ${JSON.stringify(definition.name)} is duplicated`;
       break;
@@ -239,16 +340,14 @@ export function createPmfTracker<
         actorId: string;
         occurredAt: string;
         dedupeKey?: string;
-        properties: Record<string, never>;
+        properties: Record<string, string>;
       };
       try {
-        if (Object.keys(definition.properties).length > 0) {
-          throw new Error(
-            "detect-pmf event catalog does not support properties",
-          );
-        }
         const validatedActorId = actorId(input.actorId);
-        const properties = validatedProperties(input.properties);
+        const properties = validatedProperties(
+          input.properties,
+          definition.properties,
+        );
         let dedupeKey: string | undefined;
         if (definition.dedupe === "key") {
           dedupeKey = boundedString(input.dedupeKey, "dedupeKey", 128);
