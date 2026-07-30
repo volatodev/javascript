@@ -15,6 +15,11 @@ volato skills install
 volato init --project "<project_id>" --yes --send-test-event
 ```
 
+The installed catalog includes the Next.js error, detect-PMF and landing-page
+skills. Local skill workflows report only their bounded lifecycle through
+`volato skills track`; customer-defined analytics events are not accepted by
+that command.
+
 For Next.js 15 and 16 App Router, setup generates:
 
 ```text

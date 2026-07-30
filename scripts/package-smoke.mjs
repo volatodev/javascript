@@ -79,6 +79,9 @@ try {
     "skills/detect-pmf/agents/openai.yaml",
     "skills/detect-pmf/references/contract.md",
     "skills/detect-pmf/assets/pmf-tracker.ts",
+    "skills/landing-page/SKILL.md",
+    "skills/landing-page/agents/openai.yaml",
+    "skills/landing-page/references/evidence-and-elements.md",
   ]) {
     assert(paths.has(required), `packed CLI is missing ${required}`);
   }
@@ -153,6 +156,7 @@ try {
     ".agents/skills/volato-nextjs/SKILL.md",
     ".agents/skills/detect-pmf/SKILL.md",
     ".agents/skills/detect-pmf/assets/pmf-tracker.ts",
+    ".agents/skills/landing-page/SKILL.md",
     ".volato/manifest.json",
     "app/error.tsx",
     "instrumentation.ts",

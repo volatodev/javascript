@@ -10,12 +10,28 @@ import {
 import { dirname, join, resolve } from "node:path";
 import pc from "picocolors";
 import prompts from "prompts";
+import { CliError, postJson } from "../lib/api-client.js";
+import { exitCodeForStatus } from "../lib/exit.js";
+import {
+  printApiError,
+  printSuccess,
+  type OutputMode,
+} from "../lib/output.js";
 
 const BUNDLED_SKILLS = [
   "volato-setup",
   "volato-nextjs",
   "detect-pmf",
+  "landing-page",
 ] as const;
+
+const CATALOG_SKILLS = [
+  "volato-nextjs",
+  "detect-pmf",
+  "landing-page",
+] as const;
+export type CatalogSkill = (typeof CATALOG_SKILLS)[number];
+export type SkillUsageStage = "started" | "outcome";
 
 export type SkillInstallStatus =
   | "created"
@@ -147,4 +163,42 @@ export async function runSkillsInstall(
       `  ${badge}  ${outcome.skill} ${pc.dim(`→ ${outcome.target}`)}\n`,
     );
   }
+}
+
+export async function runSkillUsage(options: {
+  skill: string;
+  stage: string;
+  runId: string;
+  json?: boolean;
+}): Promise<void> {
+  if (!CATALOG_SKILLS.includes(options.skill as CatalogSkill)) {
+    throw new CliError(
+      `Unknown catalog skill ${JSON.stringify(options.skill)}. Expected: ${CATALOG_SKILLS.join(", ")}.`,
+    );
+  }
+  if (options.stage !== "started" && options.stage !== "outcome") {
+    throw new CliError("Skill stage must be started or outcome.");
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$/.test(options.runId)) {
+    throw new CliError(
+      "Skill run id must contain 1-80 letters, digits, dots, underscores, colons or hyphens.",
+    );
+  }
+
+  const backendSkill =
+    options.skill === "volato-nextjs" ? "errors-nextjs" : options.skill;
+  const response = await postJson(
+    `/v1/skills/${encodeURIComponent(backendSkill)}/usage`,
+    {
+      stage: options.stage,
+      runId: options.runId,
+    },
+  );
+  if (!response.ok) {
+    printApiError(response);
+    process.exit(exitCodeForStatus(response.status));
+    return;
+  }
+  const mode: OutputMode = options.json ? "json" : "human";
+  printSuccess(response, mode);
 }

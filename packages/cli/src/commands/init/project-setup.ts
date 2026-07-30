@@ -1,4 +1,4 @@
-import { CliError, getJson } from "../../lib/api-client.js";
+import { CliError, getJson, postJson } from "../../lib/api-client.js";
 import { exitCodeForStatus } from "../../lib/exit.js";
 
 export type ProjectSetupBundle = {
@@ -40,4 +40,38 @@ export async function fetchProjectSetup(
     throw new CliError("Volato returned an invalid project setup bundle.");
   }
   return response.data;
+}
+
+export async function markProjectLinked(projectId: string): Promise<{
+  linked: boolean;
+  tracked: boolean;
+}> {
+  const response = await postJson<{
+    projectId: string;
+    linked: boolean;
+    tracked: boolean;
+  }>(
+    `/v1/projects/${encodeURIComponent(projectId)}/linked`,
+    {},
+  );
+  if (!response.ok) {
+    throw new CliError(
+      response.message ??
+        response.error ??
+        `Could not mark project ${projectId} as linked.`,
+      exitCodeForStatus(response.status),
+    );
+  }
+  if (
+    !response.data ||
+    response.data.projectId !== projectId ||
+    response.data.linked !== true ||
+    typeof response.data.tracked !== "boolean"
+  ) {
+    throw new CliError("Volato returned an invalid project link response.");
+  }
+  return {
+    linked: response.data.linked,
+    tracked: response.data.tracked,
+  };
 }

@@ -44,6 +44,16 @@ edited generated files.
 The advanced \`--dsn\` path remains available when an authenticated project
 lookup is not possible, but it cannot retrieve the server-only ingest token.
 
+The catalog currently installs the Next.js error, detect-PMF and landing-page
+skills. Skills whose outcome is completed locally use one finite lifecycle
+command; the skill creates and reuses the run id:
+
+    volato skills track <skill> started --run-id <id>
+    volato skills track <skill> outcome --run-id <same-id>
+
+Accepted skills are \`volato-nextjs\`, \`detect-pmf\` and \`landing-page\`.
+This command does not accept custom event names or properties.
+
 ## Project configuration
 
 Replace the complete browser-origin allowlist after setup:

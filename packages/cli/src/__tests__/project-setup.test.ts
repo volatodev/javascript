@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EXIT } from "../lib/exit.js";
 
 const getJson = vi.fn();
+const postJson = vi.fn();
 
 vi.mock("../lib/api-client.js", async (importOriginal) => {
   const original =
@@ -9,15 +10,50 @@ vi.mock("../lib/api-client.js", async (importOriginal) => {
   return {
     ...original,
     getJson: (path: string) => getJson(path),
+    postJson: (path: string, body: unknown) => postJson(path, body),
   };
 });
 
-const { fetchProjectSetup } = await import(
+const { fetchProjectSetup, markProjectLinked } = await import(
   "../commands/init/project-setup.js"
 );
 
 beforeEach(() => {
   getJson.mockReset();
+  postJson.mockReset();
+});
+
+describe("markProjectLinked", () => {
+  it("confirms the authoritative transition after local setup succeeds", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    postJson.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: { projectId, linked: true, tracked: true },
+    });
+
+    await expect(markProjectLinked(projectId)).resolves.toEqual({
+      linked: true,
+      tracked: true,
+    });
+    expect(postJson).toHaveBeenCalledWith(
+      `/v1/projects/${projectId}/linked`,
+      {},
+    );
+  });
+
+  it("surfaces an invalid confirmation instead of inventing a milestone", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    postJson.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: { projectId, linked: false, tracked: false },
+    });
+
+    await expect(markProjectLinked(projectId)).rejects.toThrow(
+      "invalid project link response",
+    );
+  });
 });
 
 describe("fetchProjectSetup", () => {

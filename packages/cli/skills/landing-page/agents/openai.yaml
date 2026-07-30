@@ -1,0 +1,4 @@
+interface:
+  display_name: "Landing Page"
+  short_description: "Build a sober, evidence-led landing page"
+  default_prompt: "Use $landing-page to inventory the founder’s available evidence and assets, then build a sober landing page around one clear user job and action."

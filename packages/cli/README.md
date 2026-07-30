@@ -32,6 +32,8 @@ volato errors resolve <id> --note "..."  # mark resolved (append-only history)
 volato errors reopen <id>
 volato errors ignore <id>
 volato skills install                     # install agent-facing setup skills
+volato skills track landing-page started --run-id <id>
+volato skills track landing-page outcome --run-id <same-id>
 volato init --project <id> --yes --send-test-event
 volato projects origins set <id> https://app.example.com
 volato projects origins set <id> --clear
@@ -61,6 +63,10 @@ performs the same structural checks as the API without making a request,
 `sync` publishes the complete event catalog, and `report` reads outcome-led
 activation, repeat-use, and retention evidence. `assessment save` validates
 `.volato/pmf-assessment.json` and saves it only after explicit approval.
+
+`skills track` is the narrow lifecycle bridge for catalog skills whose work
+finishes in the local repository. It accepts only the finite bundled catalog
+and `started` / `outcome`; it is not a custom analytics endpoint.
 
 ## For agents
 

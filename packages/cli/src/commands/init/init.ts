@@ -31,7 +31,10 @@ import {
 } from "./patch";
 import { generateNextjsIntegration } from "../../integrations/nextjs";
 import { runSkillsInstall } from "../skills.js";
-import { fetchProjectSetup } from "./project-setup.js";
+import {
+  fetchProjectSetup,
+  markProjectLinked,
+} from "./project-setup.js";
 import { verifyGeneratedNextjsIntegration } from "./verify-nextjs.js";
 
 export type InitOptions = {
@@ -213,6 +216,22 @@ export async function runInit(options: InitOptions): Promise<void> {
       options.nonInteractive,
       options.sendTestEvent,
     );
+    if (options.projectId) {
+      try {
+        const link = await markProjectLinked(options.projectId);
+        if (!link.tracked) {
+          process.stderr.write(
+            `${pc.yellow("!")} Project linked, but the activation milestone was not recorded.\n`,
+          );
+        }
+      } catch (error) {
+        process.stderr.write(
+          `${pc.yellow("!")} Project linked locally, but Volato could not confirm the milestone: ${
+            error instanceof Error ? error.message : String(error)
+          }\n`,
+        );
+      }
+    }
   }
 
   printNextSteps(
