@@ -8,6 +8,8 @@
  * `node:*` imports.
  */
 
+import type { NextRequest } from "next/server";
+
 import {
   dsnToIngestUrl,
   VOLATO_DSN_HEADER,
@@ -151,9 +153,9 @@ export async function captureException(
  * requests cannot see each other's `setUser` / `setTag` calls.
  */
 export function wrapMiddleware<
-  T extends (req: Request, ev?: any) => Promise<Response> | Response,
+  T extends (req: NextRequest, ev?: any) => Promise<Response> | Response,
 >(mw: T, config: VolatoConfig): T {
-  return (async (req: Request, ev?: unknown) => {
+  return (async (req: NextRequest, ev?: unknown) => {
     return runWithScope(getCurrentScope().clone(), async () => {
       try {
         return await mw(req, ev);
