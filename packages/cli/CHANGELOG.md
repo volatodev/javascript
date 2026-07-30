@@ -1,5 +1,14 @@
 # @volatodev/cli
 
+## 0.1.0-beta.6
+
+### Minor Changes
+
+- 112948b: Add the detect-pmf skill and CLI evidence workflow with a privacy-minimal event
+  contract, ordered outcome milestones, server-authorized delivery, explicit
+  founder-approved assessment history, bounded requests, and failure-safe
+  instrumentation.
+
 ## 0.1.0-beta.5
 
 ### Patch Changes
