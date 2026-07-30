@@ -25,6 +25,12 @@
       "dedupe": "actor"
     },
     {
+      "name": "setup_completed",
+      "description": "The actor completes setup shared by every workflow.",
+      "properties": {},
+      "dedupe": "actor"
+    },
+    {
       "name": "workflow_started",
       "description": "An actor starts one of the product workflows.",
       "properties": {
@@ -48,12 +54,17 @@
     }
   ],
   "branches": {
-    "property": "workflow"
+    "property": "workflow",
+    "entryEvent": "workflow_started"
   },
   "milestones": [
     {
       "event": "eligible_actor_entered",
       "question": "Did an eligible actor enter the cohort?"
+    },
+    {
+      "event": "setup_completed",
+      "question": "Did the actor complete shared setup?"
     },
     {
       "event": "workflow_started",
@@ -116,11 +127,12 @@ the customer's product and obtains explicit founder approval; neither the
 backend nor the tracker owns a universal value list.
 
 `branches` is optional. Without it, property-free linear maps remain valid.
-When present, it contains exactly one `property`. Every event referenced by a
-milestone after the cohort, and every activation, repeat and retention event,
-must declare the identical enum definition for that property. Use `dedupe:
-key` for branch-stage events when the same actor can legitimately use more than
-one branch.
+When present, it contains exactly `property` and `entryEvent`. The entry event
+must reference a milestone after the cohort. Milestones before it are shared
+and do not need the branch property. The entry event and every later milestone,
+plus activation, repeat and retention, must declare the identical enum
+definition for that property. Use `dedupe: key` for branch-stage events when
+the same actor can legitimately use more than one branch.
 
 The catalog contains 2-8 ordered milestones with unique event references. The
 first milestone is `cohort.event`; the last is `activation.event`.
@@ -246,10 +258,12 @@ out-of-enum and free-form values are rejected locally. Config, event-envelope
 and assessment `schemaVersion` are each 1 and version their own document shape.
 
 The report keeps the overall milestone, activation, repeat and retention
-evidence across all enum values. When `branches` is configured, it also returns
-the same evidence for every declared value under `branches.values[]`. Branch
-repeat distinguishes `sameBranchActors` from `crossBranchActors`, so an agent
-can separate repeat value within one workflow from adoption across a catalog.
+evidence across all enum values. When `branches` is configured, common
+milestones are evaluated without a branch filter; filtering starts at
+`branches.entryEvent`. The report returns the same evidence for every declared
+value under `branches.values[]`. Branch repeat distinguishes
+`sameBranchActors` from `crossBranchActors`, so an agent can separate repeat
+value within one workflow from adoption across a catalog.
 
 The tracker is server-only, adds a two-second `AbortSignal` timeout, and never
 rejects: invalid configuration, invalid input, a missing token, an ingest

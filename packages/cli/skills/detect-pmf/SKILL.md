@@ -80,8 +80,11 @@ its assessment.
   finite, stable variants worth comparing. Use separate events for different
   actions, and omit properties that do not change a product decision.
 - `branches.property`: the optional enum dimension used to replay the
-  post-cohort funnel for each declared value. Every post-cohort milestone,
-  activation, repeat, and retention event must declare the identical enum.
+  comparable portion of the funnel for each declared value.
+- `branches.entryEvent`: the non-cohort milestone where branch comparison
+  begins. Milestones before it remain shared and property-free. The entry
+  event and every later milestone, activation, repeat, and retention event
+  must declare the identical enum.
 - `dedupe: actor`: count one occurrence per actor.
 - `dedupe: key`: use a stable business entity or transition id.
 - `dedupe: none`: count every legitimate occurrence; use sparingly.

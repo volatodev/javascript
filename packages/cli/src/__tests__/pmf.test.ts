@@ -89,7 +89,10 @@ const branchedConfig = {
       properties: { skill: skillEnum },
     },
   ],
-  branches: { property: "skill" },
+  branches: {
+    property: "skill",
+    entryEvent: "integration_connected",
+  },
 } as const;
 const assessment = {
   schemaVersion: 1,
@@ -214,6 +217,23 @@ describe("volato pmf validate", () => {
 
   it("accepts strict enum properties and a comparable branch dimension", () => {
     expect(validatePmfConfig(branchedConfig)).toEqual(branchedConfig);
+  });
+
+  it("keeps pre-branch milestones shared and property-free", () => {
+    const lateBranchConfig = {
+      ...branchedConfig,
+      events: branchedConfig.events.map((event) =>
+        event.name === "integration_connected"
+          ? { ...event, properties: {}, dedupe: "actor" as const }
+          : event,
+      ),
+      branches: {
+        property: "skill",
+        entryEvent: "error_resolved",
+      },
+    };
+
+    expect(validatePmfConfig(lateBranchConfig)).toEqual(lateBranchConfig);
   });
 
   it("keeps property-free linear maps valid", () => {
@@ -363,6 +383,29 @@ describe("volato pmf validate", () => {
       }),
       message:
         "event integration_connected cannot use actor dedupe with branch property skill",
+    },
+    {
+      label: "a branch entry outside the milestones",
+      mutate: () => ({
+        ...branchedConfig,
+        branches: {
+          ...branchedConfig.branches,
+          entryEvent: "supporting_event",
+        },
+      }),
+      message:
+        "config.branches.entryEvent must reference a milestone event",
+    },
+    {
+      label: "the cohort as branch entry",
+      mutate: () => ({
+        ...branchedConfig,
+        branches: {
+          ...branchedConfig.branches,
+          entryEvent: "account_registered",
+        },
+      }),
+      message: "config.branches.entryEvent cannot be the cohort event",
     },
   ])("rejects $label", ({ mutate, message }) => {
     expect(() => validatePmfConfig(mutate())).toThrow(message);

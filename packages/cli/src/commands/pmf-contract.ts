@@ -48,6 +48,7 @@ export type PmfConfig = {
   events: PmfEventDefinition[];
   branches?: {
     property: string;
+    entryEvent: string;
   };
   milestones: Array<{
     event: string;
@@ -410,7 +411,11 @@ export function validatePmfConfig(value: unknown): PmfConfig {
   let branches: PmfConfig["branches"];
   if (root.branches !== undefined) {
     const rawBranches = objectAt(root.branches, "config.branches");
-    exactKeys(rawBranches, ["property"], "config.branches");
+    exactKeys(
+      rawBranches,
+      ["property", "entryEvent"],
+      "config.branches",
+    );
     const property = boundedString(
       rawBranches.property,
       "config.branches.property",
@@ -419,9 +424,27 @@ export function validatePmfConfig(value: unknown): PmfConfig {
     if (!KEY_PATTERN.test(property)) {
       invalid("config.branches.property has an invalid format");
     }
+    const entryEvent = boundedString(
+      rawBranches.entryEvent,
+      "config.branches.entryEvent",
+      64,
+    );
+    const entryMilestoneIndex = milestones.findIndex(
+      (milestone) => milestone.event === entryEvent,
+    );
+    if (entryMilestoneIndex === -1) {
+      invalid(
+        "config.branches.entryEvent must reference a milestone event",
+      );
+    }
+    if (entryMilestoneIndex === 0) {
+      invalid("config.branches.entryEvent cannot be the cohort event");
+    }
 
     const branchEventNames = new Set([
-      ...milestones.slice(1).map((milestone) => milestone.event),
+      ...milestones
+        .slice(entryMilestoneIndex)
+        .map((milestone) => milestone.event),
       activationEvent,
       repeatEvent,
       retentionEvent,
@@ -450,7 +473,7 @@ export function validatePmfConfig(value: unknown): PmfConfig {
       }
       expectedDefinition ??= definition;
     }
-    branches = { property };
+    branches = { property, entryEvent };
   }
 
   return {
