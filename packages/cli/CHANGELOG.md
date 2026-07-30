@@ -1,5 +1,13 @@
 # @volatodev/cli
 
+## 0.1.0-beta.7
+
+### Minor Changes
+
+- 5496a8e: Let detect-pmf define strict SaaS-owned enum properties, compare coherent
+  outcome branches, and declare catalogs beyond the former 32-event limit while
+  remaining bounded by the 32 KiB config contract.
+
 ## 0.1.0-beta.6
 
 ### Minor Changes
