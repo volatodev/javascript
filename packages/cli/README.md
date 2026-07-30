@@ -38,6 +38,7 @@ volato projects origins set <id> --clear
 volato pmf validate                       # validate .volato/pmf.json locally
 volato pmf sync                           # publish the outcome event catalog
 volato pmf report                         # read activation and retention evidence
+volato pmf assessment save                # save an explicitly approved assessment
 volato init --dsn <dsn> --yes             # advanced fallback without project lookup
 volato readme                             # print every command (point your agent here)
 ```
@@ -58,7 +59,8 @@ server-side events.
 The PMF commands use the versioned `.volato/pmf.json` contract. `validate`
 performs the same structural checks as the API without making a request,
 `sync` publishes the complete event catalog, and `report` reads outcome-led
-activation, repeat-use, and retention evidence.
+activation, repeat-use, and retention evidence. `assessment save` validates
+`.volato/pmf-assessment.json` and saves it only after explicit approval.
 
 ## For agents
 

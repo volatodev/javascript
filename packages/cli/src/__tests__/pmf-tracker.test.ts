@@ -208,7 +208,29 @@ describe("detect-pmf tracker asset", () => {
     );
   });
 
-  it("refuses catalogs with event properties in schema version 1", async () => {
+  it.each([
+    "person@example.com",
+    "-leading-hyphen",
+    "actor with spaces",
+  ])("rejects non-opaque actorId %s before network I/O", async (actorId) => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const tracker = createPmfTracker({
+      events: emptyEvents,
+      fetch: fetchMock,
+    });
+
+    expect(
+      await tracker.track("account_registered", { actorId }),
+    ).toBe(false);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining("actorId must start with an alphanumeric"),
+    );
+  });
+
+  it("refuses catalogs with properties in the property-free PMF contract", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, { status: 202 }),
     );
@@ -233,7 +255,7 @@ describe("detect-pmf tracker asset", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(warning).toHaveBeenCalledWith(
-      expect.stringContaining("properties must be empty"),
+      expect.stringContaining("does not support properties"),
     );
   });
 

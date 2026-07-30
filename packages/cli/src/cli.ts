@@ -17,6 +17,7 @@
  *   volato pmf validate                — validate .volato/pmf.json locally
  *   volato pmf sync                    — publish the outcome event catalog
  *   volato pmf report                  — read activation and retention evidence
+ *   volato pmf assessment save         — save an approved PMF assessment
  *
  * Every command accepts --json for the structured payload instead of
  * the default markdown. The markdown is agent-ready (the same string
@@ -35,6 +36,7 @@ import { runReadme } from "./commands/readme.js";
 import { runSkillsInstall } from "./commands/skills.js";
 import { runProjectOriginsSet } from "./commands/projects.js";
 import {
+  runPmfAssessmentSave,
   runPmfReport,
   runPmfSync,
   runPmfValidate,
@@ -223,6 +225,26 @@ pmf
   .action(
     async (opts: { file: string; projectId?: string; json?: boolean }) => {
       await runPmfReport({ cwd: process.cwd(), ...opts });
+    },
+  );
+
+const pmfAssessment = pmf
+  .command("assessment")
+  .description("Save explicitly approved PMF assessments");
+
+pmfAssessment
+  .command("save")
+  .description("Validate and save an approved behavioral assessment")
+  .option(
+    "-f, --file <path>",
+    "project-relative PMF assessment path",
+    ".volato/pmf-assessment.json",
+  )
+  .option("-p, --project-id <id>", "override the project id")
+  .option("--json", "emit the structured payload instead of markdown")
+  .action(
+    async (opts: { file: string; projectId?: string; json?: boolean }) => {
+      await runPmfAssessmentSave({ cwd: process.cwd(), ...opts });
     },
   );
 

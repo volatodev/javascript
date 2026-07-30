@@ -10,6 +10,7 @@
 const SKILL = "detect-pmf";
 const DSN_HEADER = "X-Volato-DSN";
 const DELIVERY_TIMEOUT_MS = 2_000;
+const ACTOR_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 export type PmfEventDefinition = {
   readonly name: string;
@@ -33,6 +34,10 @@ export type PmfTrackInput<Event extends PmfEventDefinition> = {
 export type PmfTracker<
   Events extends readonly PmfEventDefinition[],
 > = {
+  /**
+   * Await this promise or register it with the runtime's request-lifetime
+   * hook. Do not discard it: delivery must complete or produce a warning.
+   */
   track<Name extends Events[number]["name"]>(
     event: Name,
     input: PmfTrackInput<Extract<Events[number], { name: Name }>>,
@@ -59,6 +64,16 @@ function boundedString(
     throw new Error(`${path} must be 1-${maxLength} characters`);
   }
   return value;
+}
+
+function actorId(value: unknown): string {
+  const id = boundedString(value, "actorId", 128);
+  if (!ACTOR_ID_PATTERN.test(id)) {
+    throw new Error(
+      "actorId must start with an alphanumeric character and contain only letters, digits, dot, underscore, colon or hyphen",
+    );
+  }
+  return id;
 }
 
 function ingestUrl(dsn: string): string {
@@ -104,7 +119,7 @@ function validatedProperties(
 
   const raw = properties as Record<string, unknown>;
   if (Object.keys(raw).length > 0) {
-    throw new Error("properties must be empty in schema version 1");
+    throw new Error("detect-pmf events do not support properties");
   }
   return {};
 }
@@ -152,7 +167,7 @@ export function createPmfTracker<
   try {
     endpoint = ingestUrl(dsn);
   } catch {
-    // Report configuration failures from track so detached calls never throw.
+    // Report configuration failures from track so delivery fails loudly.
   }
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const catalog = new Map<string, PmfEventDefinition>();
@@ -166,7 +181,7 @@ export function createPmfTracker<
         console.warn(message);
       }
     } catch {
-      // Diagnostics must never turn detached telemetry into a rejection.
+      // Diagnostics must never turn telemetry into a rejection.
     }
   };
   for (const definition of options.events) {
@@ -229,10 +244,10 @@ export function createPmfTracker<
       try {
         if (Object.keys(definition.properties).length > 0) {
           throw new Error(
-            "event catalog properties must be empty in schema version 1",
+            "detect-pmf event catalog does not support properties",
           );
         }
-        const actorId = boundedString(input.actorId, "actorId", 128);
+        const validatedActorId = actorId(input.actorId);
         const properties = validatedProperties(input.properties);
         let dedupeKey: string | undefined;
         if (definition.dedupe === "key") {
@@ -247,7 +262,7 @@ export function createPmfTracker<
           schemaVersion: 1,
           skill: SKILL,
           event,
-          actorId,
+          actorId: validatedActorId,
           occurredAt: timestamp(input.occurredAt),
           ...(dedupeKey ? { dedupeKey } : {}),
           properties,

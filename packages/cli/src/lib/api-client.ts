@@ -75,7 +75,7 @@ async function request<T>(
   method: "GET" | "POST",
   path: string,
   body?: unknown,
-  opts?: { auth?: boolean },
+  opts?: { auth?: boolean; idempotencyKey?: string },
 ): Promise<ApiResponse<T>> {
   const url = `${resolveApiBase()}${path}`;
   const headers: Record<string, string> = {
@@ -85,6 +85,9 @@ async function request<T>(
   // other call attaches the bearer.
   if (opts?.auth !== false) {
     headers.Authorization = `Bearer ${await loadToken()}`;
+  }
+  if (opts?.idempotencyKey) {
+    headers["Idempotency-Key"] = opts.idempotencyKey;
   }
   const payload = body !== undefined ? JSON.stringify(body) : undefined;
 
@@ -164,8 +167,9 @@ export function getJson<T = unknown>(
 export function postJson<T = unknown>(
   path: string,
   body: unknown,
+  options?: { idempotencyKey?: string },
 ): Promise<ApiResponse<T>> {
-  return request<T>("POST", path, body);
+  return request<T>("POST", path, body, options);
 }
 
 /**

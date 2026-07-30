@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getJson, postJson } from "../lib/api-client.js";
 import { exitCodeForStatus } from "../lib/exit.js";
 import {
@@ -8,11 +9,19 @@ import {
 import {
   PMF_SCHEMA_VERSION,
   PMF_SKILL,
+  readPmfAssessment,
   readPmfConfig,
   validateProjectId,
 } from "./pmf-contract.js";
 
 export type PmfCommandOptions = {
+  cwd: string;
+  file?: string;
+  projectId?: string;
+  json?: boolean;
+};
+
+export type PmfAssessmentCommandOptions = {
   cwd: string;
   file?: string;
   projectId?: string;
@@ -62,6 +71,26 @@ export async function runPmfReport(
     : readPmfConfig(options.cwd, options.file).config.projectId;
   const response = await getJson(
     `/v1/projects/${encodeURIComponent(projectId)}/skills/${PMF_SKILL}/report`,
+  );
+  if (!response.ok) {
+    printApiError(response);
+    process.exit(exitCodeForStatus(response.status));
+    return;
+  }
+  printSuccess(response, mode(options));
+}
+
+export async function runPmfAssessmentSave(
+  options: PmfAssessmentCommandOptions,
+): Promise<void> {
+  const { assessment } = readPmfAssessment(options.cwd, options.file);
+  const projectId = options.projectId
+    ? validateProjectId(options.projectId)
+    : readPmfConfig(options.cwd).config.projectId;
+  const response = await postJson(
+    `/v1/projects/${encodeURIComponent(projectId)}/skills/${PMF_SKILL}/assessments`,
+    assessment,
+    { idempotencyKey: randomUUID() },
   );
   if (!response.ok) {
     printApiError(response);

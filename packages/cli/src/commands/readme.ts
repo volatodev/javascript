@@ -64,11 +64,13 @@ Validate it locally, publish it, then read the outcome-led report:
     volato pmf validate [--file <path>] [--project-id <id>] [--json]
     volato pmf sync [--file <path>] [--project-id <id>] [--json]
     volato pmf report [--file <path>] [--project-id <id>] [--json]
+    volato pmf assessment save [--file <path>] [--project-id <id>] [--json]
 
 \`validate\` makes no network request. \`sync\` refuses documents that cannot
 produce a mature retention cohort, then replaces the active project catalog.
 \`report\` returns activation, repeat-use, and retention evidence as agent-ready
-markdown by default.
+markdown by default. \`assessment save\` validates and saves only an explicitly
+approved behavioral assessment; reporting never saves one automatically.
 
 ## Reading errors
 

@@ -3,5 +3,6 @@
 ---
 
 Add the detect-pmf skill and CLI evidence workflow with a privacy-minimal event
-contract, server-authorized delivery, bounded requests, and failure-safe
+contract, ordered outcome milestones, server-authorized delivery, explicit
+founder-approved assessment history, bounded requests, and failure-safe
 instrumentation.
