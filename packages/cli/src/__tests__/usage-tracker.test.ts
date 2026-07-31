@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createPmfTracker } from "../../skills/detect-pmf/assets/pmf-tracker";
+import { createUsageTracker } from "../../skills/monitor-product-usage/assets/usage-tracker";
 
 const DSN =
   "https://public-key@ingest.example.test/11111111-1111-4111-8111-111111111111";
@@ -27,7 +27,7 @@ const branchedEvents = [
     properties: {
       skill: {
         type: "enum",
-        values: ["production-errors", "detect-pmf"],
+        values: ["production-errors", "monitor-product-usage"],
       },
     },
     dedupe: "key",
@@ -45,14 +45,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("detect-pmf tracker asset", () => {
+describe("monitor-product-usage tracker asset", () => {
   it("uses the existing server token and public DSN together", async () => {
     vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
     vi.stubEnv("VOLATO_INGEST_TOKEN", INGEST_TOKEN);
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, { status: 202 }),
     );
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -73,7 +73,7 @@ describe("detect-pmf tracker asset", () => {
     });
     expect(JSON.parse(String(init?.body))).toEqual({
       schemaVersion: 1,
-      skill: "detect-pmf",
+      skill: "monitor-product-usage",
       event: "account_registered",
       actorId: "user_42",
       occurredAt: "2026-07-29T16:00:00.000Z",
@@ -85,7 +85,7 @@ describe("detect-pmf tracker asset", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, { status: 202 }),
     );
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: branchedEvents,
       fetch: fetchMock,
     });
@@ -94,7 +94,7 @@ describe("detect-pmf tracker asset", () => {
       await tracker.track("skill_started", {
         actorId: "user_42",
         dedupeKey: "run_7",
-        properties: { skill: "detect-pmf" },
+        properties: { skill: "monitor-product-usage" },
       }),
     ).toBe(true);
 
@@ -102,7 +102,7 @@ describe("detect-pmf tracker asset", () => {
     expect(JSON.parse(String(init?.body))).toMatchObject({
       event: "skill_started",
       dedupeKey: "run_7",
-      properties: { skill: "detect-pmf" },
+      properties: { skill: "monitor-product-usage" },
     });
   });
 
@@ -112,7 +112,7 @@ describe("detect-pmf tracker asset", () => {
       new Response(null, { status: 202 }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -137,7 +137,7 @@ describe("detect-pmf tracker asset", () => {
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubEnv("VOLATO_INGEST_TOKEN", " \n");
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -156,7 +156,7 @@ describe("detect-pmf tracker asset", () => {
     vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", "not-a-dsn");
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -181,7 +181,7 @@ describe("detect-pmf tracker asset", () => {
       new Response(null, { status: 202 }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -199,7 +199,7 @@ describe("detect-pmf tracker asset", () => {
   it("reports an undeclared event once without rejecting", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -226,7 +226,7 @@ describe("detect-pmf tracker asset", () => {
   it("reports invalid input once without rejecting", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -253,7 +253,7 @@ describe("detect-pmf tracker asset", () => {
   ])("rejects non-opaque actorId %s before network I/O", async (actorId) => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -273,7 +273,7 @@ describe("detect-pmf tracker asset", () => {
       new Response(null, { status: 202 }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: [
         {
           name: "account_registered",
@@ -305,26 +305,26 @@ describe("detect-pmf tracker asset", () => {
     },
     {
       label: "unknown",
-      properties: { skill: "detect-pmf", source: "homepage" },
+      properties: { skill: "monitor-product-usage", source: "homepage" },
       message: "properties.source is not declared",
     },
     {
       label: "prototype-named unknown",
-      properties: { skill: "detect-pmf", constructor: "homepage" },
+      properties: { skill: "monitor-product-usage", constructor: "homepage" },
       message: "properties.constructor is not declared",
     },
     {
       label: "outside enum",
       properties: { skill: "landing" },
       message:
-        "properties.skill must be one of production-errors, detect-pmf",
+        "properties.skill must be one of production-errors, monitor-product-usage",
     },
   ])(
     "rejects $label branch properties before network I/O",
     async ({ properties, message }) => {
       const fetchMock = vi.fn<typeof fetch>();
       const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const tracker = createPmfTracker({
+      const tracker = createUsageTracker({
         events: branchedEvents,
         fetch: fetchMock,
       });
@@ -345,7 +345,7 @@ describe("detect-pmf tracker asset", () => {
   it("does not satisfy a required enum property through Object.prototype", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: [
         {
           name: "workflow_started",
@@ -377,7 +377,7 @@ describe("detect-pmf tracker asset", () => {
   it("reports an invalid event catalog from track instead of throwing", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: [emptyEvents[0], emptyEvents[0]],
       fetch: fetchMock,
     });
@@ -400,7 +400,7 @@ describe("detect-pmf tracker asset", () => {
       }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -417,7 +417,7 @@ describe("detect-pmf tracker asset", () => {
       expect.stringContaining("skill_not_configured"),
     );
     expect(warning).toHaveBeenCalledWith(
-      expect.stringContaining("volato pmf sync"),
+      expect.stringContaining("volato usage sync"),
     );
   });
 
@@ -426,7 +426,7 @@ describe("detect-pmf tracker asset", () => {
       .fn<typeof fetch>()
       .mockRejectedValue(new Error("socket closed"));
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -450,7 +450,7 @@ describe("detect-pmf tracker asset", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, { status: 202 }),
     );
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -471,7 +471,7 @@ describe("detect-pmf tracker asset", () => {
       }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createPmfTracker({
+    const tracker = createUsageTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -487,7 +487,7 @@ describe("detect-pmf tracker asset", () => {
       expect.stringContaining("event_not_declared"),
     );
     expect(warning).toHaveBeenCalledWith(
-      expect.stringContaining(".volato/pmf.json"),
+      expect.stringContaining(".volato/usage.json"),
     );
   });
 });

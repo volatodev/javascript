@@ -7,21 +7,21 @@ import {
   type OutputMode,
 } from "../lib/output.js";
 import {
-  PMF_SCHEMA_VERSION,
-  PMF_SKILL,
-  readPmfAssessment,
-  readPmfConfig,
+  USAGE_SCHEMA_VERSION,
+  USAGE_SKILL,
+  readUsageSnapshot,
+  readUsageConfig,
   validateProjectId,
-} from "./pmf-contract.js";
+} from "./usage-contract.js";
 
-export type PmfCommandOptions = {
+export type UsageCommandOptions = {
   cwd: string;
   file?: string;
   projectId?: string;
   json?: boolean;
 };
 
-export type PmfAssessmentCommandOptions = {
+export type UsageSnapshotCommandOptions = {
   cwd: string;
   file?: string;
   projectId?: string;
@@ -32,8 +32,8 @@ function mode(options: { json?: boolean }): OutputMode {
   return options.json ? "json" : "human";
 }
 
-function projectConfig(options: PmfCommandOptions) {
-  const { config, path } = readPmfConfig(options.cwd, options.file);
+function projectConfig(options: UsageCommandOptions) {
+  const { config, path } = readUsageConfig(options.cwd, options.file);
   const projectId = options.projectId
     ? validateProjectId(options.projectId)
     : config.projectId;
@@ -44,14 +44,14 @@ function projectConfig(options: PmfCommandOptions) {
   };
 }
 
-export async function runPmfSync(
-  options: PmfCommandOptions,
+export async function runUsageSync(
+  options: UsageCommandOptions,
 ): Promise<void> {
   const { config, projectId } = projectConfig(options);
   const response = await postJson(
-    `/v1/projects/${encodeURIComponent(projectId)}/skills/${PMF_SKILL}/config`,
+    `/v1/projects/${encodeURIComponent(projectId)}/skills/${USAGE_SKILL}/config`,
     {
-      schemaVersion: PMF_SCHEMA_VERSION,
+      schemaVersion: USAGE_SCHEMA_VERSION,
       config,
     },
   );
@@ -63,14 +63,14 @@ export async function runPmfSync(
   printSuccess(response, mode(options));
 }
 
-export async function runPmfReport(
-  options: PmfCommandOptions,
+export async function runUsageReport(
+  options: UsageCommandOptions,
 ): Promise<void> {
   const projectId = options.projectId
     ? validateProjectId(options.projectId)
-    : readPmfConfig(options.cwd, options.file).config.projectId;
+    : readUsageConfig(options.cwd, options.file).config.projectId;
   const response = await getJson(
-    `/v1/projects/${encodeURIComponent(projectId)}/skills/${PMF_SKILL}/report`,
+    `/v1/projects/${encodeURIComponent(projectId)}/skills/${USAGE_SKILL}/report`,
   );
   if (!response.ok) {
     printApiError(response);
@@ -80,16 +80,16 @@ export async function runPmfReport(
   printSuccess(response, mode(options));
 }
 
-export async function runPmfAssessmentSave(
-  options: PmfAssessmentCommandOptions,
+export async function runUsageSnapshotSave(
+  options: UsageSnapshotCommandOptions,
 ): Promise<void> {
-  const { assessment } = readPmfAssessment(options.cwd, options.file);
+  const { snapshot } = readUsageSnapshot(options.cwd, options.file);
   const projectId = options.projectId
     ? validateProjectId(options.projectId)
-    : readPmfConfig(options.cwd).config.projectId;
+    : readUsageConfig(options.cwd).config.projectId;
   const response = await postJson(
-    `/v1/projects/${encodeURIComponent(projectId)}/skills/${PMF_SKILL}/assessments`,
-    assessment,
+    `/v1/projects/${encodeURIComponent(projectId)}/skills/${USAGE_SKILL}/snapshots`,
+    snapshot,
     { idempotencyKey: randomUUID() },
   );
   if (!response.ok) {
@@ -100,7 +100,7 @@ export async function runPmfAssessmentSave(
   printSuccess(response, mode(options));
 }
 
-export function runPmfValidate(options: PmfCommandOptions): void {
+export function runUsageValidate(options: UsageCommandOptions): void {
   const { config, path } = projectConfig(options);
   const data = {
     valid: true,
@@ -115,7 +115,7 @@ export function runPmfValidate(options: PmfCommandOptions): void {
     return;
   }
   process.stdout.write(
-    `# PMF config valid\n\n` +
+    `# Product usage config valid\n\n` +
       `- Project: ${config.projectId}\n` +
       `- Skill: ${config.skill}\n` +
       `- Events: ${config.events.length}\n` +

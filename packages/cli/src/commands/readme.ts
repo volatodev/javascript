@@ -44,14 +44,14 @@ edited generated files.
 The advanced \`--dsn\` path remains available when an authenticated project
 lookup is not possible, but it cannot retrieve the server-only ingest token.
 
-The catalog currently installs the Next.js error, detect-PMF and landing-page
-skills. Skills whose outcome is completed locally use one finite lifecycle
-command; the skill creates and reuses the run id:
+The catalog currently installs the Next.js error, product-usage monitoring and
+landing-page skills. Skills whose outcome is completed locally use one finite
+lifecycle command; the skill creates and reuses the run id:
 
     volato skills track <skill> started --run-id <id>
     volato skills track <skill> outcome --run-id <same-id>
 
-Accepted skills are \`volato-nextjs\`, \`detect-pmf\` and \`landing-page\`.
+Accepted skills are \`volato-nextjs\`, \`monitor-product-usage\` and \`landing-page\`.
 This command does not accept custom event names or properties.
 
 ## Project configuration
@@ -66,21 +66,21 @@ removes duplicates. \`--clear\` intentionally accepts browser events from
 anywhere. Server-side Next.js and Node events are not filtered by this setting.
 This is misuse reduction for a browser-safe DSN, not an authentication boundary.
 
-## Product-market-fit evidence
+## Product usage
 
-The \`detect-pmf\` skill creates a versioned \`.volato/pmf.json\` catalog.
+The \`monitor-product-usage\` skill creates a versioned \`.volato/usage.json\` catalog.
 Validate it locally, publish it, then read the outcome-led report:
 
-    volato pmf validate [--file <path>] [--project-id <id>] [--json]
-    volato pmf sync [--file <path>] [--project-id <id>] [--json]
-    volato pmf report [--file <path>] [--project-id <id>] [--json]
-    volato pmf assessment save [--file <path>] [--project-id <id>] [--json]
+    volato usage validate [--file <path>] [--project-id <id>] [--json]
+    volato usage sync [--file <path>] [--project-id <id>] [--json]
+    volato usage report [--file <path>] [--project-id <id>] [--json]
+    volato usage snapshot save [--file <path>] [--project-id <id>] [--json]
 
 \`validate\` makes no network request. \`sync\` refuses documents that cannot
 produce a mature retention cohort, then replaces the active project catalog.
 \`report\` returns activation, repeat-use, and retention evidence as agent-ready
-markdown by default. \`assessment save\` validates and saves only an explicitly
-approved behavioral assessment; reporting never saves one automatically.
+markdown by default. \`snapshot save\` validates and saves only an explicitly
+approved interpretation; reporting never saves one automatically.
 
 ## Reading errors
 

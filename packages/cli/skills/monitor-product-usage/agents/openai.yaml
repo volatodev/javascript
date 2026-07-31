@@ -1,0 +1,4 @@
+interface:
+  display_name: "Monitor Product Usage"
+  short_description: "Measure where users receive and repeat value"
+  default_prompt: "Use $monitor-product-usage to map the product value loop, install minimal probes, and explain where usage reaches, repeats, or loses value."

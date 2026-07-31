@@ -2,12 +2,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { CliError } from "../lib/api-client.js";
 
-export const PMF_SCHEMA_VERSION = 1 as const;
-export const PMF_SKILL = "detect-pmf" as const;
-export const DEFAULT_PMF_FILE = ".volato/pmf.json";
-export const DEFAULT_PMF_ASSESSMENT_FILE =
-  ".volato/pmf-assessment.json";
-export const PMF_ASSESSMENT_SCHEMA_VERSION = 1 as const;
+export const USAGE_SCHEMA_VERSION = 1 as const;
+export const USAGE_SKILL = "monitor-product-usage" as const;
+export const DEFAULT_USAGE_FILE = ".volato/usage.json";
+export const DEFAULT_USAGE_SNAPSHOT_FILE =
+  ".volato/usage-snapshot.json";
+export const USAGE_SNAPSHOT_SCHEMA_VERSION = 1 as const;
 
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 const UUID_PATTERN =
@@ -19,24 +19,24 @@ const MAX_RETENTION_DAYS = 90;
 const MIN_REPEAT_HOURS = 24;
 const MAX_REPEAT_HOURS = MAX_RETENTION_DAYS * 24;
 
-export type PmfDedupe = "actor" | "key" | "none";
+export type UsageDedupe = "actor" | "key" | "none";
 
-export type PmfEnumDefinition = {
+export type UsageEnumDefinition = {
   type: "enum";
   values: string[];
 };
 
-export type PmfEventDefinition = {
+export type UsageEventDefinition = {
   name: string;
   description: string;
-  properties: Record<string, PmfEnumDefinition>;
-  dedupe: PmfDedupe;
+  properties: Record<string, UsageEnumDefinition>;
+  dedupe: UsageDedupe;
 };
 
-export type PmfConfig = {
+export type UsageConfig = {
   schemaVersion: 1;
   projectId: string;
-  skill: "detect-pmf";
+  skill: "monitor-product-usage";
   product: {
     summary: string;
     targetActor: string;
@@ -45,7 +45,7 @@ export type PmfConfig = {
     statement: string;
     outcome: string;
   };
-  events: PmfEventDefinition[];
+  events: UsageEventDefinition[];
   branches?: {
     property: string;
     entryEvent: string;
@@ -72,21 +72,10 @@ export type PmfConfig = {
   };
 };
 
-const PMF_ASSESSMENT_STATUSES = [
-  "insufficient_data",
-  "weak_signal",
-  "promising_signal",
-  "strong_behavioral_signal",
-] as const;
-
-export type PmfAssessmentStatus =
-  (typeof PMF_ASSESSMENT_STATUSES)[number];
-
-export type PmfAssessment = {
+export type UsageSnapshot = {
   schemaVersion: 1;
   configVersion: number;
   approved: true;
-  status: PmfAssessmentStatus;
   summary: string;
   observations: string[];
   caveats: string[];
@@ -94,7 +83,7 @@ export type PmfAssessment = {
 };
 
 function invalid(message: string): never {
-  throw new CliError(`Invalid PMF config:\n- ${message}`);
+  throw new CliError(`Invalid product usage config:\n- ${message}`);
 }
 
 function objectAt(value: unknown, path: string): Record<string, unknown> {
@@ -158,7 +147,7 @@ function eventReference(
   return event;
 }
 
-export function validatePmfConfig(value: unknown): PmfConfig {
+export function validateUsageConfig(value: unknown): UsageConfig {
   let encoded: string | undefined;
   try {
     encoded = JSON.stringify(value);
@@ -189,8 +178,8 @@ export function validatePmfConfig(value: unknown): PmfConfig {
     ],
     "config",
   );
-  if (root.schemaVersion !== PMF_SCHEMA_VERSION) {
-    invalid(`config.schemaVersion must be ${PMF_SCHEMA_VERSION}`);
+  if (root.schemaVersion !== USAGE_SCHEMA_VERSION) {
+    invalid(`config.schemaVersion must be ${USAGE_SCHEMA_VERSION}`);
   }
 
   const projectId = boundedString(root.projectId, "config.projectId", 36);
@@ -198,8 +187,8 @@ export function validatePmfConfig(value: unknown): PmfConfig {
     invalid("config.projectId must be a UUID");
   }
   const skill = boundedString(root.skill, "config.skill", 64);
-  if (!KEY_PATTERN.test(skill) || skill !== PMF_SKILL) {
-    invalid(`config.skill must be ${JSON.stringify(PMF_SKILL)}`);
+  if (!KEY_PATTERN.test(skill) || skill !== USAGE_SKILL) {
+    invalid(`config.skill must be ${JSON.stringify(USAGE_SKILL)}`);
   }
 
   const product = objectAt(root.product, "config.product");
@@ -229,8 +218,8 @@ export function validatePmfConfig(value: unknown): PmfConfig {
   }
 
   const eventNames = new Set<string>();
-  const eventsByName = new Map<string, PmfEventDefinition>();
-  const events = root.events.map((rawEvent, index): PmfEventDefinition => {
+  const eventsByName = new Map<string, UsageEventDefinition>();
+  const events = root.events.map((rawEvent, index): UsageEventDefinition => {
     const path = `config.events[${index}]`;
     const event = objectAt(rawEvent, path);
     exactKeys(
@@ -253,7 +242,7 @@ export function validatePmfConfig(value: unknown): PmfConfig {
       256,
     );
     const rawProperties = objectAt(event.properties, `${path}.properties`);
-    const properties: Record<string, PmfEnumDefinition> = {};
+    const properties: Record<string, UsageEnumDefinition> = {};
     for (const [propertyKey, rawDefinition] of Object.entries(rawProperties)) {
       const propertyPath = `${path}.properties.${propertyKey}`;
       if (!KEY_PATTERN.test(propertyKey)) {
@@ -300,7 +289,7 @@ export function validatePmfConfig(value: unknown): PmfConfig {
       invalid(`${path}.dedupe must be actor, key or none`);
     }
 
-    const parsed: PmfEventDefinition = {
+    const parsed: UsageEventDefinition = {
       name,
       description,
       properties,
@@ -408,7 +397,7 @@ export function validatePmfConfig(value: unknown): PmfConfig {
     invalid("config.cohort.windowDays must be >= retention.maxDays");
   }
 
-  let branches: PmfConfig["branches"];
+  let branches: UsageConfig["branches"];
   if (root.branches !== undefined) {
     const rawBranches = objectAt(root.branches, "config.branches");
     exactKeys(
@@ -449,7 +438,7 @@ export function validatePmfConfig(value: unknown): PmfConfig {
       repeatEvent,
       retentionEvent,
     ]);
-    let expectedDefinition: PmfEnumDefinition | undefined;
+    let expectedDefinition: UsageEnumDefinition | undefined;
     for (const eventName of branchEventNames) {
       const eventDefinition = eventsByName.get(eventName)!;
       const definition = eventDefinition.properties[property];
@@ -477,9 +466,9 @@ export function validatePmfConfig(value: unknown): PmfConfig {
   }
 
   return {
-    schemaVersion: PMF_SCHEMA_VERSION,
+    schemaVersion: USAGE_SCHEMA_VERSION,
     projectId,
-    skill: PMF_SKILL,
+    skill: USAGE_SKILL,
     product: { summary: productSummary, targetActor },
     job: { statement, outcome },
     events,
@@ -492,31 +481,31 @@ export function validatePmfConfig(value: unknown): PmfConfig {
   };
 }
 
-function invalidAssessment(message: string): never {
-  throw new CliError(`Invalid PMF assessment:\n- ${message}`);
+function invalidSnapshot(message: string): never {
+  throw new CliError(`Invalid product usage snapshot:\n- ${message}`);
 }
 
-function assessmentObject(
+function snapshotObject(
   value: unknown,
   path: string,
 ): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    invalidAssessment(`${path} must be an object`);
+    invalidSnapshot(`${path} must be an object`);
   }
   return value as Record<string, unknown>;
 }
 
-function assessmentExactKeys(
+function snapshotExactKeys(
   value: Record<string, unknown>,
   allowed: readonly string[],
   path: string,
 ): void {
   const allowedSet = new Set(allowed);
   const unknown = Object.keys(value).find((key) => !allowedSet.has(key));
-  if (unknown) invalidAssessment(`${path} has unsupported field ${unknown}`);
+  if (unknown) invalidSnapshot(`${path} has unsupported field ${unknown}`);
 }
 
-function assessmentString(
+function snapshotString(
   value: unknown,
   path: string,
   maxLength: number,
@@ -526,55 +515,54 @@ function assessmentString(
     value.length === 0 ||
     value.length > maxLength
   ) {
-    invalidAssessment(
+    invalidSnapshot(
       `${path} must be a string of 1-${maxLength} characters`,
     );
   }
   return value;
 }
 
-function assessmentStringList(
+function snapshotStringList(
   value: unknown,
   path: string,
 ): string[] {
   if (!Array.isArray(value)) {
-    invalidAssessment(`${path} must be an array`);
+    invalidSnapshot(`${path} must be an array`);
   }
   if (value.length > 8) {
-    invalidAssessment(`${path} cannot contain more than 8 items`);
+    invalidSnapshot(`${path} cannot contain more than 8 items`);
   }
   return value.map((item, index) =>
-    assessmentString(item, `${path}[${index}]`, 256),
+    snapshotString(item, `${path}[${index}]`, 256),
   );
 }
 
-export function validatePmfAssessment(value: unknown): PmfAssessment {
+export function validateUsageSnapshot(value: unknown): UsageSnapshot {
   try {
     if (JSON.stringify(value) === undefined) {
-      invalidAssessment("assessment must be JSON serializable");
+      invalidSnapshot("snapshot must be JSON serializable");
     }
   } catch {
-    invalidAssessment("assessment must be JSON serializable");
+    invalidSnapshot("snapshot must be JSON serializable");
   }
 
-  const root = assessmentObject(value, "assessment");
-  assessmentExactKeys(
+  const root = snapshotObject(value, "snapshot");
+  snapshotExactKeys(
     root,
     [
       "schemaVersion",
       "configVersion",
       "approved",
-      "status",
       "summary",
       "observations",
       "caveats",
       "nextDecision",
     ],
-    "assessment",
+    "snapshot",
   );
-  if (root.schemaVersion !== PMF_ASSESSMENT_SCHEMA_VERSION) {
-    invalidAssessment(
-      `assessment.schemaVersion must be ${PMF_ASSESSMENT_SCHEMA_VERSION}`,
+  if (root.schemaVersion !== USAGE_SNAPSHOT_SCHEMA_VERSION) {
+    invalidSnapshot(
+      `snapshot.schemaVersion must be ${USAGE_SNAPSHOT_SCHEMA_VERSION}`,
     );
   }
   if (
@@ -582,67 +570,59 @@ export function validatePmfAssessment(value: unknown): PmfAssessment {
     !Number.isSafeInteger(root.configVersion) ||
     root.configVersion < 1
   ) {
-    invalidAssessment("assessment.configVersion must be a positive integer");
+    invalidSnapshot("snapshot.configVersion must be a positive integer");
   }
   if (root.approved !== true) {
-    invalidAssessment("assessment.approved must be true");
+    invalidSnapshot("snapshot.approved must be true");
   }
-  if (
-    typeof root.status !== "string" ||
-    !PMF_ASSESSMENT_STATUSES.includes(root.status as PmfAssessmentStatus)
-  ) {
-    invalidAssessment(
-      `assessment.status must be ${PMF_ASSESSMENT_STATUSES.join(", ")}`,
-    );
-  }
-
   return {
-    schemaVersion: PMF_ASSESSMENT_SCHEMA_VERSION,
+    schemaVersion: USAGE_SNAPSHOT_SCHEMA_VERSION,
     configVersion: root.configVersion,
     approved: true,
-    status: root.status as PmfAssessmentStatus,
-    summary: assessmentString(root.summary, "assessment.summary", 512),
-    observations: assessmentStringList(
+    summary: snapshotString(root.summary, "snapshot.summary", 512),
+    observations: snapshotStringList(
       root.observations,
-      "assessment.observations",
+      "snapshot.observations",
     ),
-    caveats: assessmentStringList(root.caveats, "assessment.caveats"),
-    nextDecision: assessmentString(
+    caveats: snapshotStringList(root.caveats, "snapshot.caveats"),
+    nextDecision: snapshotString(
       root.nextDecision,
-      "assessment.nextDecision",
+      "snapshot.nextDecision",
       512,
     ),
   };
 }
 
-export function readPmfConfig(
+export function readUsageConfig(
   cwd: string,
-  file = DEFAULT_PMF_FILE,
-): { config: PmfConfig; path: string } {
+  file = DEFAULT_USAGE_FILE,
+): { config: UsageConfig; path: string } {
   const path = resolve(cwd, file);
   let parsed: unknown;
   try {
     parsed = JSON.parse(readFileSync(path, "utf8"));
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new CliError(`Could not read PMF config ${path}: ${detail}`);
+    throw new CliError(`Could not read product usage config ${path}: ${detail}`);
   }
-  return { config: validatePmfConfig(parsed), path };
+  return { config: validateUsageConfig(parsed), path };
 }
 
-export function readPmfAssessment(
+export function readUsageSnapshot(
   cwd: string,
-  file = DEFAULT_PMF_ASSESSMENT_FILE,
-): { assessment: PmfAssessment; path: string } {
+  file = DEFAULT_USAGE_SNAPSHOT_FILE,
+): { snapshot: UsageSnapshot; path: string } {
   const path = resolve(cwd, file);
   let parsed: unknown;
   try {
     parsed = JSON.parse(readFileSync(path, "utf8"));
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new CliError(`Could not read PMF assessment ${path}: ${detail}`);
+    throw new CliError(
+      `Could not read product usage snapshot ${path}: ${detail}`,
+    );
   }
-  return { assessment: validatePmfAssessment(parsed), path };
+  return { snapshot: validateUsageSnapshot(parsed), path };
 }
 
 export function validateProjectId(value: string): string {

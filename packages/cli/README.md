@@ -37,10 +37,10 @@ volato skills track landing-page outcome --run-id <same-id>
 volato init --project <id> --yes --send-test-event
 volato projects origins set <id> https://app.example.com
 volato projects origins set <id> --clear
-volato pmf validate                       # validate .volato/pmf.json locally
-volato pmf sync                           # publish the outcome event catalog
-volato pmf report                         # read activation and retention evidence
-volato pmf assessment save                # save an explicitly approved assessment
+volato usage validate                       # validate .volato/usage.json locally
+volato usage sync                           # publish the outcome event catalog
+volato usage report                         # read activation and retention evidence
+volato usage snapshot save                  # save an approved interpretation
 volato init --dsn <dsn> --yes             # advanced fallback without project lookup
 volato readme                             # print every command (point your agent here)
 ```
@@ -58,11 +58,11 @@ It canonicalises URLs, removes duplicates, and is safe for an agent to rerun.
 DSN misuse; it is not an authentication boundary and does not filter
 server-side events.
 
-The PMF commands use the versioned `.volato/pmf.json` contract. `validate`
+The product usage commands use the versioned `.volato/usage.json` contract. `validate`
 performs the same structural checks as the API without making a request,
 `sync` publishes the complete event catalog, and `report` reads outcome-led
-activation, repeat-use, and retention evidence. `assessment save` validates
-`.volato/pmf-assessment.json` and saves it only after explicit approval.
+activation, repeat-use, and retention evidence. `snapshot save` validates
+`.volato/usage-snapshot.json` and saves it only after explicit approval.
 
 `skills track` is the narrow lifecycle bridge for catalog skills whose work
 finishes in the local repository. It accepts only the finite bundled catalog

@@ -21,13 +21,13 @@ import {
 const BUNDLED_SKILLS = [
   "volato-setup",
   "volato-nextjs",
-  "detect-pmf",
+  "monitor-product-usage",
   "landing-page",
 ] as const;
 
 const CATALOG_SKILLS = [
   "volato-nextjs",
-  "detect-pmf",
+  "monitor-product-usage",
   "landing-page",
 ] as const;
 export type CatalogSkill = (typeof CATALOG_SKILLS)[number];

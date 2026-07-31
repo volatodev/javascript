@@ -75,10 +75,10 @@ try {
     "skills/volato-nextjs/SKILL.md",
     "skills/volato-nextjs/assets/runtime/server.ts",
     "skills/volato-nextjs/assets/runtime/withVolato.ts",
-    "skills/detect-pmf/SKILL.md",
-    "skills/detect-pmf/agents/openai.yaml",
-    "skills/detect-pmf/references/contract.md",
-    "skills/detect-pmf/assets/pmf-tracker.ts",
+    "skills/monitor-product-usage/SKILL.md",
+    "skills/monitor-product-usage/agents/openai.yaml",
+    "skills/monitor-product-usage/references/contract.md",
+    "skills/monitor-product-usage/assets/usage-tracker.ts",
     "skills/landing-page/SKILL.md",
     "skills/landing-page/agents/openai.yaml",
     "skills/landing-page/references/evidence-and-elements.md",
@@ -109,8 +109,8 @@ try {
     "packed CLI still exposes the legacy setup surface",
   );
   assert(
-    bundledCli.includes("volato pmf validate"),
-    "packed CLI is missing the PMF command surface",
+    bundledCli.includes("volato usage validate"),
+    "packed CLI is missing the product usage command surface",
   );
 
   const fixture = join(scratch, "fixture");
@@ -154,8 +154,8 @@ try {
   for (const required of [
     ".agents/skills/volato-setup/SKILL.md",
     ".agents/skills/volato-nextjs/SKILL.md",
-    ".agents/skills/detect-pmf/SKILL.md",
-    ".agents/skills/detect-pmf/assets/pmf-tracker.ts",
+    ".agents/skills/monitor-product-usage/SKILL.md",
+    ".agents/skills/monitor-product-usage/assets/usage-tracker.ts",
     ".agents/skills/landing-page/SKILL.md",
     ".volato/manifest.json",
     "app/error.tsx",
@@ -164,16 +164,16 @@ try {
   ]) {
     assert(existsSync(join(fixture, required)), `packed CLI did not create ${required}`);
   }
-  const installedPmfTracker = readFileSync(
-    join(fixture, ".agents/skills/detect-pmf/assets/pmf-tracker.ts"),
+  const installedUsageTracker = readFileSync(
+    join(fixture, ".agents/skills/monitor-product-usage/assets/usage-tracker.ts"),
     "utf8",
   );
   assert(
-    installedPmfTracker.includes("process.env.NEXT_PUBLIC_VOLATO_DSN") &&
-      installedPmfTracker.includes("process.env.VOLATO_INGEST_TOKEN") &&
-      installedPmfTracker.includes("Authorization: `Bearer ${ingestToken}`") &&
-      installedPmfTracker.includes("AbortSignal.timeout(DELIVERY_TIMEOUT_MS)"),
-    "packed PMF tracker is missing server authorization or bounded delivery",
+    installedUsageTracker.includes("process.env.NEXT_PUBLIC_VOLATO_DSN") &&
+      installedUsageTracker.includes("process.env.VOLATO_INGEST_TOKEN") &&
+      installedUsageTracker.includes("Authorization: `Bearer ${ingestToken}`") &&
+      installedUsageTracker.includes("AbortSignal.timeout(DELIVERY_TIMEOUT_MS)"),
+    "packed product usage tracker is missing server authorization or bounded delivery",
   );
   const fixturePackage = JSON.parse(
     readFileSync(join(fixture, "package.json"), "utf8"),

@@ -1,14 +1,14 @@
-# Detect-PMF contract
+# Monitor Product Usage contract
 
 ## Project catalog
 
-`.volato/pmf.json` is the source-controlled, versioned source of truth:
+`.volato/usage.json` is the source-controlled, versioned source of truth:
 
 ```json
 {
   "schemaVersion": 1,
   "projectId": "11111111-1111-4111-8111-111111111111",
-  "skill": "detect-pmf",
+  "skill": "monitor-product-usage",
   "product": {
     "summary": "The product offers several workflows for completing one job.",
     "targetActor": "Operators trying to complete that job."
@@ -146,24 +146,24 @@ greater than `minDays`. Every metric event references the event catalog.
 The authenticated CLI uses the workspace credential without exposing it:
 
 ```text
-volato pmf validate
-volato pmf sync
-volato pmf report
-volato pmf assessment save
+volato usage validate
+volato usage sync
+volato usage report
+volato usage snapshot save
 ```
 
 - Validate is local-only.
 - Sync posts `{ "schemaVersion": 1, "config": <full document> }` to
-  `/v1/projects/:projectId/skills/detect-pmf/config`.
-- Report reads `/v1/projects/:projectId/skills/detect-pmf/report`.
-- Assessment save validates `.volato/pmf-assessment.json`, then posts the
+  `/v1/projects/:projectId/skills/monitor-product-usage/config`.
+- Report reads `/v1/projects/:projectId/skills/monitor-product-usage/report`.
+- Snapshot save validates `.volato/usage-snapshot.json`, then posts the
   document directly to
-  `/v1/projects/:projectId/skills/detect-pmf/assessments`. The CLI creates one
+  `/v1/projects/:projectId/skills/monitor-product-usage/snapshots`. The CLI creates one
   `Idempotency-Key` per invocation and reuses it for automatic retries.
 - `--project-id` may override the project id for a command.
 - Markdown is the default output; pass `--json` for structured output.
 
-Assessment save is an explicit approval boundary, never an automatic report
+Snapshot save is an explicit approval boundary, never an automatic report
 side effect:
 
 ```json
@@ -171,7 +171,6 @@ side effect:
   "schemaVersion": 1,
   "configVersion": 3,
   "approved": true,
-  "status": "promising_signal",
   "summary": "Eligible actors are reaching the promised outcome.",
   "observations": ["Four eligible actors activated in this cohort."],
   "caveats": ["The repeat-use window is still immature."],
@@ -180,11 +179,10 @@ side effect:
 ```
 
 `configVersion` is a positive integer and must identify the active config.
-Status is `insufficient_data`, `weak_signal`, `promising_signal`, or
-`strong_behavioral_signal`. Summary and next decision are 1-512 characters.
-Observations and caveats contain at most eight 1-256 character strings. All
-keys are exact. The agent proposes this behavioral assessment from
-`volato pmf report`, obtains explicit founder approval, then saves it. Without
+Summary and next decision are 1-512 characters. Observations and caveats
+contain at most eight 1-256 character strings. All keys are exact. The agent
+proposes this behavioral snapshot from
+`volato usage report`, obtains explicit founder approval, then saves it. Without
 approval, it stops.
 
 ## Event data plane
@@ -201,7 +199,7 @@ Authorization: Bearer <server ingest token>
 ```json
 {
   "schemaVersion": 1,
-  "skill": "detect-pmf",
+  "skill": "monitor-product-usage",
   "event": "outcome_delivered",
   "actorId": "opaque_internal_actor_id",
   "occurredAt": "2026-07-29T16:00:00.000Z",
@@ -231,7 +229,7 @@ export async function deliverOutcome(
   const outcome = await deliverAndCommit(input);
 
   runtime.waitUntil(
-    pmfTracker.track("outcome_delivered", {
+    usageTracker.track("outcome_delivered", {
       actorId: outcome.actorId,
       dedupeKey: outcome.transitionId,
       properties: { workflow: outcome.workflow },
@@ -255,7 +253,7 @@ key-deduped event requires a 1-128 character `dedupeKey`; other dedupe modes
 forbid it. `properties` must contain exactly the keys declared for the event;
 each value is one of its configured enum strings. Missing, unknown,
 out-of-enum and free-form values are rejected locally. Config, event-envelope
-and assessment `schemaVersion` are each 1 and version their own document shape.
+and snapshot `schemaVersion` are each 1 and version their own document shape.
 
 The report keeps the overall milestone, activation, repeat and retention
 evidence across all enum values. When `branches` is configured, common

@@ -249,7 +249,7 @@ try {
     for (const required of [
       ".agents/skills/volato-setup/SKILL.md",
       ".agents/skills/volato-nextjs/SKILL.md",
-      ".agents/skills/detect-pmf/SKILL.md",
+      ".agents/skills/monitor-product-usage/SKILL.md",
       ".volato/manifest.json",
       ".env.local",
       ".gitignore",
@@ -274,16 +274,16 @@ try {
       ),
       `${entry.label} setup did not protect local credentials.`,
     );
-    const pmfTracker = readFileSync(
-      join(fixture, ".agents/skills/detect-pmf/assets/pmf-tracker.ts"),
+    const usageTracker = readFileSync(
+      join(fixture, ".agents/skills/monitor-product-usage/assets/usage-tracker.ts"),
       "utf8",
     );
     assert(
-      pmfTracker.includes("process.env.NEXT_PUBLIC_VOLATO_DSN") &&
-        pmfTracker.includes("process.env.VOLATO_INGEST_TOKEN") &&
-        pmfTracker.includes("Authorization: `Bearer ${ingestToken}`") &&
-        pmfTracker.includes("AbortSignal.timeout(DELIVERY_TIMEOUT_MS)"),
-      `${entry.label} setup installed an unauthenticated or unbounded PMF tracker.`,
+      usageTracker.includes("process.env.NEXT_PUBLIC_VOLATO_DSN") &&
+        usageTracker.includes("process.env.VOLATO_INGEST_TOKEN") &&
+        usageTracker.includes("Authorization: `Bearer ${ingestToken}`") &&
+        usageTracker.includes("AbortSignal.timeout(DELIVERY_TIMEOUT_MS)"),
+      `${entry.label} setup installed an unauthenticated or unbounded product usage tracker.`,
     );
 
     if (index === 0) {

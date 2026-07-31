@@ -27,7 +27,7 @@ beforeEach(() => {
   sourceRoot = join(cwd, "bundled");
   addSkill("volato-setup", "generic");
   addSkill("volato-nextjs", "next");
-  addSkill("detect-pmf", "pmf");
+  addSkill("monitor-product-usage", "usage");
   addSkill("landing-page", "landing");
 });
 
@@ -42,7 +42,7 @@ describe("installSkills", () => {
     expect(outcomes.map(({ skill, status }) => ({ skill, status }))).toEqual([
       { skill: "volato-setup", status: "created" },
       { skill: "volato-nextjs", status: "created" },
-      { skill: "detect-pmf", status: "created" },
+      { skill: "monitor-product-usage", status: "created" },
       { skill: "landing-page", status: "created" },
     ]);
     expect(

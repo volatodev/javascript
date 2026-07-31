@@ -8,22 +8,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  runPmfAssessmentSave,
-  runPmfReport,
-  runPmfSync,
-  runPmfValidate,
-} from "../commands/pmf";
+  runUsageSnapshotSave,
+  runUsageReport,
+  runUsageSync,
+  runUsageValidate,
+} from "../commands/usage";
 import { runReadme } from "../commands/readme";
 import {
-  validatePmfAssessment,
-  validatePmfConfig,
-} from "../commands/pmf-contract";
+  validateUsageSnapshot,
+  validateUsageConfig,
+} from "../commands/usage-contract";
 
 const projectId = "11111111-1111-4111-8111-111111111111";
 const config = {
   schemaVersion: 1,
   projectId,
-  skill: "detect-pmf",
+  skill: "monitor-product-usage",
   product: {
     summary: "Volato gives coding agents production context.",
     targetActor: "Developers fixing production software with a coding agent.",
@@ -73,7 +73,7 @@ const config = {
 } as const;
 const skillEnum = {
   type: "enum",
-  values: ["production-errors", "detect-pmf"],
+  values: ["production-errors", "monitor-product-usage"],
 } as const;
 const branchedConfig = {
   ...config,
@@ -94,11 +94,10 @@ const branchedConfig = {
     entryEvent: "integration_connected",
   },
 } as const;
-const assessment = {
+const snapshot = {
   schemaVersion: 1,
   configVersion: 3,
   approved: true,
-  status: "promising_signal",
   summary: "Eligible developers are reaching the production-error outcome.",
   observations: ["Four eligible developers activated in the current cohort."],
   caveats: ["The repeat-use window is still immature."],
@@ -108,15 +107,15 @@ const assessment = {
 let cwd: string;
 
 beforeEach(() => {
-  cwd = mkdtempSync(join(tmpdir(), "volato-pmf-"));
+  cwd = mkdtempSync(join(tmpdir(), "volato-usage-"));
   mkdirSync(join(cwd, ".volato"));
   writeFileSync(
-    join(cwd, ".volato", "pmf.json"),
+    join(cwd, ".volato", "usage.json"),
     `${JSON.stringify(config, null, 2)}\n`,
   );
   writeFileSync(
-    join(cwd, ".volato", "pmf-assessment.json"),
-    `${JSON.stringify(assessment, null, 2)}\n`,
+    join(cwd, ".volato", "usage-snapshot.json"),
+    `${JSON.stringify(snapshot, null, 2)}\n`,
   );
   vi.stubEnv("VOLATO_API_URL", "https://api.test.local");
   vi.stubEnv("VOLATO_TOKEN", "workspace-token");
@@ -129,24 +128,24 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe("volato pmf sync", () => {
+describe("volato usage sync", () => {
   it("syncs the complete local contract to the project skill endpoint", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
-          markdown: "# PMF catalog synced",
+          markdown: "# Product usage catalog synced",
           data: { projectId, eventCount: 2 },
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       ),
     );
 
-    await runPmfSync({ cwd });
+    await runUsageSync({ cwd });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe(
-      `https://api.test.local/v1/projects/${projectId}/skills/detect-pmf/config`,
+      `https://api.test.local/v1/projects/${projectId}/skills/monitor-product-usage/config`,
     );
     expect(JSON.parse(String(init?.body))).toEqual({
       schemaVersion: 1,
@@ -156,16 +155,16 @@ describe("volato pmf sync", () => {
       "Bearer workspace-token",
     );
     expect(process.stdout.write).toHaveBeenCalledWith(
-      "# PMF catalog synced\n",
+      "# Product usage catalog synced\n",
     );
   });
 });
 
-describe("volato pmf validate", () => {
+describe("volato usage validate", () => {
   it("validates locally without making a network request", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
 
-    runPmfValidate({ cwd, json: true });
+    runUsageValidate({ cwd, json: true });
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(process.stdout.write).toHaveBeenCalledWith(
@@ -175,7 +174,7 @@ describe("volato pmf validate", () => {
 
   it("rejects repeat windows that cannot prove a later-day return", () => {
     expect(() =>
-      validatePmfConfig({
+      validateUsageConfig({
         ...config,
         repeat: { ...config.repeat, minHours: 1 },
       }),
@@ -184,10 +183,10 @@ describe("volato pmf validate", () => {
 
   it("rejects the legacy schema version 1 shape without compatibility fallback", () => {
     expect(() =>
-      validatePmfConfig({
+      validateUsageConfig({
         schemaVersion: 1,
         projectId,
-        skill: "detect-pmf",
+        skill: "monitor-product-usage",
         events: config.events,
         cohort: config.cohort,
         activation: config.activation,
@@ -199,7 +198,7 @@ describe("volato pmf validate", () => {
 
   it("rejects fields outside the versioned backend contract", () => {
     expect(() =>
-      validatePmfConfig({
+      validateUsageConfig({
         ...config,
         tenantId: "free-form-tenant",
       }),
@@ -208,7 +207,7 @@ describe("volato pmf validate", () => {
 
   it("rejects cohorts that end before the retention window matures", () => {
     expect(() =>
-      validatePmfConfig({
+      validateUsageConfig({
         ...config,
         cohort: { ...config.cohort, windowDays: 30 },
       }),
@@ -216,7 +215,7 @@ describe("volato pmf validate", () => {
   });
 
   it("accepts strict enum properties and a comparable branch dimension", () => {
-    expect(validatePmfConfig(branchedConfig)).toEqual(branchedConfig);
+    expect(validateUsageConfig(branchedConfig)).toEqual(branchedConfig);
   });
 
   it("keeps pre-branch milestones shared and property-free", () => {
@@ -233,11 +232,11 @@ describe("volato pmf validate", () => {
       },
     };
 
-    expect(validatePmfConfig(lateBranchConfig)).toEqual(lateBranchConfig);
+    expect(validateUsageConfig(lateBranchConfig)).toEqual(lateBranchConfig);
   });
 
   it("keeps property-free linear maps valid", () => {
-    expect(validatePmfConfig(config)).toEqual(config);
+    expect(validateUsageConfig(config)).toEqual(config);
   });
 
   it("accepts 40 declared events when the document remains below 32 KiB", () => {
@@ -257,12 +256,12 @@ describe("volato pmf validate", () => {
     expect(Buffer.byteLength(JSON.stringify(value), "utf8")).toBeLessThan(
       32 * 1024,
     );
-    expect(validatePmfConfig(value).events).toHaveLength(40);
+    expect(validateUsageConfig(value).events).toHaveLength(40);
   });
 
   it("rejects free-form property definitions", () => {
     expect(() =>
-      validatePmfConfig({
+      validateUsageConfig({
         ...config,
         events: [
           {
@@ -328,7 +327,7 @@ describe("volato pmf validate", () => {
                 properties: {
                   skill: {
                     type: "enum",
-                    values: ["detect-pmf", "detect-pmf"],
+                    values: ["monitor-product-usage", "monitor-product-usage"],
                   },
                 },
               }
@@ -361,7 +360,7 @@ describe("volato pmf validate", () => {
                 properties: {
                   skill: {
                     type: "enum",
-                    values: ["detect-pmf", "production-errors"],
+                    values: ["monitor-product-usage", "production-errors"],
                   },
                 },
               }
@@ -408,7 +407,7 @@ describe("volato pmf validate", () => {
       message: "config.branches.entryEvent cannot be the cohort event",
     },
   ])("rejects $label", ({ mutate, message }) => {
-    expect(() => validatePmfConfig(mutate())).toThrow(message);
+    expect(() => validateUsageConfig(mutate())).toThrow(message);
   });
 
   it.each([
@@ -445,7 +444,7 @@ describe("volato pmf validate", () => {
         "config.milestones[1].event must reference an event in the catalog",
     },
   ])("rejects $label", ({ milestones, message }) => {
-    expect(() => validatePmfConfig({ ...config, milestones })).toThrow(
+    expect(() => validateUsageConfig({ ...config, milestones })).toThrow(
       message,
     );
   });
@@ -491,7 +490,7 @@ describe("volato pmf validate", () => {
       message: "config exceeds 32768 bytes",
     },
   ])("rejects $label", ({ value, message }) => {
-    expect(() => validatePmfConfig(value)).toThrow(message);
+    expect(() => validateUsageConfig(value)).toThrow(message);
   });
 
   it("counts the 32 KiB config limit in UTF-8 bytes", () => {
@@ -503,28 +502,28 @@ describe("volato pmf validate", () => {
 
     expect(encoded.length).toBeLessThan(32 * 1024);
     expect(new TextEncoder().encode(encoded).length).toBeGreaterThan(32 * 1024);
-    expect(() => validatePmfConfig(value)).toThrow(
+    expect(() => validateUsageConfig(value)).toThrow(
       "config exceeds 32768 bytes",
     );
   });
 });
 
-describe("volato pmf report", () => {
+describe("volato usage report", () => {
   it("reads the outcome report for the configured project", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
-          markdown: "# PMF evidence",
+          markdown: "# Product usage evidence",
           data: { activation: { actors: 4 } },
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       ),
     );
 
-    await runPmfReport({ cwd, json: true });
+    await runUsageReport({ cwd, json: true });
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      `https://api.test.local/v1/projects/${projectId}/skills/detect-pmf/report`,
+      `https://api.test.local/v1/projects/${projectId}/skills/monitor-product-usage/report`,
     );
     expect(process.stdout.write).toHaveBeenCalledWith(
       expect.stringContaining('"activation":{"actors":4}'),
@@ -532,25 +531,25 @@ describe("volato pmf report", () => {
   });
 });
 
-describe("volato pmf assessment save", () => {
-  it("posts an explicitly approved assessment to the project skill endpoint", async () => {
+describe("volato usage snapshot save", () => {
+  it("posts an explicitly approved snapshot to the project skill endpoint", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
-          markdown: "# PMF assessment saved",
+          markdown: "# Product usage snapshot saved",
           data: { projectId, configVersion: 3 },
         }),
         { status: 201, headers: { "content-type": "application/json" } },
       ),
     );
 
-    await runPmfAssessmentSave({ cwd, json: true });
+    await runUsageSnapshotSave({ cwd, json: true });
 
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe(
-      `https://api.test.local/v1/projects/${projectId}/skills/detect-pmf/assessments`,
+      `https://api.test.local/v1/projects/${projectId}/skills/monitor-product-usage/snapshots`,
     );
-    expect(JSON.parse(String(init?.body))).toEqual(assessment);
+    expect(JSON.parse(String(init?.body))).toEqual(snapshot);
     expect(
       (init?.headers as Record<string, string>)["Idempotency-Key"],
     ).toMatch(
@@ -561,7 +560,7 @@ describe("volato pmf assessment save", () => {
     );
   });
 
-  it("reuses one assessment idempotency key across automatic retries", async () => {
+  it("reuses one snapshot idempotency key across automatic retries", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
@@ -573,14 +572,14 @@ describe("volato pmf assessment save", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            markdown: "# PMF assessment saved",
+            markdown: "# Product usage snapshot saved",
             data: { projectId, configVersion: 3 },
           }),
           { status: 201, headers: { "content-type": "application/json" } },
         ),
       );
 
-    await runPmfAssessmentSave({ cwd, json: true });
+    await runUsageSnapshotSave({ cwd, json: true });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const keys = fetchMock.mock.calls.map(
@@ -595,50 +594,50 @@ describe("volato pmf assessment save", () => {
 
   it.each([
     {
-      label: "automatic or unapproved assessments",
-      value: { ...assessment, approved: false },
-      message: "assessment.approved must be true",
+      label: "automatic or unapproved snapshots",
+      value: { ...snapshot, approved: false },
+      message: "snapshot.approved must be true",
     },
     {
-      label: "unknown signal statuses",
-      value: { ...assessment, status: "product_market_fit" },
-      message: "assessment.status must be",
+      label: "PMF score fields",
+      value: { ...snapshot, status: "product_market_fit" },
+      message: "snapshot has unsupported field status",
     },
     {
       label: "non-positive config versions",
-      value: { ...assessment, configVersion: 0 },
-      message: "assessment.configVersion must be a positive integer",
+      value: { ...snapshot, configVersion: 0 },
+      message: "snapshot.configVersion must be a positive integer",
     },
     {
       label: "more than eight observations",
       value: {
-        ...assessment,
+        ...snapshot,
         observations: Array.from({ length: 9 }, () => "Observed outcome."),
       },
-      message: "assessment.observations cannot contain more than 8 items",
+      message: "snapshot.observations cannot contain more than 8 items",
     },
     {
       label: "overlong caveats",
-      value: { ...assessment, caveats: ["x".repeat(257)] },
+      value: { ...snapshot, caveats: ["x".repeat(257)] },
       message:
-        "assessment.caveats[0] must be a string of 1-256 characters",
+        "snapshot.caveats[0] must be a string of 1-256 characters",
     },
     {
       label: "unsupported fields",
-      value: { ...assessment, evidenceSource: "survey" },
-      message: "assessment has unsupported field evidenceSource",
+      value: { ...snapshot, evidenceSource: "survey" },
+      message: "snapshot has unsupported field evidenceSource",
     },
   ])("rejects $label", ({ value, message }) => {
-    expect(() => validatePmfAssessment(value)).toThrow(message);
+    expect(() => validateUsageSnapshot(value)).toThrow(message);
   });
 });
 
-describe("volato PMF discovery", () => {
-  it("lists assessment save in the agent-facing command reference", () => {
+describe("volato product usage discovery", () => {
+  it("lists snapshot save in the agent-facing command reference", () => {
     runReadme();
 
     expect(process.stdout.write).toHaveBeenCalledWith(
-      expect.stringContaining("volato pmf assessment save"),
+      expect.stringContaining("volato usage snapshot save"),
     );
   });
 });

@@ -15,10 +15,10 @@
  *   volato errors reopen  <id>        — reopen (note preserved on history)
  *   volato errors ignore  <id>        — mark ignored
  *   volato projects origins set       — replace a browser-origin allowlist
- *   volato pmf validate                — validate .volato/pmf.json locally
- *   volato pmf sync                    — publish the outcome event catalog
- *   volato pmf report                  — read activation and retention evidence
- *   volato pmf assessment save         — save an approved PMF assessment
+ *   volato usage validate              — validate .volato/usage.json locally
+ *   volato usage sync                  — publish the outcome event catalog
+ *   volato usage report                — read activation and retention evidence
+ *   volato usage snapshot save         — save an approved usage snapshot
  *
  * Every command accepts --json for the structured payload instead of
  * the default markdown. The markdown is agent-ready (the same string
@@ -40,11 +40,11 @@ import {
 } from "./commands/skills.js";
 import { runProjectOriginsSet } from "./commands/projects.js";
 import {
-  runPmfAssessmentSave,
-  runPmfReport,
-  runPmfSync,
-  runPmfValidate,
-} from "./commands/pmf.js";
+  runUsageSnapshotSave,
+  runUsageReport,
+  runUsageSync,
+  runUsageValidate,
+} from "./commands/usage.js";
 import { CliError } from "./lib/api-client.js";
 import { printLocalError } from "./lib/output.js";
 
@@ -126,7 +126,7 @@ skills
   .command("track")
   .argument(
     "<skill>",
-    "catalog skill: volato-nextjs, detect-pmf or landing-page",
+    "catalog skill: volato-nextjs, monitor-product-usage or landing-page",
   )
   .argument("<stage>", "started or outcome")
   .requiredOption("--run-id <id>", "stable id for this skill run")
@@ -200,75 +200,75 @@ projectOrigins
     },
   );
 
-const pmf = program
-  .command("pmf")
-  .description("Configure and assess outcome-led PMF signals");
+const usage = program
+  .command("usage")
+  .description("Monitor outcome-led product usage");
 
-pmf
+usage
   .command("validate")
-  .description("Validate .volato/pmf.json locally")
+  .description("Validate .volato/usage.json locally")
   .option(
     "-f, --file <path>",
-    "project-relative PMF config path",
-    ".volato/pmf.json",
+    "project-relative product usage config path",
+    ".volato/usage.json",
   )
   .option("-p, --project-id <id>", "override the project id")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
     (opts: { file: string; projectId?: string; json?: boolean }) => {
-      runPmfValidate({ cwd: process.cwd(), ...opts });
+      runUsageValidate({ cwd: process.cwd(), ...opts });
     },
   );
 
-pmf
+usage
   .command("sync")
-  .description("Validate and publish the PMF event catalog")
+  .description("Validate and publish the product usage event catalog")
   .option(
     "-f, --file <path>",
-    "project-relative PMF config path",
-    ".volato/pmf.json",
+    "project-relative product usage config path",
+    ".volato/usage.json",
   )
   .option("-p, --project-id <id>", "override the project id")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
     async (opts: { file: string; projectId?: string; json?: boolean }) => {
-      await runPmfSync({ cwd: process.cwd(), ...opts });
+      await runUsageSync({ cwd: process.cwd(), ...opts });
     },
   );
 
-pmf
+usage
   .command("report")
   .description("Read activation, repeat-use, and retention evidence")
   .option(
     "-f, --file <path>",
-    "project-relative PMF config path",
-    ".volato/pmf.json",
+    "project-relative product usage config path",
+    ".volato/usage.json",
   )
   .option("-p, --project-id <id>", "override the project id")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
     async (opts: { file: string; projectId?: string; json?: boolean }) => {
-      await runPmfReport({ cwd: process.cwd(), ...opts });
+      await runUsageReport({ cwd: process.cwd(), ...opts });
     },
   );
 
-const pmfAssessment = pmf
-  .command("assessment")
-  .description("Save explicitly approved PMF assessments");
+const usageSnapshot = usage
+  .command("snapshot")
+  .description("Save explicitly approved product usage snapshots");
 
-pmfAssessment
+usageSnapshot
   .command("save")
-  .description("Validate and save an approved behavioral assessment")
+  .description("Validate and save an approved behavioral snapshot")
   .option(
     "-f, --file <path>",
-    "project-relative PMF assessment path",
-    ".volato/pmf-assessment.json",
+    "project-relative product usage snapshot path",
+    ".volato/usage-snapshot.json",
   )
   .option("-p, --project-id <id>", "override the project id")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
     async (opts: { file: string; projectId?: string; json?: boolean }) => {
-      await runPmfAssessmentSave({ cwd: process.cwd(), ...opts });
+      await runUsageSnapshotSave({ cwd: process.cwd(), ...opts });
     },
   );
 

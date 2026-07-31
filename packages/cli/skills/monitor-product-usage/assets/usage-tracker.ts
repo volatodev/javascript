@@ -1,5 +1,5 @@
 /**
- * Dependency-free, server-only tracker for the detect-pmf skill.
+ * Dependency-free, server-only tracker for the monitor-product-usage skill.
  *
  * Copy this file into the application and call it only after an authoritative
  * business transition succeeds. It reads the public DSN for routing and the
@@ -7,21 +7,21 @@
  * value in source.
  */
 
-const SKILL = "detect-pmf";
+const SKILL = "monitor-product-usage";
 const DSN_HEADER = "X-Volato-DSN";
 const DELIVERY_TIMEOUT_MS = 2_000;
 const ACTOR_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 
-export type PmfEnumDefinition = {
+export type UsageEnumDefinition = {
   readonly type: "enum";
   readonly values: readonly string[];
 };
 
-export type PmfEventDefinition = {
+export type UsageEventDefinition = {
   readonly name: string;
   readonly description: string;
-  readonly properties: Readonly<Record<string, PmfEnumDefinition>>;
+  readonly properties: Readonly<Record<string, UsageEnumDefinition>>;
   readonly dedupe: "actor" | "key" | "none";
 };
 
@@ -30,16 +30,16 @@ type EnumValue<Definition> =
     ? Value
     : never;
 
-type EventProperties<Event extends PmfEventDefinition> = {
+type EventProperties<Event extends UsageEventDefinition> = {
   [Key in keyof Event["properties"]]: EnumValue<Event["properties"][Key]>;
 };
 
-type DedupeInput<Event extends PmfEventDefinition> =
+type DedupeInput<Event extends UsageEventDefinition> =
   Event["dedupe"] extends "key"
     ? { dedupeKey: string }
     : { dedupeKey?: never };
 
-export type PmfTrackInput<Event extends PmfEventDefinition> = {
+export type UsageTrackInput<Event extends UsageEventDefinition> = {
   actorId: string;
   occurredAt?: string;
 } &
@@ -48,8 +48,8 @@ export type PmfTrackInput<Event extends PmfEventDefinition> = {
     : { properties: EventProperties<Event> }) &
   DedupeInput<Event>;
 
-export type PmfTracker<
-  Events extends readonly PmfEventDefinition[],
+export type UsageTracker<
+  Events extends readonly UsageEventDefinition[],
 > = {
   /**
    * Await this promise or register it with the runtime's request-lifetime
@@ -57,12 +57,12 @@ export type PmfTracker<
    */
   track<Name extends Events[number]["name"]>(
     event: Name,
-    input: PmfTrackInput<Extract<Events[number], { name: Name }>>,
+    input: UsageTrackInput<Extract<Events[number], { name: Name }>>,
   ): Promise<boolean>;
 };
 
-export type CreatePmfTrackerOptions<
-  Events extends readonly PmfEventDefinition[],
+export type CreateUsageTrackerOptions<
+  Events extends readonly UsageEventDefinition[],
 > = {
   events: Events;
   fetch?: typeof globalThis.fetch;
@@ -123,7 +123,7 @@ function timestamp(value: string | undefined): string {
 
 function validatedProperties(
   value: unknown,
-  definitions: Readonly<Record<string, PmfEnumDefinition>>,
+  definitions: Readonly<Record<string, UsageEnumDefinition>>,
 ): Record<string, string> {
   const properties = value === undefined ? {} : value;
   if (
@@ -175,20 +175,20 @@ function validatePropertyDefinitions(
     typeof definitions !== "object" ||
     Array.isArray(definitions)
   ) {
-    return `PMF event ${JSON.stringify(eventName)} properties must be an object`;
+    return `Usage event ${JSON.stringify(eventName)} properties must be an object`;
   }
   for (const [key, rawDefinition] of Object.entries(
     definitions as Record<string, unknown>,
   )) {
     if (!KEY_PATTERN.test(key)) {
-      return `PMF event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has an invalid name`;
+      return `Usage event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has an invalid name`;
     }
     if (
       rawDefinition === null ||
       typeof rawDefinition !== "object" ||
       Array.isArray(rawDefinition)
     ) {
-      return `PMF event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be an enum definition`;
+      return `Usage event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be an enum definition`;
     }
     const definition = rawDefinition as Record<string, unknown>;
     const keys = Object.keys(definition);
@@ -200,7 +200,7 @@ function validatePropertyDefinitions(
       !Array.isArray(definition.values) ||
       definition.values.length === 0
     ) {
-      return `PMF event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be a strict enum definition`;
+      return `Usage event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be a strict enum definition`;
     }
     const values = Array.from(definition.values);
     if (
@@ -211,7 +211,7 @@ function validatePropertyDefinitions(
       ) ||
       new Set(values).size !== values.length
     ) {
-      return `PMF event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has invalid enum values`;
+      return `Usage event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has invalid enum values`;
     }
   }
   return undefined;
@@ -235,21 +235,21 @@ async function rejectionReason(response: Response): Promise<string> {
 }
 
 function rejectionMessage(status: number, reason: string): string {
-  const prefix = `[volato:detect-pmf] event rejected (${status}: ${reason}).`;
+  const prefix = `[volato:monitor-product-usage] event rejected (${status}: ${reason}).`;
   if (reason === "skill_not_configured") {
-    return `${prefix} Run \`volato pmf sync\` and retry the transition.`;
+    return `${prefix} Run \`volato usage sync\` and retry the transition.`;
   }
   if (reason === "event_not_declared") {
-    return `${prefix} Update .volato/pmf.json, then run \`volato pmf validate\` and \`volato pmf sync\`.`;
+    return `${prefix} Update .volato/usage.json, then run \`volato usage validate\` and \`volato usage sync\`.`;
   }
-  return `${prefix} Run \`volato pmf validate\`, sync the catalog, and inspect ingest health.`;
+  return `${prefix} Run \`volato usage validate\`, sync the catalog, and inspect ingest health.`;
 }
 
-export function createPmfTracker<
-  const Events extends readonly PmfEventDefinition[],
+export function createUsageTracker<
+  const Events extends readonly UsageEventDefinition[],
 >(
-  options: CreatePmfTrackerOptions<Events>,
-): PmfTracker<Events> {
+  options: CreateUsageTrackerOptions<Events>,
+): UsageTracker<Events> {
   const dsn = process.env.NEXT_PUBLIC_VOLATO_DSN ?? "";
   const ingestToken = process.env.VOLATO_INGEST_TOKEN ?? "";
   const ingestTokenValid =
@@ -263,7 +263,7 @@ export function createPmfTracker<
     // Report configuration failures from track so delivery fails loudly.
   }
   const fetchImpl = options.fetch ?? globalThis.fetch;
-  const catalog = new Map<string, PmfEventDefinition>();
+  const catalog = new Map<string, UsageEventDefinition>();
   let catalogError: string | undefined;
   const warnedReasons = new Set<string>();
   const warnOnce = (reason: string, message: string): void => {
@@ -287,7 +287,7 @@ export function createPmfTracker<
       break;
     }
     if (catalog.has(definition.name)) {
-      catalogError = `PMF event ${JSON.stringify(definition.name)} is duplicated`;
+      catalogError = `Usage event ${JSON.stringify(definition.name)} is duplicated`;
       break;
     }
     catalog.set(definition.name, definition);
@@ -298,28 +298,28 @@ export function createPmfTracker<
       if (typeof window !== "undefined") {
         warnOnce(
           "browser_runtime",
-          "[volato:detect-pmf] event delivery disabled: the PMF tracker is server-only. Move this call behind an authoritative server transition.",
+          "[volato:monitor-product-usage] event delivery disabled: the usage tracker is server-only. Move this call behind an authoritative server transition.",
         );
         return false;
       }
       if (!endpoint) {
         warnOnce(
           "invalid_dsn",
-          "[volato:detect-pmf] event delivery disabled: NEXT_PUBLIC_VOLATO_DSN is missing or malformed. Run `volato init` for this project.",
+          "[volato:monitor-product-usage] event delivery disabled: NEXT_PUBLIC_VOLATO_DSN is missing or malformed. Run `volato init` for this project.",
         );
         return false;
       }
       if (!ingestTokenValid) {
         warnOnce(
           "invalid_ingest_token",
-          "[volato:detect-pmf] event delivery disabled: VOLATO_INGEST_TOKEN is missing or malformed. Run `volato init` for this project.",
+          "[volato:monitor-product-usage] event delivery disabled: VOLATO_INGEST_TOKEN is missing or malformed. Run `volato init` for this project.",
         );
         return false;
       }
       if (catalogError) {
         warnOnce(
           "invalid_catalog",
-          `[volato:detect-pmf] event delivery disabled: ${catalogError}. Run \`volato pmf validate\`.`,
+          `[volato:monitor-product-usage] event delivery disabled: ${catalogError}. Run \`volato usage validate\`.`,
         );
         return false;
       }
@@ -328,7 +328,7 @@ export function createPmfTracker<
       if (!definition) {
         warnOnce(
           "invalid_input",
-          "[volato:detect-pmf] event not sent: its name is not declared. Update .volato/pmf.json and run `volato pmf sync`.",
+          "[volato:monitor-product-usage] event not sent: its name is not declared. Update .volato/usage.json and run `volato usage sync`.",
         );
         return false;
       }
@@ -371,7 +371,7 @@ export function createPmfTracker<
           error instanceof Error ? error.message : "input is invalid";
         warnOnce(
           "invalid_input",
-          `[volato:detect-pmf] event not sent: ${reason}. Validate the call against .volato/pmf.json.`,
+          `[volato:monitor-product-usage] event not sent: ${reason}. Validate the call against .volato/usage.json.`,
         );
         return false;
       }
@@ -396,7 +396,7 @@ export function createPmfTracker<
       } catch {
         warnOnce(
           "network",
-          "[volato:detect-pmf] event delivery failed. Verify the ingest endpoint is reachable; the product transition was not interrupted.",
+          "[volato:monitor-product-usage] event delivery failed. Verify the ingest endpoint is reachable; the product transition was not interrupted.",
         );
       }
       return false;

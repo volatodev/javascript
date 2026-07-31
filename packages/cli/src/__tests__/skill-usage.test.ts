@@ -64,14 +64,14 @@ describe("runSkillUsage", () => {
     ).rejects.toThrow(/unknown catalog skill/i);
     await expect(
       runSkillUsage({
-        skill: "detect-pmf",
+        skill: "monitor-product-usage",
         stage: "finished",
         runId: "run-1",
       }),
     ).rejects.toThrow(/started or outcome/i);
     await expect(
       runSkillUsage({
-        skill: "detect-pmf",
+        skill: "monitor-product-usage",
         stage: "started",
         runId: "contains spaces",
       }),
