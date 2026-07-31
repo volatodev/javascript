@@ -1,176 +1,392 @@
 ---
 name: landing-page
-description: Build or rewrite a sober, evidence-led landing page by inspecting the product first, inventorying the founder's real assets and proof, agreeing on one audience, promise and primary action, then writing, designing, implementing and checking the page. Use when a founder asks to create, ship, redesign or clarify a SaaS homepage or landing page and expects copy and frontend work as one coherent job.
+description: Build or rewrite an evidence-led landing page by inspecting the product first, qualifying the page's job and arrival intent, inventorying the founder's real assets and proof, agreeing on one audience, page argument and primary action, then writing, designing, implementing and checking the page. Use when a founder asks to create, ship, redesign or clarify a SaaS homepage or landing page and expects positioning, copy and frontend work as one coherent job.
 ---
 
 # Landing Page
 
 ## Keep the page truthful and focused
 
-Treat the landing page as one explanation for one intended visitor and one
-primary action. Copy, information architecture, visual design and
-implementation are one job.
+Treat the landing page as one product explanation for one intended visitor and
+one primary action. Copywriting, information architecture, visual design and
+implementation are parts of that job, not separate handoffs.
 
-Default to a sober design: low visual complexity, familiar patterns, strong
-typography, restrained color and motion, and real product evidence. Never
-invent logos, testimonials, metrics, awards, integrations, pricing, security
-claims, screenshots or legal assurances.
+Choose the visual direction only after the page job, argument and available
+evidence are clear. Preserve an established brand when it exists. Use the
+sober baseline in the reference as a fallback when the product and founder do
+not justify a stronger direction, not as a universal aesthetic. Do not mistake
+restraint for an absence of product demonstration, decorate a weak
+proposition or manufacture missing credibility.
 
-Read
-[`references/evidence-and-elements.md`](references/evidence-and-elements.md)
+Never invent customer logos, testimonials, metrics, awards, integrations,
+pricing, security claims, product screens or legal assurances. A plausible
+claim is still unverified. Omit it, label it as a draft outside the published
+page, or ask the founder for evidence.
+
+Read [`references/evidence-and-elements.md`](references/evidence-and-elements.md)
 before planning the page.
 
 ## Record the catalog outcome
 
-Create one opaque run id when this workflow begins and reuse it throughout the
-run. After inspection confirms a landing-page job, run:
+Create one opaque run id when this workflow begins and reuse it through the
+same run. After inspection confirms that the request is a landing-page job,
+run:
 
 ```text
 volato skills track landing-page started --run-id <run-id>
 ```
 
-After the approved page is implemented and verification succeeds, run:
+After the approved page is implemented and the verification step succeeds,
+run:
 
 ```text
 volato skills track landing-page outcome --run-id <same-run-id>
 ```
 
 Do not emit outcome for a brief, wireframe, rejected build or unverified
-implementation. If the CLI lacks `skills track` or reports `tracked: false`,
-continue the founder's task and report the measurement gap. Never bypass the
-CLI or invent another event.
+implementation. If the installed CLI lacks `skills track` or delivery reports
+`tracked: false`, continue the founder's task and report the measurement gap.
+Do not call an undocumented route or invent another event.
 
 ## Follow the founder-first workflow
 
-1. Inspect the repository, current page and live product evidence.
-2. Prepare a page snapshot and evidence ledger.
-3. Discuss only unresolved, decision-critical points with the founder.
-4. Obtain approval for audience, promise, offer, primary action and usable
-   proof.
-5. Offer a chat-native ASCII preview and revise it when requested.
-6. Write a one-page brief and the copy before visual polish.
-7. Implement inside the existing stack and design system.
-8. Verify truth, usability, accessibility, performance and every route.
-9. Return what shipped, what remains unsupported and what should be tested.
+Use this sequence:
 
-If the founder asks for an asynchronous draft, use repository-supported facts,
-expose assumptions and omit unsupported sections.
+1. inspect the repository, current page and live product evidence;
+2. qualify the page job, arrival intent and post-click path, then prepare a
+   page snapshot and an evidence ledger;
+3. discuss only unresolved, decision-critical points with the founder;
+4. obtain approval for the audience, situation, desired progress, current
+   alternative, product mechanism, credible promise, offer, primary action
+   and usable proof;
+5. choose the evidence medium and visual direction that best explain and
+   support the approved argument;
+6. offer a chat-native ASCII preview of the page hierarchy and revise it with
+   the founder when requested;
+7. write a one-page brief and propose the page hierarchy;
+8. write the copy before polishing the visual composition;
+9. implement inside the existing stack and design system;
+10. verify truth, comprehension, trust, usability, accessibility, performance
+    and every route;
+11. return what shipped, what remains unsupported and what should be tested.
+
+Do not skip founder alignment because a generic SaaS template looks
+reasonable. If the founder explicitly asks for an asynchronous draft, proceed
+with repo-supported facts, expose assumptions in the handoff and leave
+unsupported sections out of the page.
 
 ## Inspect before asking
 
-Read the smallest relevant set of product vision, release boundary, current
-offer, homepage, app routes, CTA path, brand tokens, product screenshots,
-customer proof, pricing, legal pages, analytics conventions, page tests and
-deployment constraints. Inspect mobile and desktop when runnable.
+Read the smallest relevant set of:
 
-Summarize:
+- product vision, positioning, release boundary and current offer;
+- the page's role, likely traffic sources, visitor awareness and distribution
+  model;
+- existing homepage, app routes and the actual signup, trial, demo or contact
+  path, including what happens after the first click;
+- brand tokens, logo files, fonts and reusable components;
+- current product interactions, outputs, screenshots, recordings, docs and
+  examples;
+- customer proof, case studies, quotes and metrics, including their source;
+- pricing, security, privacy, terms and contact pages;
+- existing analytics conventions and page tests;
+- framework, rendering mode and deployment constraints.
 
-- intended visitor and job;
+Open the current page at mobile and desktop widths when a runnable build is
+available. Distinguish what the product currently does from roadmap language.
+Do not silently turn future functionality into present-tense copy.
+
+Summarize the inspection as:
+
+- page type, arrival intent, intended visitor and job;
+- desired progress, current alternative and product mechanism;
 - current promise and offer;
-- primary and secondary actions;
-- strongest product and trust evidence;
-- major mismatch or ambiguity;
+- current primary and secondary actions;
+- post-click path and material commitment;
+- strongest product evidence and the medium that explains it best;
+- strongest verified trust evidence;
+- principal friction, mismatch or ambiguity;
 - technical and brand constraints.
 
 ## Build the evidence ledger
 
-Classify each candidate as `ready`, `verify`, `missing` or `not_needed`.
-Inventory logo and tokens, product visual, sample output, customer proof,
-quantitative claims, offer and CTA destination, objections, contact and legal
-links. Missing evidence is not permission to synthesize it.
+Classify every candidate element as:
+
+- `ready`: current, relevant, publishable and verified;
+- `verify`: found, but freshness, accuracy or permission needs founder review;
+- `missing`: useful to the argument, but absent;
+- `not_needed`: does not answer a real visitor question on this page.
+
+Inventory at least:
+
+- logo and brand tokens;
+- product screenshots, demo, video and sample output;
+- customer logos and permission to use them;
+- testimonials with speaker, role, source and permission;
+- quantitative claims with definition, period and source;
+- offer, pricing, trial terms and CTA destination;
+- common objections and real support questions;
+- contact, privacy, terms and security links.
+
+An empty evidence category is not an instruction to synthesize it.
 
 ## Hold one focused founder discussion
 
-Resolve:
+Show the inspection summary and evidence ledger first. Ask only what the
+repository cannot establish. Resolve these decisions:
 
-1. Who should recognize themselves, and in what situation?
-2. What outcome can the current product credibly promise?
-3. What single action should the visitor take?
-4. What happens next, including price or commitment?
-5. Which proof and assets are current and approved?
-6. Which objections block the action?
-7. Which constraints are non-negotiable?
+1. What job must this page perform, for which arrival context?
+2. Who should recognize themselves immediately, in what situation, and what
+   progress are they seeking?
+3. What alternative do they use now, and by what mechanism does the product
+   create a different result?
+4. What valuable outcome can the current product credibly promise?
+5. What single action should that visitor take now?
+6. What exactly happens after that action, including effort, access, price or
+   commitment?
+7. Which proof and product assets are current and approved for publication,
+   and which medium explains the mechanism or result most clearly?
+8. What principal friction or remaining objection makes the action difficult?
+9. Which brand, legal, technical or release constraints are non-negotiable?
 
-Present this approval block before editing:
+Batch related questions. Do not make the founder complete a long marketing
+questionnaire when the answer is already in the repository.
+
+Before editing the page, present a compact approval block:
 
 ```text
+Page type and arrival intent:
 Audience:
 Job and situation:
-Credible outcome:
+Desired progress:
+Current alternative:
+Product mechanism:
+Credible promise:
 Offer:
 Primary action and destination:
+Post-click path and commitment:
 Approved proof:
+Principal friction:
 Elements intentionally omitted:
 ```
 
-Wait for explicit approval when those product decisions change. Then ask
-whether the founder wants an ASCII preview. The preview must expose section
-order, hierarchy, actions, evidence and footer using real draft copy where
-useful; it is not a pixel specification.
+Wait for explicit approval when changing any of those product decisions. Small
+copy and implementation details do not require repeated approval.
 
-## Derive the smallest useful page
+When more than one page argument remains plausible, present at most three
+candidate angles. For each, name the lead idea, supporting mechanism, strongest
+evidence and main tradeoff. Ask the founder to choose or revise one. Do not
+write the hero or let the product's implementation surface choose the
+positioning before the page argument is approved.
 
-Write a brief covering one audience, painful situation, plain-language
-mechanism, credible outcome, primary conversion, proof, objections and
-constraints. Recommend separate paths when materially different audiences or
-actions cannot share one page.
+After the approval block, ask whether the founder wants an ASCII preview in
+the chat before copywriting or implementation. When accepted, draw a compact
+wireframe that exposes section order, information hierarchy, primary and
+secondary actions, product evidence and the footer. Use real draft copy where
+it helps evaluate the proposition, distinguish unavailable proof from planned
+content, and revise the structure in conversation. Treat the ASCII preview as
+an alignment artifact, not a pixel-level UI specification.
 
-Order sections around visitor questions:
+## Write the page brief
 
-1. Is this for me and what does it help me achieve?
-2. What should I do next?
-3. How does the product deliver that outcome?
+The brief must name:
+
+- the page type, arrival intent and job;
+- one primary audience and situation;
+- the painful or costly current situation;
+- the current alternative and why it remains insufficient;
+- the product's mechanism in plain language;
+- the credible outcome, without unsupported superlatives;
+- one primary conversion and its destination;
+- the post-click path and material commitment;
+- the minimum proof required to believe the promise;
+- the evidence medium that removes the most important uncertainty;
+- the principal friction and remaining objections to resolve;
+- known constraints and non-goals.
+
+If the page must serve materially different audiences or actions, say so.
+Recommend separate paths or pages instead of forcing incompatible messages
+into one hero.
+
+## Derive the hierarchy from visitor questions
+
+Do not use a fixed eleven-section template. Use the smallest sequence that
+answers these questions in an order derived from the visitor's arrival intent:
+
+1. Is this situation for me and what progress does the page offer?
+2. What is the product and by what mechanism does it create that progress?
+3. How is it meaningfully different from what I do now?
 4. Why should I believe it?
-5. Will it fit my situation and terms?
-6. What objection remains?
+5. What should I do next and what happens after I act?
+6. Will it fit my situation, what are the terms and what friction remains?
 
-Use only justified elements: restrained header, clear hero, real product
-visual, outcome-led benefits, verified proof, relevant fit or pricing,
-conversion-relevant FAQ, repeated CTA after a long argument, and real legal or
-contact links. Omit decorative or unsupported sections.
+Do not impose one hero formula. Depending on the approved argument and arrival
+intent, the first viewport may lead with an outcome, situation, mechanism,
+proof or product experience. It must still make the audience, promised
+progress and next action understandable without relying on cleverness.
+
+A common page may contain:
+
+- a clear header and identity;
+- a hero expression of the approved argument, supporting explanation and
+  primary CTA;
+- real product visual, sample output or short demonstration;
+- outcome-led benefits supported by concrete capabilities;
+- verified proof near the claim it supports;
+- pricing, process or fit information when it changes the decision;
+- FAQ only for recurring, conversion-relevant objections;
+- repeated CTA after a long argument when useful;
+- footer with real contact, company and existing legal links.
+
+Omit video, logo walls, testimonials, metrics, FAQ or a final CTA when the
+ledger does not justify them. Prefer one strong proof item to a wall of weak
+signals.
+
+Choose product media by the uncertainty it removes, not by format or fashion.
+Use a real interface, interaction, output, workflow, comparison or diagram
+when it makes the mechanism, result or trust case clearer than copy alone. If
+the product cannot be understood credibly without such evidence, place it in
+the first viewport or immediately after it. If no honest asset exists, report
+the comprehension risk instead of fabricating a screen or adding decorative
+media.
 
 ## Write plain, specific copy
 
-Lead with the visitor outcome and product mechanism. Use concrete nouns,
-active verbs, short sentences, descriptive headings, one term per concept,
-truthful CTA labels and nearby terms that remove material uncertainty.
+Write from the approved page argument. Make the visitor's desired progress and
+the product mechanism concrete early, even when the first viewport leads with
+a situation, proof or product experience. The headline should help the
+intended visitor self-select; it is not a container for keyword stuffing. Use
+the audience's language when research or product evidence supports it.
 
-Avoid generic superlatives, feature inventories without consequence, clever
-but opaque headings, false urgency, ambiguous CTAs and long paragraphs.
+Use:
 
-## Design and implement soberly
+- concrete nouns and active verbs;
+- short sentences and scannable, descriptive headings;
+- outcomes first, with features as supporting evidence;
+- one term for each important concept;
+- CTA labels that describe the actual next action;
+- nearby terms that remove material uncertainty, such as trial length,
+  required card, setup time or sales contact.
 
-Preserve the existing brand. Otherwise use one clear type hierarchy, at most
-two type families, a neutral base, one accent, generous whitespace, familiar
-patterns and real UI or output. Avoid default gradient text, glowing blobs,
-glass cards, parallax, carousels and decorative animation. Honor reduced
-motion.
+Avoid:
 
-Reuse the repository stack, components and tokens. Ensure semantic landmarks,
-one H1, responsive behavior, keyboard access, visible focus, contrast,
-practical targets, meaningful alt text, optimized media, functional CTA and
-forms, accurate metadata, and preserved legal, consent and analytics behavior.
-Do not add a heavy dependency for decoration.
+- generic claims such as “revolutionize”, “seamless” or “next-generation”;
+- claims that could fit any SaaS;
+- feature inventories without a user consequence;
+- clever headings that hide the section's meaning;
+- false urgency, fake scarcity or ambiguous CTA labels;
+- long paragraphs written to sound comprehensive.
+
+Keep title, description, H1 and URL descriptive. Use a search phrase in the URL
+only when it naturally describes a dedicated search landing page; do not
+change a stable homepage URL to satisfy a checklist.
+
+## Choose a deliberate visual direction
+
+Preserve a coherent existing brand system when it exists. Otherwise derive a
+direction from the subject, audience, approved argument and strongest product
+evidence. State the intended visual character and one memorable compositional
+idea before implementation. If the founder does not want visual exploration
+or the evidence does not support a stronger direction, use the sober baseline
+from the reference.
+
+Whatever direction is selected, use:
+
+- one clear typographic hierarchy and at most two type families;
+- a coherent palette with sufficient contrast;
+- intentional density, whitespace and content width;
+- recognizable interaction and navigation patterns;
+- borders, radii and shadows only when they communicate grouping or state;
+- one dominant visual idea per viewport;
+- real UI, output or workflow evidence over abstract decoration.
+
+Do not default to gradient text, glowing blobs, floating glass cards, repeated
+rounded containers, parallax, auto-advancing carousels or animated entrances
+for every section. Motion must explain change or provide feedback, remain
+subtle and honor reduced-motion preferences.
+
+The page may be distinctive through typography, composition, language and
+product evidence without becoming visually loud. A sober page may still be
+rich in explanatory media; a visually ambitious page must still make the
+argument and evidence easier to understand.
+
+## Implement within the product
+
+Reuse the repository's framework, components, tokens and conventions. Do not
+replace a working stack or introduce a second design system for one page.
+
+Ensure:
+
+- semantic landmarks and a logical heading hierarchy;
+- one visible H1;
+- responsive behavior from narrow mobile to wide desktop;
+- keyboard access and visible focus;
+- sufficient color contrast and practical pointer targets;
+- meaningful alternative text for informative images;
+- explicit image dimensions and responsive, optimized media;
+- no autoplay audio and controllable non-essential moving content;
+- the primary CTA works and reaches the approved destination;
+- forms expose labels, errors, success states and submission behavior;
+- metadata is accurate and social preview assets exist when required;
+- existing legal, consent and analytics behavior is preserved.
+
+Treat performance as part of the design. Avoid shipping a heavy video,
+animation library or third-party script without a decision-critical reason.
+
+If the repository already has an approved analytics convention, preserve it
+and instrument the approved primary conversion consistently. Otherwise report
+the measurement gap; do not install a vendor or design a PMF event map as part
+of this skill.
 
 ## Verify before handoff
 
-Check claims, CTAs, navigation, footer links, relevant UI states, mobile and
-desktop layout, keyboard and focus, contrast, motion, overflow, line lengths,
-layout shift, release-accurate copy, metadata, build, lint and tests. Capture
-and inspect representative screenshots when tools permit.
+Check:
 
-Preserve an existing analytics convention for the approved primary
-conversion. Otherwise report the gap; do not install a vendor or design a PMF
-map here.
+- every visible claim against the evidence ledger;
+- every CTA, navigation item and footer link;
+- the rendered first viewport passes a five-second comprehension review: the
+  intended visitor, offered progress and next action are legible;
+- the principal friction and material post-click commitment are answered
+  before the visitor must accept them;
+- the chosen product evidence loads correctly and clarifies the mechanism,
+  result or trust case it was selected to support;
+- loading, empty, validation, success and failure states where applicable;
+- mobile and desktop layout with real content;
+- keyboard navigation, focus visibility, contrast and reduced motion;
+- overflow, clipping, unreadable line lengths and layout shift;
+- current product screenshots and release-accurate copy;
+- page title, description, canonical URL and indexability intent;
+- build, lint and relevant tests;
+- no regression to application routes or existing instrumentation.
+
+When tools are available, capture a screenshot at representative mobile and
+desktop sizes and inspect the rendered result rather than trusting source code
+alone.
 
 ## Keep adjacent jobs separate
 
-Do not diagnose PMF, run a Sean Ellis survey, create an A/B roadmap, perform a
-full SEO audit, draft legal policies or invent brand strategy. Route those
-jobs to focused skills.
+This skill can name a primary conversion and preserve existing tracking, but
+it does not:
+
+- diagnose behavioral PMF or define product event maps;
+- run a Sean Ellis survey or customer-validation program;
+- create an A/B testing roadmap;
+- perform a full technical SEO audit;
+- draft legal policies or certify regulatory compliance;
+- invent a brand strategy for a company that has not chosen one.
+
+Route those jobs to focused skills when the founder asks for them.
 
 ## Return
 
-Return the approved audience, promise, offer and action; evidence ledger;
-hierarchy; files and verification; primary conversion; remaining gaps; and the
-smallest next learning step.
+Provide:
+
+1. the approved page job, audience, argument, offer and primary action;
+2. the evidence ledger, including omitted and still-unverified elements;
+3. the final page hierarchy, evidence medium and visual direction, with the
+   reasoning behind conditional sections;
+4. files changed and verification performed;
+5. the primary conversion named for future measurement;
+6. remaining content, proof, legal, analytics or product gaps;
+7. the smallest next learning step, without starting dogfooding or an
+   experiment unless requested.
