@@ -1,33 +1,39 @@
 ---
 name: volato-setup
-description: Set up, inspect, update, or verify Volato error capture in an application with generated local source and no Volato runtime dependency. Use when an agent is asked to connect a repository to Volato, repair its generated integration, verify event delivery, or select the correct framework-specific Volato skill.
+description: Connect a repository to Volato, inspect its project link, and select the Errors or Analytics integration skill. Use when an agent is asked to initialize Volato, repair a generated integration, verify delivery, or choose a framework-specific Volato workflow.
 ---
 
 # Set up Volato
 
-Keep the setup inside the developer's repository and prove the complete data
-path. Do not invent capture code from scratch.
+Keep each integration inside the developer's repository and prove its complete
+data path. Do not invent capture code from scratch.
 
 ## Workflow
 
 1. Inspect `package.json`, framework configuration, source layout, build
    scripts and existing `.volato/manifest.json`.
-2. Select a bundled framework skill. Stop with a clear unsupported-framework
-   result when none applies.
-3. Run `volato init --project <id>` from the application root. Review every
-   reported file change before continuing. Use `--dsn` only when authenticated
-   project lookup is intentionally unavailable.
-4. Inspect deployment config and public application/auth URL variables. When
+2. Run `volato init --project <id>` from the application root. This links the
+   repository and installs the bundled skills; it must not modify application
+   source or write runtime credentials.
+3. Select the requested integration. For Next.js error capture, follow
+   `volato-nextjs` and run `volato errors init`. For product analytics, follow
+   `volato-product`, define `.volato/analytics.json`, and run
+   `volato analytics init`. Stop with a clear unsupported-framework result when
+   no adapter applies.
+4. Review every file change reported by the selected integration before
+   continuing.
+5. Inspect deployment config and public application/auth URL variables. When
    the browser-facing production origins are unambiguous, replace the project
    allowlist with `volato projects origins set <id> <origin...>`. Do not add API
    or ingest origins unless the browser application is actually served there.
    If deployment identity is ambiguous, leave the current policy unchanged and
    report the single missing decision instead of guessing.
-5. Confirm that no Volato runtime dependency was added.
-6. Build the application and run the framework skill's conformance checks.
-7. Send a synthetic error and confirm the ingest response.
-8. Verify a production sourcemap when build credentials are available.
-9. Report the generated files, configured browser origins, any manual
+6. Confirm that no Volato runtime dependency was added.
+7. Build the application and run the framework skill's conformance checks.
+8. Verify the selected integration's delivery path.
+9. For Errors, verify a production sourcemap when build credentials are
+   available.
+10. Report the generated files, configured browser origins, any manual
    integration points, and every check
    that could not be completed.
 
@@ -36,7 +42,8 @@ transport, credentials, event fields, privacy filtering or sourcemap upload.
 
 ## Guardrails
 
-- Treat `.volato/manifest.json` as the generated-file ownership record.
+- Treat `.volato/manifest.json` as the project link and generated-file
+  ownership record. Each integration owns only its own manifest entry.
 - Never overwrite a generated file whose hash differs from the manifest.
 - Never expose `VOLATO_INGEST_TOKEN` to browser code.
 - Never upload source text.

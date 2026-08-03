@@ -8,16 +8,19 @@
  *   volato login [token]              — write the workspace bearer to disk
  *   volato whoami                     — confirm a token is loaded
  *   volato readme                     — print full command surface (markdown)
+ *   volato init                       — link this repository to a Volato project
+ *   volato errors init                — install generated Next.js error capture
  *   volato errors list                — list error groups
  *   volato errors show [id]           — fix context (omit id → most recent)
  *   volato errors resolve <id>        — mark resolved (append a note)
  *   volato errors reopen  <id>        — reopen (note preserved on history)
  *   volato errors ignore  <id>        — mark ignored
  *   volato projects origins set       — replace a browser-origin allowlist
- *   volato usage validate              — validate .volato/usage.json locally
- *   volato usage sync                  — publish the outcome event catalog
- *   volato usage report                — read activation and retention evidence
- *   volato usage snapshot save         — save an approved usage snapshot
+ *   volato analytics init             — install generated Next.js analytics
+ *   volato analytics validate         — validate .volato/analytics.json locally
+ *   volato analytics sync             — publish the outcome event catalog
+ *   volato analytics report           — read activation and retention evidence
+ *   volato analytics snapshot save    — save an approved analytics snapshot
  *
  * Every command accepts --json for the structured payload instead of
  * the default markdown. The markdown is agent-ready (the same string
@@ -26,6 +29,8 @@
  */
 import { Command } from "commander";
 import { runInit } from "./commands/init/init.js";
+import { runErrorsInit } from "./commands/init/errors.js";
+import { runAnalyticsInit } from "./commands/init/analytics.js";
 import { runLogin, runLogout, runWhoami } from "./commands/login.js";
 import {
   runErrorsList,
@@ -40,7 +45,7 @@ import {
   runUsageReport,
   runUsageSync,
   runUsageValidate,
-} from "./commands/usage.js";
+} from "./commands/analytics.js";
 import { CliError } from "./lib/api-client.js";
 import { printLocalError } from "./lib/output.js";
 
@@ -61,27 +66,18 @@ program
 
 program
   .command("init")
-  .description("Generate the dependency-free Volato integration for this project")
-  .option("--project <id>", "load this project's setup through the authenticated CLI")
-  .option("--dsn <dsn>", "project DSN (avoids the interactive prompt)")
-  .option("--yes", "apply safe setup defaults without prompts")
-  .option(
-    "--send-test-event",
-    "send a synthetic event after non-interactive setup",
-  )
+  .description("Link this repository to a Volato project")
+  .option("--project <id>", "Volato project id")
+  .option("--yes", "require non-interactive setup")
   .action(async (opts: {
     project?: string;
-    dsn?: string;
     yes?: boolean;
-    sendTestEvent?: boolean;
   }) => {
     try {
       await runInit({
         cwd: process.cwd(),
         projectId: opts.project,
-        dsn: opts.dsn,
         nonInteractive: opts.yes,
-        sendTestEvent: opts.sendTestEvent,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -176,81 +172,122 @@ projectOrigins
     },
   );
 
-const usage = program
-  .command("usage")
-  .description("Monitor outcome-led product usage");
+const analytics = program
+  .command("analytics")
+  .description("Install and query outcome-led product analytics");
 
-usage
-  .command("validate")
-  .description("Validate .volato/usage.json locally")
+analytics
+  .command("init")
+  .description("Install generated Next.js Analytics from an approved contract")
   .option(
     "-f, --file <path>",
-    "project-relative product usage config path",
-    ".volato/usage.json",
+    "project-relative Analytics config path",
+    ".volato/analytics.json",
   )
-  .option("-p, --project-id <id>", "override the project id")
+  .option("--yes", "apply safe setup defaults without prompts")
+  .action(async (opts: { file: string; yes?: boolean }) => {
+    try {
+      await runAnalyticsInit({
+        cwd: process.cwd(),
+        file: opts.file,
+        nonInteractive: opts.yes,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      printLocalError(message);
+      process.exit(err instanceof CliError ? err.exitCode : 1);
+    }
+  });
+
+analytics
+  .command("validate")
+  .description("Validate .volato/analytics.json locally")
+  .option(
+    "-f, --file <path>",
+    "project-relative product Analytics config path",
+    ".volato/analytics.json",
+  )
   .option("--json", "emit the structured payload instead of markdown")
   .action(
-    (opts: { file: string; projectId?: string; json?: boolean }) => {
+    (opts: { file: string; json?: boolean }) => {
       runUsageValidate({ cwd: process.cwd(), ...opts });
     },
   );
 
-usage
+analytics
   .command("sync")
-  .description("Validate and publish the product usage event catalog")
+  .description("Validate and publish the product Analytics event catalog")
   .option(
     "-f, --file <path>",
-    "project-relative product usage config path",
-    ".volato/usage.json",
+    "project-relative product Analytics config path",
+    ".volato/analytics.json",
   )
-  .option("-p, --project-id <id>", "override the project id")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
-    async (opts: { file: string; projectId?: string; json?: boolean }) => {
+    async (opts: { file: string; json?: boolean }) => {
       await runUsageSync({ cwd: process.cwd(), ...opts });
     },
   );
 
-usage
+analytics
   .command("report")
   .description("Read activation, repeat-use, and retention evidence")
   .option(
     "-f, --file <path>",
-    "project-relative product usage config path",
-    ".volato/usage.json",
+    "project-relative product Analytics config path",
+    ".volato/analytics.json",
   )
-  .option("-p, --project-id <id>", "override the project id")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
-    async (opts: { file: string; projectId?: string; json?: boolean }) => {
+    async (opts: { file: string; json?: boolean }) => {
       await runUsageReport({ cwd: process.cwd(), ...opts });
     },
   );
 
-const usageSnapshot = usage
+const analyticsSnapshot = analytics
   .command("snapshot")
-  .description("Save explicitly approved product usage snapshots");
+  .description("Save explicitly approved product Analytics snapshots");
 
-usageSnapshot
+analyticsSnapshot
   .command("save")
   .description("Validate and save an approved behavioral snapshot")
   .option(
     "-f, --file <path>",
-    "project-relative product usage snapshot path",
-    ".volato/usage-snapshot.json",
+    "project-relative product Analytics snapshot path",
+    ".volato/analytics-snapshot.json",
   )
-  .option("-p, --project-id <id>", "override the project id")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
-    async (opts: { file: string; projectId?: string; json?: boolean }) => {
+    async (opts: { file: string; json?: boolean }) => {
       await runUsageSnapshotSave({ cwd: process.cwd(), ...opts });
     },
   );
 
 const errors = program
   .command("errors")
-  .description("Read and triage error groups");
+  .description("Install capture and operate production errors");
+
+errors
+  .command("init")
+  .description("Install the generated Next.js Errors integration")
+  .option("--yes", "apply safe setup defaults without prompts")
+  .option(
+    "--send-test-event",
+    "send a synthetic error through the generated application path",
+  )
+  .action(async (opts: { yes?: boolean; sendTestEvent?: boolean }) => {
+    try {
+      await runErrorsInit({
+        cwd: process.cwd(),
+        nonInteractive: opts.yes,
+        sendTestEvent: opts.sendTestEvent,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      printLocalError(message);
+      process.exit(err instanceof CliError ? err.exitCode : 1);
+    }
+  });
 
 errors
   .command("list")

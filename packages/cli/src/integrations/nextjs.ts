@@ -18,10 +18,11 @@ import {
   type PatchOutcome,
 } from "../commands/init/patch";
 import {
-  createManifest,
+  createGeneratedIntegration,
+  ERRORS_NEXTJS_INTEGRATION,
   modifiedGeneratedFiles,
   readManifest,
-  writeManifest,
+  writeIntegration,
 } from "./manifest";
 
 export const NEXTJS_RECIPE_VERSION = "2.0.1";
@@ -92,7 +93,13 @@ export function generateNextjsIntegration(
     );
   }
 
-  const previous = readManifest(options.cwd);
+  const manifest = readManifest(options.cwd);
+  if (!manifest) {
+    throw new Error(
+      "This repository is not connected to Volato. Run `volato init --project <id>` first.",
+    );
+  }
+  const previous = manifest.integrations[ERRORS_NEXTJS_INTEGRATION];
   if (previous) {
     const modified = modifiedGeneratedFiles(options.cwd, previous);
     if (modified.length > 0) {
@@ -145,12 +152,16 @@ export function generateNextjsIntegration(
     patchNextBuildScript(options.cwd, options.project.nextMajor),
   ];
 
-  const manifest = createManifest(options.cwd, {
-    recipe: "nextjs-app-router",
+  const integration = createGeneratedIntegration(options.cwd, {
+    recipe: "errors-nextjs-app-router",
     recipeVersion: NEXTJS_RECIPE_VERSION,
     files: generatedFiles,
   });
-  const path = writeManifest(options.cwd, manifest);
+  const path = writeIntegration(
+    options.cwd,
+    ERRORS_NEXTJS_INTEGRATION,
+    integration,
+  );
 
   return {
     outcomes,

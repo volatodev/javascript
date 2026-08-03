@@ -245,7 +245,7 @@ export async function verifyGeneratedNextjsIntegration(
     );
     if (!existsSync(nextBin)) {
       throw new Error(
-        "Next.js is not installed locally. Install project dependencies, then rerun `volato init --send-test-event`.",
+        "Next.js is not installed locally. Install project dependencies, then rerun `volato errors init --send-test-event`.",
       );
     }
 

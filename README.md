@@ -11,19 +11,23 @@ source inside the application repository.
 ```bash
 npm install -g @volatodev/cli
 volato login
-volato skills install
-volato init --project "<project_id>" --yes --send-test-event
+volato init --project "<project_id>" --yes
+volato errors init --yes --send-test-event
+# after defining .volato/analytics.json
+volato analytics init --yes
 ```
 
-The installed domains cover Next.js production errors and product-usage
-analytics. Generated application source emits only contract-declared data;
+The installed domains cover Next.js production errors and outcome-led product
+analytics through the `volato-nextjs` and `volato-product` skills. Generated
+application source emits only contract-declared data;
 the CLI does not expose a free-form event command.
 
 For Next.js 15 and 16 App Router, setup generates:
 
 ```text
 .agents/skills/        agent instructions
-.volato/manifest.json generated-file integrity
+.volato/manifest.json project link and per-integration generated-file integrity
+.volato/analytics.json versioned product data plan
 src/volato/            local capture runtime when src/app is used
 volato/                local capture runtime when app is used
 ```
@@ -51,9 +55,10 @@ pnpm test
 pnpm smoke:nextjs
 ```
 
-`pnpm smoke:nextjs` creates clean Next.js 15 and 16 applications, runs the
-authenticated project setup, sends a test event, builds for production and
-requires real sourcemap uploads without a Volato runtime dependency.
+`pnpm smoke:nextjs` creates clean Next.js 15 and 16 applications, connects each
+repository, initializes Errors and Analytics independently, sends an error test
+event, builds for production and requires real sourcemap uploads without a
+Volato runtime dependency.
 
 ## License
 

@@ -27,7 +27,7 @@ beforeEach(() => {
   sourceRoot = join(cwd, "bundled");
   addSkill("volato-setup", "generic");
   addSkill("volato-nextjs", "next");
-  addSkill("monitor-product-usage", "usage");
+  addSkill("volato-product", "analytics");
 });
 
 afterEach(() => {
@@ -41,7 +41,7 @@ describe("installSkills", () => {
     expect(outcomes.map(({ skill, status }) => ({ skill, status }))).toEqual([
       { skill: "volato-setup", status: "created" },
       { skill: "volato-nextjs", status: "created" },
-      { skill: "monitor-product-usage", status: "created" },
+      { skill: "volato-product", status: "created" },
     ]);
     expect(
       readFileSync(
@@ -78,6 +78,31 @@ describe("installSkills", () => {
       installSkills({ cwd, sourceRoot, force: true })[0]?.status,
     ).toBe("updated");
     expect(readFileSync(installed, "utf8")).toBe("generic");
+  });
+
+  it("removes the retired monitor-product-usage skill only with force", () => {
+    const retired = join(
+      cwd,
+      ".agents",
+      "skills",
+      "monitor-product-usage",
+    );
+    mkdirSync(retired, { recursive: true });
+    writeFileSync(join(retired, "SKILL.md"), "local legacy skill");
+
+    expect(installSkills({ cwd, sourceRoot })[0]).toEqual({
+      skill: "monitor-product-usage",
+      status: "conflict",
+      target: retired,
+    });
+    expect(existsSync(retired)).toBe(true);
+
+    expect(installSkills({ cwd, sourceRoot, force: true })[0]).toEqual({
+      skill: "monitor-product-usage",
+      status: "removed",
+      target: retired,
+    });
+    expect(existsSync(retired)).toBe(false);
   });
 
   it("offers to update installed skills when bundled files differ", async () => {

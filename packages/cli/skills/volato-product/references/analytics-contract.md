@@ -1,14 +1,13 @@
-# Monitor Product Usage contract
+# Volato Product Analytics contract
 
 ## Project catalog
 
-`.volato/usage.json` is the source-controlled, versioned source of truth:
+`.volato/analytics.json` is the source-controlled, versioned source of truth:
 
 ```json
 {
   "schemaVersion": 1,
   "projectId": "11111111-1111-4111-8111-111111111111",
-  "skill": "monitor-product-usage",
   "product": {
     "summary": "The product offers several workflows for completing one job.",
     "targetActor": "Operators trying to complete that job."
@@ -146,21 +145,20 @@ greater than `minDays`. Every metric event references the event catalog.
 The authenticated CLI uses the workspace credential without exposing it:
 
 ```text
-volato usage validate
-volato usage sync
-volato usage report
-volato usage snapshot save
+volato analytics validate
+volato analytics sync
+volato analytics report
+volato analytics snapshot save
 ```
 
 - Validate is local-only.
-- Sync posts `{ "schemaVersion": 1, "config": <full document> }` to
-  `/v1/projects/:projectId/skills/monitor-product-usage/config`.
-- Report reads `/v1/projects/:projectId/skills/monitor-product-usage/report`.
-- Snapshot save validates `.volato/usage-snapshot.json`, then posts the
-  document directly to
-  `/v1/projects/:projectId/skills/monitor-product-usage/snapshots`. The CLI creates one
-  `Idempotency-Key` per invocation and reuses it for automatic retries.
-- `--project-id` may override the project id for a command.
+- Sync publishes the full versioned document to the Analytics domain of the
+  project linked by `volato init`.
+- Report reads Analytics evidence for that same linked project.
+- Snapshot save validates `.volato/analytics-snapshot.json`, then publishes the
+  approved document with one `Idempotency-Key` per invocation.
+- The config project id must match `.volato/manifest.json`; commands never
+  silently route to another project.
 - Markdown is the default output; pass `--json` for structured output.
 
 Snapshot save is an explicit approval boundary, never an automatic report
@@ -182,7 +180,7 @@ side effect:
 Summary and next decision are 1-512 characters. Observations and caveats
 contain at most eight 1-256 character strings. All keys are exact. The agent
 proposes this behavioral snapshot from
-`volato usage report`, obtains explicit founder approval, then saves it. Without
+`volato analytics report`, obtains explicit founder approval, then saves it. Without
 approval, it stops.
 
 ## Event data plane
@@ -210,11 +208,13 @@ Authorization: Bearer <server ingest token>
 }
 ```
 
-The project id is derived from the DSN; do not send `projectId` or `tenantId`.
+The generated tracker supplies the internal domain discriminator shown above;
+application code never sets it. The project id is derived from the DSN; do not
+send `projectId` or `tenantId`.
 The DSN selects the project and derives the ingest origin. The server-only
 `VOLATO_INGEST_TOKEN` authorizes the write and must match that project. The
 tracker reads both `NEXT_PUBLIC_VOLATO_DSN` and `VOLATO_INGEST_TOKEN`, which
-`volato init --project` already writes to the protected `.env.local`. Never use
+`volato analytics init` already writes to the protected `.env.local`. Never use
 the workspace token, never add a third credential, and never send with the DSN
 alone.
 
@@ -229,7 +229,7 @@ export async function deliverOutcome(
   const outcome = await deliverAndCommit(input);
 
   runtime.waitUntil(
-    usageTracker.track("outcome_delivered", {
+    analytics.track("outcome_delivered", {
       actorId: outcome.actorId,
       dedupeKey: outcome.transitionId,
       properties: { workflow: outcome.workflow },

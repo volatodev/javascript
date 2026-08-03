@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createUsageTracker } from "../../skills/monitor-product-usage/assets/usage-tracker";
+import { createAnalyticsTracker } from "../../skills/volato-product/assets/analytics-tracker";
 
 const DSN =
   "https://public-key@ingest.example.test/11111111-1111-4111-8111-111111111111";
@@ -45,14 +45,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("monitor-product-usage tracker asset", () => {
+describe("volato-product Analytics tracker asset", () => {
   it("uses the existing server token and public DSN together", async () => {
     vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
     vi.stubEnv("VOLATO_INGEST_TOKEN", INGEST_TOKEN);
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, { status: 202 }),
     );
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -85,7 +85,7 @@ describe("monitor-product-usage tracker asset", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, { status: 202 }),
     );
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: branchedEvents,
       fetch: fetchMock,
     });
@@ -112,7 +112,7 @@ describe("monitor-product-usage tracker asset", () => {
       new Response(null, { status: 202 }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -137,7 +137,7 @@ describe("monitor-product-usage tracker asset", () => {
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubEnv("VOLATO_INGEST_TOKEN", " \n");
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -156,7 +156,7 @@ describe("monitor-product-usage tracker asset", () => {
     vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", "not-a-dsn");
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -181,7 +181,7 @@ describe("monitor-product-usage tracker asset", () => {
       new Response(null, { status: 202 }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -199,7 +199,7 @@ describe("monitor-product-usage tracker asset", () => {
   it("reports an undeclared event once without rejecting", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -226,7 +226,7 @@ describe("monitor-product-usage tracker asset", () => {
   it("reports invalid input once without rejecting", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -253,7 +253,7 @@ describe("monitor-product-usage tracker asset", () => {
   ])("rejects non-opaque actorId %s before network I/O", async (actorId) => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -273,7 +273,7 @@ describe("monitor-product-usage tracker asset", () => {
       new Response(null, { status: 202 }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: [
         {
           name: "account_registered",
@@ -324,7 +324,7 @@ describe("monitor-product-usage tracker asset", () => {
     async ({ properties, message }) => {
       const fetchMock = vi.fn<typeof fetch>();
       const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const tracker = createUsageTracker({
+      const tracker = createAnalyticsTracker({
         events: branchedEvents,
         fetch: fetchMock,
       });
@@ -345,7 +345,7 @@ describe("monitor-product-usage tracker asset", () => {
   it("does not satisfy a required enum property through Object.prototype", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: [
         {
           name: "workflow_started",
@@ -377,7 +377,7 @@ describe("monitor-product-usage tracker asset", () => {
   it("reports an invalid event catalog from track instead of throwing", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: [emptyEvents[0], emptyEvents[0]],
       fetch: fetchMock,
     });
@@ -400,7 +400,7 @@ describe("monitor-product-usage tracker asset", () => {
       }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -417,7 +417,7 @@ describe("monitor-product-usage tracker asset", () => {
       expect.stringContaining("skill_not_configured"),
     );
     expect(warning).toHaveBeenCalledWith(
-      expect.stringContaining("volato usage sync"),
+      expect.stringContaining("volato analytics sync"),
     );
   });
 
@@ -426,7 +426,7 @@ describe("monitor-product-usage tracker asset", () => {
       .fn<typeof fetch>()
       .mockRejectedValue(new Error("socket closed"));
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -450,7 +450,7 @@ describe("monitor-product-usage tracker asset", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, { status: 202 }),
     );
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: emptyEvents,
       fetch: fetchMock,
     });
@@ -471,7 +471,7 @@ describe("monitor-product-usage tracker asset", () => {
       }),
     );
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const tracker = createUsageTracker({
+    const tracker = createAnalyticsTracker({
       events: errorEvents,
       fetch: fetchMock,
     });
@@ -487,7 +487,7 @@ describe("monitor-product-usage tracker asset", () => {
       expect.stringContaining("event_not_declared"),
     );
     expect(warning).toHaveBeenCalledWith(
-      expect.stringContaining(".volato/usage.json"),
+      expect.stringContaining(".volato/analytics.json"),
     );
   });
 });

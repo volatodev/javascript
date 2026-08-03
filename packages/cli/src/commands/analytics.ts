@@ -7,24 +7,22 @@ import {
   type OutputMode,
 } from "../lib/output.js";
 import {
+  ANALYTICS_BACKEND_SKILL,
   USAGE_SCHEMA_VERSION,
-  USAGE_SKILL,
   readUsageSnapshot,
   readUsageConfig,
-  validateProjectId,
-} from "./usage-contract.js";
+} from "./analytics-contract.js";
+import { linkedProject } from "../integrations/manifest.js";
 
 export type UsageCommandOptions = {
   cwd: string;
   file?: string;
-  projectId?: string;
   json?: boolean;
 };
 
 export type UsageSnapshotCommandOptions = {
   cwd: string;
   file?: string;
-  projectId?: string;
   json?: boolean;
 };
 
@@ -34,11 +32,14 @@ function mode(options: { json?: boolean }): OutputMode {
 
 function projectConfig(options: UsageCommandOptions) {
   const { config, path } = readUsageConfig(options.cwd, options.file);
-  const projectId = options.projectId
-    ? validateProjectId(options.projectId)
-    : config.projectId;
+  const projectId = linkedProject(options.cwd).id;
+  if (config.projectId !== projectId) {
+    throw new Error(
+      `Analytics config project ${config.projectId} does not match linked Volato project ${projectId}.`,
+    );
+  }
   return {
-    config: projectId === config.projectId ? config : { ...config, projectId },
+    config,
     path,
     projectId,
   };
@@ -49,10 +50,10 @@ export async function runUsageSync(
 ): Promise<void> {
   const { config, projectId } = projectConfig(options);
   const response = await postJson(
-    `/v1/projects/${encodeURIComponent(projectId)}/skills/${USAGE_SKILL}/config`,
+    `/v1/projects/${encodeURIComponent(projectId)}/skills/${ANALYTICS_BACKEND_SKILL}/config`,
     {
       schemaVersion: USAGE_SCHEMA_VERSION,
-      config,
+      config: { ...config, skill: ANALYTICS_BACKEND_SKILL },
     },
   );
   if (!response.ok) {
@@ -66,11 +67,9 @@ export async function runUsageSync(
 export async function runUsageReport(
   options: UsageCommandOptions,
 ): Promise<void> {
-  const projectId = options.projectId
-    ? validateProjectId(options.projectId)
-    : readUsageConfig(options.cwd, options.file).config.projectId;
+  const { projectId } = projectConfig(options);
   const response = await getJson(
-    `/v1/projects/${encodeURIComponent(projectId)}/skills/${USAGE_SKILL}/report`,
+    `/v1/projects/${encodeURIComponent(projectId)}/skills/${ANALYTICS_BACKEND_SKILL}/report`,
   );
   if (!response.ok) {
     printApiError(response);
@@ -84,11 +83,9 @@ export async function runUsageSnapshotSave(
   options: UsageSnapshotCommandOptions,
 ): Promise<void> {
   const { snapshot } = readUsageSnapshot(options.cwd, options.file);
-  const projectId = options.projectId
-    ? validateProjectId(options.projectId)
-    : readUsageConfig(options.cwd).config.projectId;
+  const { projectId } = projectConfig({ cwd: options.cwd });
   const response = await postJson(
-    `/v1/projects/${encodeURIComponent(projectId)}/skills/${USAGE_SKILL}/snapshots`,
+    `/v1/projects/${encodeURIComponent(projectId)}/skills/${ANALYTICS_BACKEND_SKILL}/snapshots`,
     snapshot,
     { idempotencyKey: randomUUID() },
   );
@@ -106,7 +103,6 @@ export function runUsageValidate(options: UsageCommandOptions): void {
     valid: true,
     schemaVersion: config.schemaVersion,
     projectId: config.projectId,
-    skill: config.skill,
     eventCount: config.events.length,
     file: path,
   };
@@ -115,9 +111,8 @@ export function runUsageValidate(options: UsageCommandOptions): void {
     return;
   }
   process.stdout.write(
-    `# Product usage config valid\n\n` +
+    `# Product analytics config valid\n\n` +
       `- Project: ${config.projectId}\n` +
-      `- Skill: ${config.skill}\n` +
       `- Events: ${config.events.length}\n` +
       `- File: ${path}\n`,
   );

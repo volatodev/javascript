@@ -13,6 +13,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { detectProject } from "../commands/init/detect";
 import { generateNextjsIntegration } from "../integrations/nextjs";
 import {
+  ERRORS_NEXTJS_INTEGRATION,
+  linkProject,
   modifiedGeneratedFiles,
   readManifest,
 } from "../integrations/manifest";
@@ -47,6 +49,10 @@ beforeEach(() => {
     "export default function Layout({ children }) {\n  return <body>{children}</body>;\n}\n",
   );
   writeFileSync(join(cwd, "next.config.ts"), "export default {};\n");
+  linkProject(cwd, {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Fixture",
+  });
 });
 
 afterEach(() => {
@@ -54,6 +60,20 @@ afterEach(() => {
 });
 
 describe("Next.js generated integration", () => {
+  it("refuses to write before the repository is connected", () => {
+    rmSync(join(cwd, ".volato", "manifest.json"));
+
+    expect(() =>
+      generateNextjsIntegration({
+        cwd,
+        dsn: "https://pk@api.volato.dev/project",
+        project: detectProject(cwd),
+        sourceRoot,
+      }),
+    ).toThrow(/volato init --project/);
+    expect(existsSync(join(cwd, "src", "volato"))).toBe(false);
+  });
+
   it("generates a local runtime without package dependencies", () => {
     const project = detectProject(cwd);
     const result = generateNextjsIntegration({
@@ -89,8 +109,9 @@ describe("Next.js generated integration", () => {
     );
 
     const manifest = readManifest(cwd);
-    expect(manifest?.recipe).toBe("nextjs-app-router");
-    expect(modifiedGeneratedFiles(cwd, manifest!)).toEqual([]);
+    const integration = manifest?.integrations[ERRORS_NEXTJS_INTEGRATION];
+    expect(integration?.recipe).toBe("errors-nextjs-app-router");
+    expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
   });
 
   it("is idempotent while generated files remain untouched", () => {

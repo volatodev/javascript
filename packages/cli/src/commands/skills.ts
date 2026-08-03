@@ -14,13 +14,15 @@ import prompts from "prompts";
 const BUNDLED_SKILLS = [
   "volato-setup",
   "volato-nextjs",
-  "monitor-product-usage",
+  "volato-product",
 ] as const;
+const RETIRED_SKILLS = ["monitor-product-usage"] as const;
 
 export type SkillInstallStatus =
   | "created"
   | "updated"
   | "unchanged"
+  | "removed"
   | "conflict";
 
 export type SkillInstallOutcome = {
@@ -82,7 +84,19 @@ export function installSkills(
     options.target ?? ".agents/skills",
   );
 
-  return BUNDLED_SKILLS.map((skill) => {
+  const outcomes: SkillInstallOutcome[] = [];
+  for (const skill of RETIRED_SKILLS) {
+    const target = join(targetRoot, skill);
+    if (!existsSync(target)) continue;
+    if (!options.force) {
+      outcomes.push({ skill, status: "conflict", target });
+      continue;
+    }
+    rmSync(target, { recursive: true, force: true });
+    outcomes.push({ skill, status: "removed", target });
+  }
+
+  for (const skill of BUNDLED_SKILLS) {
     const source = join(sourceRoot, skill);
     const target = join(targetRoot, skill);
     const targetExists = existsSync(target);
@@ -90,21 +104,24 @@ export function installSkills(
       throw new Error(`Bundled skill is missing: ${source}`);
     }
     if (directoriesMatch(source, target)) {
-      return { skill, status: "unchanged", target };
+      outcomes.push({ skill, status: "unchanged", target });
+      continue;
     }
     if (targetExists && !options.force) {
-      return { skill, status: "conflict", target };
+      outcomes.push({ skill, status: "conflict", target });
+      continue;
     }
     if (targetExists) {
       rmSync(target, { recursive: true, force: true });
     }
     copyDirectory(source, target);
-    return {
+    outcomes.push({
       skill,
       status: targetExists ? "updated" : "created",
       target,
-    };
-  });
+    });
+  }
+  return outcomes;
 }
 
 export async function runSkillsInstall(
@@ -142,6 +159,8 @@ export async function runSkillsInstall(
           ? pc.green("updated")
         : outcome.status === "unchanged"
           ? pc.dim("unchanged")
+          : outcome.status === "removed"
+            ? pc.green("removed")
           : pc.yellow("conflict");
     process.stdout.write(
       `  ${badge}  ${outcome.skill} ${pc.dim(`→ ${outcome.target}`)}\n`,

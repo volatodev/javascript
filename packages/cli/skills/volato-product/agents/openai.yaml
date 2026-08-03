@@ -1,0 +1,4 @@
+interface:
+  display_name: "Volato Product"
+  short_description: "Measure where users receive and repeat value"
+  default_prompt: "Use $volato-product to map the product value loop, install minimal Analytics probes, and explain where usage reaches, repeats, or loses value."

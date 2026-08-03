@@ -12,18 +12,18 @@ import {
   runUsageReport,
   runUsageSync,
   runUsageValidate,
-} from "../commands/usage";
+} from "../commands/analytics";
 import { runReadme } from "../commands/readme";
+import { linkProject } from "../integrations/manifest";
 import {
   validateUsageSnapshot,
   validateUsageConfig,
-} from "../commands/usage-contract";
+} from "../commands/analytics-contract";
 
 const projectId = "11111111-1111-4111-8111-111111111111";
 const config = {
   schemaVersion: 1,
   projectId,
-  skill: "monitor-product-usage",
   product: {
     summary: "Volato gives coding agents production context.",
     targetActor: "Developers fixing production software with a coding agent.",
@@ -107,14 +107,15 @@ const snapshot = {
 let cwd: string;
 
 beforeEach(() => {
-  cwd = mkdtempSync(join(tmpdir(), "volato-usage-"));
+  cwd = mkdtempSync(join(tmpdir(), "volato-analytics-"));
   mkdirSync(join(cwd, ".volato"));
+  linkProject(cwd, { id: projectId, name: "Volato" });
   writeFileSync(
-    join(cwd, ".volato", "usage.json"),
+    join(cwd, ".volato", "analytics.json"),
     `${JSON.stringify(config, null, 2)}\n`,
   );
   writeFileSync(
-    join(cwd, ".volato", "usage-snapshot.json"),
+    join(cwd, ".volato", "analytics-snapshot.json"),
     `${JSON.stringify(snapshot, null, 2)}\n`,
   );
   vi.stubEnv("VOLATO_API_URL", "https://api.test.local");
@@ -128,7 +129,7 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe("volato usage sync", () => {
+describe("volato analytics sync", () => {
   it("syncs the complete local contract to the project skill endpoint", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -149,7 +150,7 @@ describe("volato usage sync", () => {
     );
     expect(JSON.parse(String(init?.body))).toEqual({
       schemaVersion: 1,
-      config,
+      config: { ...config, skill: "monitor-product-usage" },
     });
     expect((init?.headers as Record<string, string>).Authorization).toBe(
       "Bearer workspace-token",
@@ -160,7 +161,7 @@ describe("volato usage sync", () => {
   });
 });
 
-describe("volato usage validate", () => {
+describe("volato analytics validate", () => {
   it("validates locally without making a network request", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
 
@@ -186,7 +187,6 @@ describe("volato usage validate", () => {
       validateUsageConfig({
         schemaVersion: 1,
         projectId,
-        skill: "monitor-product-usage",
         events: config.events,
         cohort: config.cohort,
         activation: config.activation,
@@ -508,7 +508,7 @@ describe("volato usage validate", () => {
   });
 });
 
-describe("volato usage report", () => {
+describe("volato analytics report", () => {
   it("reads the outcome report for the configured project", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -531,7 +531,7 @@ describe("volato usage report", () => {
   });
 });
 
-describe("volato usage snapshot save", () => {
+describe("volato analytics snapshot save", () => {
   it("posts an explicitly approved snapshot to the project skill endpoint", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -632,12 +632,12 @@ describe("volato usage snapshot save", () => {
   });
 });
 
-describe("volato product usage discovery", () => {
+describe("volato product analytics discovery", () => {
   it("lists snapshot save in the agent-facing command reference", () => {
     runReadme();
 
     expect(process.stdout.write).toHaveBeenCalledWith(
-      expect.stringContaining("volato usage snapshot save"),
+      expect.stringContaining("volato analytics snapshot save"),
     );
   });
 });

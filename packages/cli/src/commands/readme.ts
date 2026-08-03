@@ -30,19 +30,18 @@ Headless / CI — skip \`login\` and set the token in the environment:
 
 ## Install into a Next.js app
 
-    volato skills install
-    volato init --project "<project_id>" --yes --send-test-event
+    volato init --project "<project_id>" --yes
+    volato errors init --yes --send-test-event
 
-Uses the authenticated workspace token to retrieve that project's credentials,
-protects .env.local before writing them, installs the operational and Next.js
-agent skills, then generates local capture source in a Next.js 15 or 16 App
-Router project. No Volato runtime dependency is added. The recipe patches env
-vars, layout bootstrap, instrumentation hook, tunnel route and build-time
-sourcemap upload. Re-running is idempotent and refuses to overwrite locally
-edited generated files.
+\`volato init\` verifies access, installs \`volato-setup\`, \`volato-nextjs\` and
+\`volato-product\`, then links the repository through
+\`.volato/manifest.json\`. It does not detect a framework, write credentials or
+instrument the app.
 
-The advanced \`--dsn\` path remains available when an authenticated project
-lookup is not possible, but it cannot retrieve the server-only ingest token.
+\`volato errors init\` retrieves the linked project's credentials and generates
+local capture source for a Next.js 15 or 16 App Router project. No Volato
+runtime dependency is added. Re-running is idempotent and refuses to overwrite
+locally edited generated files.
 
 The installed product domains are Next.js production errors and product-usage
 analytics. Their authoritative application and platform transitions emit the
@@ -61,24 +60,29 @@ removes duplicates. \`--clear\` intentionally accepts browser events from
 anywhere. Server-side Next.js and Node events are not filtered by this setting.
 This is misuse reduction for a browser-safe DSN, not an authentication boundary.
 
-## Product usage
+## Product Analytics
 
-The \`monitor-product-usage\` skill creates a versioned \`.volato/usage.json\` catalog.
-Validate it locally, publish it, then read the outcome-led report:
+The \`volato-product\` skill creates a versioned
+\`.volato/analytics.json\` contract. Validate it, install the generated tracker,
+then read the outcome-led report:
 
-    volato usage validate [--file <path>] [--project-id <id>] [--json]
-    volato usage sync [--file <path>] [--project-id <id>] [--json]
-    volato usage report [--file <path>] [--project-id <id>] [--json]
-    volato usage snapshot save [--file <path>] [--project-id <id>] [--json]
+    volato analytics validate [--file <path>] [--json]
+    volato analytics init [--file <path>] [--yes]
+    volato analytics sync [--file <path>] [--json]
+    volato analytics report [--file <path>] [--json]
+    volato analytics snapshot save [--file <path>] [--json]
 
-\`validate\` makes no network request. \`sync\` refuses documents that cannot
-produce a mature retention cohort, then replaces the active project catalog.
+\`validate\` makes no network request. \`init\` publishes the approved contract,
+generates a typed server tracker and records the \`analytics-nextjs\`
+integration beside \`errors-nextjs\`. \`sync\` updates the active project
+contract.
 \`report\` returns activation, repeat-use, and retention evidence as agent-ready
 markdown by default. \`snapshot save\` validates and saves only an explicitly
 approved interpretation; reporting never saves one automatically.
 
 ## Reading errors
 
+    volato errors init [--yes] [--send-test-event]
     volato errors list [--status <s>] [--release <r>] [--query <q>] [--project-id <id>] [--limit <n>] [--json]
 
 Status filter: unresolved (default), resolved, ignored, all.
@@ -117,7 +121,7 @@ contracts.
 ## Exit codes
 
     0   success
-    1   generic / local / usage error
+    1   generic / local / Analytics error
     3   auth — token missing or invalid (401), or subscription inactive (402)
     4   not found — no such error group or project (404)
     5   rate limited (429) — back off and retry

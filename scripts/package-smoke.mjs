@@ -75,10 +75,10 @@ try {
     "skills/volato-nextjs/SKILL.md",
     "skills/volato-nextjs/assets/runtime/server.ts",
     "skills/volato-nextjs/assets/runtime/withVolato.ts",
-    "skills/monitor-product-usage/SKILL.md",
-    "skills/monitor-product-usage/agents/openai.yaml",
-    "skills/monitor-product-usage/references/contract.md",
-    "skills/monitor-product-usage/assets/usage-tracker.ts",
+    "skills/volato-product/SKILL.md",
+    "skills/volato-product/agents/openai.yaml",
+    "skills/volato-product/references/analytics-contract.md",
+    "skills/volato-product/assets/analytics-tracker.ts",
   ]) {
     assert(paths.has(required), `packed CLI is missing ${required}`);
   }
@@ -98,16 +98,20 @@ try {
 
   const bundledCli = readFileSync(cli, "utf8");
   assert(
-    bundledCli.includes("volato skills install"),
+    bundledCli.includes("Install Volato operational and framework skills"),
     "packed CLI is missing skill installation",
   );
   assert(
-    bundledCli.includes("Generate the dependency-free Volato integration"),
-    "packed CLI still exposes the legacy setup surface",
+    bundledCli.includes("Link this repository to a Volato project"),
+    "packed CLI is missing the neutral repository bootstrap",
   );
   assert(
-    bundledCli.includes("volato usage validate"),
-    "packed CLI is missing the product usage command surface",
+    bundledCli.includes("volato analytics validate"),
+    "packed CLI is missing the product Analytics command surface",
+  );
+  assert(
+    bundledCli.includes("volato errors init"),
+    "packed CLI is missing the Errors installation surface",
   );
 
   const fixture = join(scratch, "fixture");
@@ -134,34 +138,40 @@ try {
   );
   writeFileSync(join(fixture, "next.config.ts"), "export default {};\n");
   writeFileSync(join(fixture, ".gitignore"), ".env*.local\n");
-
-  run(process.execPath, [cli, "skills", "install"], { cwd: fixture });
-  run(
-    process.execPath,
-    [
-      cli,
-      "init",
-      "--dsn",
-      "https://public@api.volato.dev/00000000-0000-4000-8000-000000000001",
-      "--yes",
-    ],
-    { cwd: fixture },
+  mkdirSync(
+    join(fixture, ".agents", "skills", "monitor-product-usage"),
+    { recursive: true },
+  );
+  writeFileSync(
+    join(
+      fixture,
+      ".agents",
+      "skills",
+      "monitor-product-usage",
+      "SKILL.md",
+    ),
+    "legacy skill\n",
   );
 
+  run(process.execPath, [cli, "skills", "install", "--force"], {
+    cwd: fixture,
+  });
   for (const required of [
     ".agents/skills/volato-setup/SKILL.md",
     ".agents/skills/volato-nextjs/SKILL.md",
-    ".agents/skills/monitor-product-usage/SKILL.md",
-    ".agents/skills/monitor-product-usage/assets/usage-tracker.ts",
-    ".volato/manifest.json",
-    "app/error.tsx",
-    "instrumentation.ts",
-    "volato/server.ts",
+    ".agents/skills/volato-product/SKILL.md",
+    ".agents/skills/volato-product/assets/analytics-tracker.ts",
   ]) {
     assert(existsSync(join(fixture, required)), `packed CLI did not create ${required}`);
   }
+  assert(
+    !existsSync(
+      join(fixture, ".agents", "skills", "monitor-product-usage"),
+    ),
+    "packed CLI did not remove the retired product-usage skill",
+  );
   const installedUsageTracker = readFileSync(
-    join(fixture, ".agents/skills/monitor-product-usage/assets/usage-tracker.ts"),
+    join(fixture, ".agents/skills/volato-product/assets/analytics-tracker.ts"),
     "utf8",
   );
   assert(
@@ -169,7 +179,7 @@ try {
       installedUsageTracker.includes("process.env.VOLATO_INGEST_TOKEN") &&
       installedUsageTracker.includes("Authorization: `Bearer ${ingestToken}`") &&
       installedUsageTracker.includes("AbortSignal.timeout(DELIVERY_TIMEOUT_MS)"),
-    "packed product usage tracker is missing server authorization or bounded delivery",
+    "packed product Analytics tracker is missing server authorization or bounded delivery",
   );
   const fixturePackage = JSON.parse(
     readFileSync(join(fixture, "package.json"), "utf8"),
@@ -178,11 +188,11 @@ try {
     !Object.keys(fixturePackage.dependencies).some((name) =>
       name.startsWith("@volatodev/"),
     ),
-    "volato init added a runtime package dependency",
+    "volato skills install added a runtime package dependency",
   );
 
   process.stdout.write(
-    `✓ packed ${packageSpec ?? filename} and exercised skills install + dependency-free init\n`,
+    `✓ packed ${packageSpec ?? filename} and exercised the agent skill catalog\n`,
   );
 } finally {
   rmSync(scratch, { recursive: true, force: true });

@@ -1,9 +1,9 @@
 ---
-name: monitor-product-usage
+name: volato-product
 description: Inspect a product, define the smallest outcome-led usage map, install privacy-minimal server-side probes, and interpret activation, time-to-value, repeat and retention through Volato. Use when a founder or product team asks what users actually do, where delivered value stalls, whether users repeat a valuable outcome, how finite workflows compare, or which product-usage signal should drive the next decision.
 ---
 
-# Monitor product usage
+# Understand product usage
 
 ## Keep the claim honest
 
@@ -52,8 +52,8 @@ retention.
 
 ## Maintain the usage contract
 
-Read [references/contract.md](references/contract.md) before writing
-`.volato/usage.json`. Record:
+Read [references/analytics-contract.md](references/analytics-contract.md) before
+writing `.volato/analytics.json`. Record:
 
 - product summary, target actor, job and delivered outcome;
 - two to eight ordered milestones from eligible cohort to first value;
@@ -81,15 +81,17 @@ errors, tokens or other user content. Use separate events for different
 actions. Use one enum only for stable variants whose comparison changes a
 decision.
 
-Run `volato usage validate`, then `volato usage sync` before deploying or
-exercising any event. Sync establishes the contract; it does not prove that
-delivery works.
+Run `volato analytics validate`, then `volato analytics init`. Init publishes
+the approved contract, installs the generated Next.js tracker and records its
+ownership in `.volato/manifest.json`. Sync establishes the contract; it does
+not prove that delivery works.
 
 ## Install trustworthy instrumentation
 
-Copy [assets/usage-tracker.ts](assets/usage-tracker.ts) into a server-only
-application module and create an `as const` event catalog identical to
-`.volato/usage.json`.
+Do not copy tracker code by hand. `volato analytics init` generates a
+server-only tracker and an `as const` event catalog from
+`.volato/analytics.json`. Inspect the generated files before placing the
+product-specific probes.
 
 The tracker reuses `NEXT_PUBLIC_VOLATO_DSN` for routing and
 `VOLATO_INGEST_TOKEN` for authorization. Do not add another credential or send
@@ -103,7 +105,7 @@ server bearer without printing either value.
 
 ## Interpret the report
 
-Run `volato usage report` and read it in this order:
+Run `volato analytics report` and read it in this order:
 
 1. **Observability** — active config, exercised probes, delivery failures and
    any break in comparability.
@@ -126,10 +128,11 @@ them from missing data.
 
 ## Save an approved snapshot
 
-Draft `.volato/usage-snapshot.json` from the current report with a concise
+Draft `.volato/analytics-snapshot.json` from the current report with a concise
 summary, observations, caveats and next decision. Do not assign a PMF score or
-status. Show the draft to the founder and run `volato usage snapshot save` only
-after explicit approval. Never save an interpretation automatically.
+status. Show the draft to the founder and run
+`volato analytics snapshot save` only after explicit approval. Never save an
+interpretation automatically.
 
 ## Completion criteria
 
@@ -137,7 +140,7 @@ Return:
 
 1. the goal, actor, job, outcome, opportunity unit and natural cadence;
 2. the event map with keep, add and remove decisions;
-3. approved `.volato/usage.json` and instrumentation changes;
+3. approved `.volato/analytics.json` and instrumentation changes;
 4. validation, sync, tests, build and exercised-path results;
 5. current activation, time-to-value, repeat, retention and branch evidence;
 6. data-quality, privacy, maturity and comparability limits;

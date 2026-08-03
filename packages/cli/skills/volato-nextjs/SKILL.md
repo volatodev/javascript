@@ -11,7 +11,8 @@ judgment only to hook that code into an existing application.
 ## Workflow
 
 1. Confirm Next.js 15+ and an App Router root at `app/` or `src/app/`.
-2. Run `volato init --project <id>`; do not hand-copy runtime implementations.
+2. Run `volato init --project <id>` if the repository is not connected, then
+   run `volato errors init`; do not hand-copy runtime implementations.
 3. Inspect changes to the layout, error boundary, instrumentation hook, Next
    config, environment file and `.volato/manifest.json`.
 4. Handle pre-existing instrumentation, middleware or unusual config exports

@@ -3,10 +3,10 @@ import { resolve } from "node:path";
 import { CliError } from "../lib/api-client.js";
 
 export const USAGE_SCHEMA_VERSION = 1 as const;
-export const USAGE_SKILL = "monitor-product-usage" as const;
-export const DEFAULT_USAGE_FILE = ".volato/usage.json";
+export const ANALYTICS_BACKEND_SKILL = "monitor-product-usage" as const;
+export const DEFAULT_USAGE_FILE = ".volato/analytics.json";
 export const DEFAULT_USAGE_SNAPSHOT_FILE =
-  ".volato/usage-snapshot.json";
+  ".volato/analytics-snapshot.json";
 export const USAGE_SNAPSHOT_SCHEMA_VERSION = 1 as const;
 
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
@@ -36,7 +36,6 @@ export type UsageEventDefinition = {
 export type UsageConfig = {
   schemaVersion: 1;
   projectId: string;
-  skill: "monitor-product-usage";
   product: {
     summary: string;
     targetActor: string;
@@ -165,7 +164,6 @@ export function validateUsageConfig(value: unknown): UsageConfig {
     [
       "schemaVersion",
       "projectId",
-      "skill",
       "product",
       "job",
       "events",
@@ -186,11 +184,6 @@ export function validateUsageConfig(value: unknown): UsageConfig {
   if (!UUID_PATTERN.test(projectId)) {
     invalid("config.projectId must be a UUID");
   }
-  const skill = boundedString(root.skill, "config.skill", 64);
-  if (!KEY_PATTERN.test(skill) || skill !== USAGE_SKILL) {
-    invalid(`config.skill must be ${JSON.stringify(USAGE_SKILL)}`);
-  }
-
   const product = objectAt(root.product, "config.product");
   exactKeys(product, ["summary", "targetActor"], "config.product");
   const productSummary = boundedString(
@@ -468,7 +461,6 @@ export function validateUsageConfig(value: unknown): UsageConfig {
   return {
     schemaVersion: USAGE_SCHEMA_VERSION,
     projectId,
-    skill: USAGE_SKILL,
     product: { summary: productSummary, targetActor },
     job: { statement, outcome },
     events,
@@ -603,7 +595,7 @@ export function readUsageConfig(
     parsed = JSON.parse(readFileSync(path, "utf8"));
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    throw new CliError(`Could not read product usage config ${path}: ${detail}`);
+    throw new CliError(`Could not read product analytics config ${path}: ${detail}`);
   }
   return { config: validateUsageConfig(parsed), path };
 }
@@ -619,7 +611,7 @@ export function readUsageSnapshot(
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new CliError(
-      `Could not read product usage snapshot ${path}: ${detail}`,
+      `Could not read product analytics snapshot ${path}: ${detail}`,
     );
   }
   return { snapshot: validateUsageSnapshot(parsed), path };

@@ -1,5 +1,5 @@
 /**
- * Dependency-free, server-only tracker for the monitor-product-usage skill.
+ * Dependency-free, server-only tracker for the volato-product skill.
  *
  * Copy this file into the application and call it only after an authoritative
  * business transition succeeds. It reads the public DSN for routing and the
@@ -13,15 +13,15 @@ const DELIVERY_TIMEOUT_MS = 2_000;
 const ACTOR_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 
-export type UsageEnumDefinition = {
+export type AnalyticsEnumDefinition = {
   readonly type: "enum";
   readonly values: readonly string[];
 };
 
-export type UsageEventDefinition = {
+export type AnalyticsEventDefinition = {
   readonly name: string;
   readonly description: string;
-  readonly properties: Readonly<Record<string, UsageEnumDefinition>>;
+  readonly properties: Readonly<Record<string, AnalyticsEnumDefinition>>;
   readonly dedupe: "actor" | "key" | "none";
 };
 
@@ -30,16 +30,16 @@ type EnumValue<Definition> =
     ? Value
     : never;
 
-type EventProperties<Event extends UsageEventDefinition> = {
+type EventProperties<Event extends AnalyticsEventDefinition> = {
   [Key in keyof Event["properties"]]: EnumValue<Event["properties"][Key]>;
 };
 
-type DedupeInput<Event extends UsageEventDefinition> =
+type DedupeInput<Event extends AnalyticsEventDefinition> =
   Event["dedupe"] extends "key"
     ? { dedupeKey: string }
     : { dedupeKey?: never };
 
-export type UsageTrackInput<Event extends UsageEventDefinition> = {
+export type AnalyticsTrackInput<Event extends AnalyticsEventDefinition> = {
   actorId: string;
   occurredAt?: string;
 } &
@@ -48,8 +48,8 @@ export type UsageTrackInput<Event extends UsageEventDefinition> = {
     : { properties: EventProperties<Event> }) &
   DedupeInput<Event>;
 
-export type UsageTracker<
-  Events extends readonly UsageEventDefinition[],
+export type AnalyticsTracker<
+  Events extends readonly AnalyticsEventDefinition[],
 > = {
   /**
    * Await this promise or register it with the runtime's request-lifetime
@@ -57,12 +57,12 @@ export type UsageTracker<
    */
   track<Name extends Events[number]["name"]>(
     event: Name,
-    input: UsageTrackInput<Extract<Events[number], { name: Name }>>,
+    input: AnalyticsTrackInput<Extract<Events[number], { name: Name }>>,
   ): Promise<boolean>;
 };
 
-export type CreateUsageTrackerOptions<
-  Events extends readonly UsageEventDefinition[],
+export type CreateAnalyticsTrackerOptions<
+  Events extends readonly AnalyticsEventDefinition[],
 > = {
   events: Events;
   fetch?: typeof globalThis.fetch;
@@ -123,7 +123,7 @@ function timestamp(value: string | undefined): string {
 
 function validatedProperties(
   value: unknown,
-  definitions: Readonly<Record<string, UsageEnumDefinition>>,
+  definitions: Readonly<Record<string, AnalyticsEnumDefinition>>,
 ): Record<string, string> {
   const properties = value === undefined ? {} : value;
   if (
@@ -175,20 +175,20 @@ function validatePropertyDefinitions(
     typeof definitions !== "object" ||
     Array.isArray(definitions)
   ) {
-    return `Usage event ${JSON.stringify(eventName)} properties must be an object`;
+    return `Analytics event ${JSON.stringify(eventName)} properties must be an object`;
   }
   for (const [key, rawDefinition] of Object.entries(
     definitions as Record<string, unknown>,
   )) {
     if (!KEY_PATTERN.test(key)) {
-      return `Usage event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has an invalid name`;
+      return `Analytics event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has an invalid name`;
     }
     if (
       rawDefinition === null ||
       typeof rawDefinition !== "object" ||
       Array.isArray(rawDefinition)
     ) {
-      return `Usage event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be an enum definition`;
+      return `Analytics event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be an enum definition`;
     }
     const definition = rawDefinition as Record<string, unknown>;
     const keys = Object.keys(definition);
@@ -200,7 +200,7 @@ function validatePropertyDefinitions(
       !Array.isArray(definition.values) ||
       definition.values.length === 0
     ) {
-      return `Usage event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be a strict enum definition`;
+      return `Analytics event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} must be a strict enum definition`;
     }
     const values = Array.from(definition.values);
     if (
@@ -211,7 +211,7 @@ function validatePropertyDefinitions(
       ) ||
       new Set(values).size !== values.length
     ) {
-      return `Usage event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has invalid enum values`;
+      return `Analytics event ${JSON.stringify(eventName)} property ${JSON.stringify(key)} has invalid enum values`;
     }
   }
   return undefined;
@@ -235,21 +235,21 @@ async function rejectionReason(response: Response): Promise<string> {
 }
 
 function rejectionMessage(status: number, reason: string): string {
-  const prefix = `[volato:monitor-product-usage] event rejected (${status}: ${reason}).`;
+  const prefix = `[volato:analytics] event rejected (${status}: ${reason}).`;
   if (reason === "skill_not_configured") {
-    return `${prefix} Run \`volato usage sync\` and retry the transition.`;
+    return `${prefix} Run \`volato analytics sync\` and retry the transition.`;
   }
   if (reason === "event_not_declared") {
-    return `${prefix} Update .volato/usage.json, then run \`volato usage validate\` and \`volato usage sync\`.`;
+    return `${prefix} Update .volato/analytics.json, then run \`volato analytics validate\` and \`volato analytics sync\`.`;
   }
-  return `${prefix} Run \`volato usage validate\`, sync the catalog, and inspect ingest health.`;
+  return `${prefix} Run \`volato analytics validate\`, sync the catalog, and inspect ingest health.`;
 }
 
-export function createUsageTracker<
-  const Events extends readonly UsageEventDefinition[],
+export function createAnalyticsTracker<
+  const Events extends readonly AnalyticsEventDefinition[],
 >(
-  options: CreateUsageTrackerOptions<Events>,
-): UsageTracker<Events> {
+  options: CreateAnalyticsTrackerOptions<Events>,
+): AnalyticsTracker<Events> {
   const dsn = process.env.NEXT_PUBLIC_VOLATO_DSN ?? "";
   const ingestToken = process.env.VOLATO_INGEST_TOKEN ?? "";
   const ingestTokenValid =
@@ -263,7 +263,7 @@ export function createUsageTracker<
     // Report configuration failures from track so delivery fails loudly.
   }
   const fetchImpl = options.fetch ?? globalThis.fetch;
-  const catalog = new Map<string, UsageEventDefinition>();
+  const catalog = new Map<string, AnalyticsEventDefinition>();
   let catalogError: string | undefined;
   const warnedReasons = new Set<string>();
   const warnOnce = (reason: string, message: string): void => {
@@ -287,7 +287,7 @@ export function createUsageTracker<
       break;
     }
     if (catalog.has(definition.name)) {
-      catalogError = `Usage event ${JSON.stringify(definition.name)} is duplicated`;
+      catalogError = `Analytics event ${JSON.stringify(definition.name)} is duplicated`;
       break;
     }
     catalog.set(definition.name, definition);
@@ -298,28 +298,28 @@ export function createUsageTracker<
       if (typeof window !== "undefined") {
         warnOnce(
           "browser_runtime",
-          "[volato:monitor-product-usage] event delivery disabled: the usage tracker is server-only. Move this call behind an authoritative server transition.",
+          "[volato:analytics] event delivery disabled: the Analytics tracker is server-only. Move this call behind an authoritative server transition.",
         );
         return false;
       }
       if (!endpoint) {
         warnOnce(
           "invalid_dsn",
-          "[volato:monitor-product-usage] event delivery disabled: NEXT_PUBLIC_VOLATO_DSN is missing or malformed. Run `volato init` for this project.",
+          "[volato:analytics] event delivery disabled: NEXT_PUBLIC_VOLATO_DSN is missing or malformed. Run `volato analytics init` for this project.",
         );
         return false;
       }
       if (!ingestTokenValid) {
         warnOnce(
           "invalid_ingest_token",
-          "[volato:monitor-product-usage] event delivery disabled: VOLATO_INGEST_TOKEN is missing or malformed. Run `volato init` for this project.",
+          "[volato:analytics] event delivery disabled: VOLATO_INGEST_TOKEN is missing or malformed. Run `volato analytics init` for this project.",
         );
         return false;
       }
       if (catalogError) {
         warnOnce(
           "invalid_catalog",
-          `[volato:monitor-product-usage] event delivery disabled: ${catalogError}. Run \`volato usage validate\`.`,
+          `[volato:analytics] event delivery disabled: ${catalogError}. Run \`volato analytics validate\`.`,
         );
         return false;
       }
@@ -328,7 +328,7 @@ export function createUsageTracker<
       if (!definition) {
         warnOnce(
           "invalid_input",
-          "[volato:monitor-product-usage] event not sent: its name is not declared. Update .volato/usage.json and run `volato usage sync`.",
+          "[volato:analytics] event not sent: its name is not declared. Update .volato/analytics.json and run `volato analytics sync`.",
         );
         return false;
       }
@@ -371,7 +371,7 @@ export function createUsageTracker<
           error instanceof Error ? error.message : "input is invalid";
         warnOnce(
           "invalid_input",
-          `[volato:monitor-product-usage] event not sent: ${reason}. Validate the call against .volato/usage.json.`,
+          `[volato:analytics] event not sent: ${reason}. Validate the call against .volato/analytics.json.`,
         );
         return false;
       }
@@ -396,7 +396,7 @@ export function createUsageTracker<
       } catch {
         warnOnce(
           "network",
-          "[volato:monitor-product-usage] event delivery failed. Verify the ingest endpoint is reachable; the product transition was not interrupted.",
+          "[volato:analytics] event delivery failed. Verify the ingest endpoint is reachable; the product transition was not interrupted.",
         );
       }
       return false;

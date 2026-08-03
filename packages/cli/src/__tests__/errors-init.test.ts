@@ -8,18 +8,11 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { linkProject } from "../integrations/manifest";
 
 const fetchProjectSetup = vi.fn();
 const generateNextjsIntegration = vi.fn();
-const runSkillsInstall = vi.fn();
 
 vi.mock("../commands/init/project-setup.js", () => ({
   fetchProjectSetup: (projectId: string) => fetchProjectSetup(projectId),
@@ -28,16 +21,13 @@ vi.mock("../integrations/nextjs.js", () => ({
   generateNextjsIntegration: (options: unknown) =>
     generateNextjsIntegration(options),
 }));
-vi.mock("../commands/skills.js", () => ({
-  runSkillsInstall: (options: unknown) => runSkillsInstall(options),
-}));
 
-const { runInit } = await import("../commands/init/init.js");
+const { runErrorsInit } = await import("../commands/init/errors.js");
 
 let cwd: string;
 
 beforeEach(() => {
-  cwd = mkdtempSync(join(tmpdir(), "volato-init-project-"));
+  cwd = mkdtempSync(join(tmpdir(), "volato-errors-init-"));
   mkdirSync(join(cwd, "app"), { recursive: true });
   writeFileSync(
     join(cwd, "package.json"),
@@ -51,6 +41,10 @@ beforeEach(() => {
     "export default function Layout({ children }) { return <html><body>{children}</body></html>; }\n",
   );
   writeFileSync(join(cwd, "next.config.ts"), "export default {};\n");
+  linkProject(cwd, {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Checkout",
+  });
 
   fetchProjectSetup.mockReset();
   fetchProjectSetup.mockResolvedValue({
@@ -59,7 +53,6 @@ beforeEach(() => {
     dsn: "https://public@api.volato.dev/11111111-1111-4111-8111-111111111111",
     ingestToken: "server-only-token",
   });
-  runSkillsInstall.mockReset();
   generateNextjsIntegration.mockReset();
   generateNextjsIntegration.mockImplementation(() => {
     expect(existsSync(join(cwd, ".gitignore"))).toBe(true);
@@ -81,63 +74,19 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe("volato init --project", () => {
-  it("fetches credentials, protects local env, installs skills, and generates the integration", async () => {
-    await runInit({
-      cwd,
-      projectId: "11111111-1111-4111-8111-111111111111",
-      nonInteractive: true,
-    });
+describe("volato errors init", () => {
+  it("loads the linked project, protects credentials, and invokes the Errors adapter", async () => {
+    await runErrorsInit({ cwd, nonInteractive: true });
 
     expect(fetchProjectSetup).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
     );
-    expect(runSkillsInstall).toHaveBeenCalledWith({
-      cwd,
-      force: true,
-    });
     expect(generateNextjsIntegration).toHaveBeenCalledWith(
       expect.objectContaining({
         cwd,
         dsn: "https://public@api.volato.dev/11111111-1111-4111-8111-111111111111",
         ingestToken: "server-only-token",
       }),
-    );
-  });
-
-  it("does not create a nested .gitignore when the monorepo root covers local env files", async () => {
-    const appCwd = join(cwd, "apps", "web");
-    mkdirSync(join(cwd, ".git"));
-    mkdirSync(join(appCwd, "app"), { recursive: true });
-    writeFileSync(join(cwd, ".gitignore"), ".env*.local\n");
-    writeFileSync(
-      join(appCwd, "package.json"),
-      JSON.stringify({
-        name: "web",
-        dependencies: { next: "15.5.21", react: "19.0.0" },
-      }),
-    );
-    writeFileSync(
-      join(appCwd, "app", "layout.tsx"),
-      "export default function Layout({ children }) { return <html><body>{children}</body></html>; }\n",
-    );
-    writeFileSync(join(appCwd, "next.config.ts"), "export default {};\n");
-    generateNextjsIntegration.mockReturnValueOnce({
-      runtimeRoot: join(appCwd, "volato"),
-      generatedFiles: [join(appCwd, "volato", "client.tsx")],
-      manifestPath: join(appCwd, ".volato", "manifest.json"),
-      outcomes: [],
-    });
-
-    await runInit({
-      cwd: appCwd,
-      projectId: "11111111-1111-4111-8111-111111111111",
-      nonInteractive: true,
-    });
-
-    expect(existsSync(join(appCwd, ".gitignore"))).toBe(false);
-    expect(readFileSync(join(cwd, ".gitignore"), "utf8")).toBe(
-      ".env*.local\n",
     );
   });
 });

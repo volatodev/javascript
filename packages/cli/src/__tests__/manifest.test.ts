@@ -1,6 +1,7 @@
 import {
   mkdtempSync,
   mkdirSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -8,10 +9,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  createManifest,
+  ANALYTICS_NEXTJS_INTEGRATION,
+  createGeneratedIntegration,
+  ERRORS_NEXTJS_INTEGRATION,
+  linkProject,
   modifiedGeneratedFiles,
   readManifest,
-  writeManifest,
+  writeIntegration,
 } from "../integrations/manifest";
 
 let cwd: string;
@@ -24,40 +28,115 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
+function linkedManifest() {
+  return linkProject(cwd, {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Checkout",
+  });
+}
+
 describe("integration manifest", () => {
-  it("records stable project-relative hashes", () => {
-    const runtimeDir = join(cwd, "src", "volato");
-    mkdirSync(runtimeDir, { recursive: true });
-    const transport = join(runtimeDir, "transport.ts");
-    writeFileSync(transport, "export const transport = true;\n");
-
-    const manifest = createManifest(cwd, {
-      recipe: "nextjs-app-router",
-      recipeVersion: "1.0.0",
-      files: [transport],
+  it("links one project before any domain integration is installed", () => {
+    expect(linkedManifest()).toEqual({
+      schemaVersion: 2,
+      project: {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "Checkout",
+      },
+      integrations: {},
     });
-    writeManifest(cwd, manifest);
-
-    expect(readManifest(cwd)).toEqual(manifest);
-    expect(Object.keys(manifest.generatedFiles)).toEqual([
-      "src/volato/transport.ts",
-    ]);
-    expect(modifiedGeneratedFiles(cwd, manifest)).toEqual([]);
+    expect(readManifest(cwd)).toEqual(linkedManifest());
   });
 
-  it("detects edited and deleted generated files", () => {
+  it("composes stable project-relative hashes for two integrations", () => {
+    linkedManifest();
+    const runtimeDir = join(cwd, "src", "volato");
+    mkdirSync(runtimeDir, { recursive: true });
+    const errors = join(runtimeDir, "errors.ts");
+    const analytics = join(runtimeDir, "analytics.ts");
+    writeFileSync(errors, "export const errors = true;\n");
+    writeFileSync(analytics, "export const analytics = true;\n");
+
+    const errorsIntegration = createGeneratedIntegration(cwd, {
+      recipe: "errors-nextjs-app-router",
+      recipeVersion: "1.0.0",
+      files: [errors],
+    });
+    const analyticsIntegration = createGeneratedIntegration(cwd, {
+      recipe: "analytics-nextjs-app-router",
+      recipeVersion: "1.0.0",
+      files: [analytics],
+    });
+    writeIntegration(cwd, ERRORS_NEXTJS_INTEGRATION, errorsIntegration);
+    writeIntegration(
+      cwd,
+      ANALYTICS_NEXTJS_INTEGRATION,
+      analyticsIntegration,
+    );
+
+    expect(readManifest(cwd)?.integrations).toEqual({
+      [ERRORS_NEXTJS_INTEGRATION]: errorsIntegration,
+      [ANALYTICS_NEXTJS_INTEGRATION]: analyticsIntegration,
+    });
+    expect(modifiedGeneratedFiles(cwd, errorsIntegration)).toEqual([]);
+    expect(modifiedGeneratedFiles(cwd, analyticsIntegration)).toEqual([]);
+  });
+
+  it("detects edited and deleted generated files per integration", () => {
     const runtime = join(cwd, "volato.ts");
     writeFileSync(runtime, "before");
-    const manifest = createManifest(cwd, {
-      recipe: "nextjs-app-router",
+    const integration = createGeneratedIntegration(cwd, {
+      recipe: "errors-nextjs-app-router",
       recipeVersion: "1.0.0",
       files: [runtime],
     });
 
     writeFileSync(runtime, "after");
-    expect(modifiedGeneratedFiles(cwd, manifest)).toEqual(["volato.ts"]);
+    expect(modifiedGeneratedFiles(cwd, integration)).toEqual(["volato.ts"]);
 
     rmSync(runtime);
-    expect(modifiedGeneratedFiles(cwd, manifest)).toEqual(["volato.ts"]);
+    expect(modifiedGeneratedFiles(cwd, integration)).toEqual(["volato.ts"]);
+  });
+
+  it("migrates a legacy Errors manifest without losing its hashes", () => {
+    mkdirSync(join(cwd, ".volato"));
+    writeFileSync(
+      join(cwd, ".volato", "manifest.json"),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        protocolVersion: 1,
+        recipe: "nextjs-app-router",
+        recipeVersion: "2.0.1",
+        generatedFiles: { "volato/client.tsx": "legacy-hash" },
+      })}\n`,
+    );
+
+    linkProject(cwd, {
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Checkout",
+    });
+
+    expect(
+      readManifest(cwd)?.integrations[ERRORS_NEXTJS_INTEGRATION],
+    ).toEqual({
+      protocolVersion: 1,
+      recipe: "nextjs-app-router",
+      recipeVersion: "2.0.1",
+      generatedFiles: { "volato/client.tsx": "legacy-hash" },
+    });
+  });
+
+  it("refuses to silently relink a repository", () => {
+    linkedManifest();
+    expect(() =>
+      linkProject(cwd, {
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Another project",
+      }),
+    ).toThrow(/already linked/);
+    expect(
+      JSON.parse(readFileSync(join(cwd, ".volato", "manifest.json"), "utf8"))
+        .project.id,
+    ).toBe("11111111-1111-4111-8111-111111111111");
   });
 });
