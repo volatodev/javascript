@@ -28,7 +28,6 @@ beforeEach(() => {
   addSkill("volato-setup", "generic");
   addSkill("volato-nextjs", "next");
   addSkill("monitor-product-usage", "usage");
-  addSkill("landing-page", "landing");
 });
 
 afterEach(() => {
@@ -43,7 +42,6 @@ describe("installSkills", () => {
       { skill: "volato-setup", status: "created" },
       { skill: "volato-nextjs", status: "created" },
       { skill: "monitor-product-usage", status: "created" },
-      { skill: "landing-page", status: "created" },
     ]);
     expect(
       readFileSync(
@@ -58,7 +56,7 @@ describe("installSkills", () => {
 
     expect(
       installSkills({ cwd, sourceRoot }).map((outcome) => outcome.status),
-    ).toEqual(["unchanged", "unchanged", "unchanged", "unchanged"]);
+    ).toEqual(["unchanged", "unchanged", "unchanged"]);
   });
 
   it("does not overwrite a locally modified skill without force", () => {

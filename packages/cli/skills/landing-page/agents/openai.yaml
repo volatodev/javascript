@@ -1,4 +1,0 @@
-interface:
-  display_name: "Landing Page"
-  short_description: "Build an evidence-led SaaS landing page"
-  default_prompt: "Use $landing-page to qualify the page job and argument, inventory real evidence, then write, design, implement, and verify the landing page."

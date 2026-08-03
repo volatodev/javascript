@@ -15,10 +15,9 @@ volato skills install
 volato init --project "<project_id>" --yes --send-test-event
 ```
 
-The installed catalog includes the Next.js error, product-usage monitoring and
-landing-page skills. Local skill workflows report only their bounded lifecycle
-through `volato skills track`; customer-defined analytics events are not
-accepted by that command.
+The installed domains cover Next.js production errors and product-usage
+analytics. Generated application source emits only contract-declared data;
+the CLI does not expose a free-form event command.
 
 For Next.js 15 and 16 App Router, setup generates:
 

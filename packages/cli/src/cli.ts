@@ -8,7 +8,6 @@
  *   volato login [token]              — write the workspace bearer to disk
  *   volato whoami                     — confirm a token is loaded
  *   volato readme                     — print full command surface (markdown)
- *   volato skills track <skill> <stage> — record a bounded local skill run
  *   volato errors list                — list error groups
  *   volato errors show [id]           — fix context (omit id → most recent)
  *   volato errors resolve <id>        — mark resolved (append a note)
@@ -34,10 +33,7 @@ import {
   runErrorsResolve,
 } from "./commands/errors.js";
 import { runReadme } from "./commands/readme.js";
-import {
-  runSkillsInstall,
-  runSkillUsage,
-} from "./commands/skills.js";
+import { runSkillsInstall } from "./commands/skills.js";
 import { runProjectOriginsSet } from "./commands/projects.js";
 import {
   runUsageSnapshotSave,
@@ -121,26 +117,6 @@ skills
       process.exit(1);
     }
   });
-
-skills
-  .command("track")
-  .argument(
-    "<skill>",
-    "catalog skill: volato-nextjs, monitor-product-usage or landing-page",
-  )
-  .argument("<stage>", "started or outcome")
-  .requiredOption("--run-id <id>", "stable id for this skill run")
-  .option("--json", "emit the structured payload instead of markdown")
-  .description("Record a catalog skill run without accepting custom events")
-  .action(
-    async (
-      skill: string,
-      stage: string,
-      opts: { runId: string; json?: boolean },
-    ) => {
-      await runSkillUsage({ skill, stage, ...opts });
-    },
-  );
 
 program
   .command("login")

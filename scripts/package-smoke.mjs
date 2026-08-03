@@ -79,9 +79,6 @@ try {
     "skills/monitor-product-usage/agents/openai.yaml",
     "skills/monitor-product-usage/references/contract.md",
     "skills/monitor-product-usage/assets/usage-tracker.ts",
-    "skills/landing-page/SKILL.md",
-    "skills/landing-page/agents/openai.yaml",
-    "skills/landing-page/references/evidence-and-elements.md",
   ]) {
     assert(paths.has(required), `packed CLI is missing ${required}`);
   }
@@ -156,7 +153,6 @@ try {
     ".agents/skills/volato-nextjs/SKILL.md",
     ".agents/skills/monitor-product-usage/SKILL.md",
     ".agents/skills/monitor-product-usage/assets/usage-tracker.ts",
-    ".agents/skills/landing-page/SKILL.md",
     ".volato/manifest.json",
     "app/error.tsx",
     "instrumentation.ts",

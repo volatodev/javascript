@@ -44,15 +44,10 @@ edited generated files.
 The advanced \`--dsn\` path remains available when an authenticated project
 lookup is not possible, but it cannot retrieve the server-only ingest token.
 
-The catalog currently installs the Next.js error, product-usage monitoring and
-landing-page skills. Skills whose outcome is completed locally use one finite
-lifecycle command; the skill creates and reuses the run id:
-
-    volato skills track <skill> started --run-id <id>
-    volato skills track <skill> outcome --run-id <same-id>
-
-Accepted skills are \`volato-nextjs\`, \`monitor-product-usage\` and \`landing-page\`.
-This command does not accept custom event names or properties.
+The installed product domains are Next.js production errors and product-usage
+analytics. Their authoritative application and platform transitions emit the
+bounded events used by Volato; the CLI does not expose a free-form tracking
+command.
 
 ## Project configuration
 
