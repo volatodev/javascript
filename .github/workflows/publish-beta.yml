@@ -1,4 +1,4 @@
-name: Publish beta CLI
+name: Validate beta CLI candidate
 
 on:
   workflow_dispatch:
@@ -8,20 +8,16 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: read
-
 concurrency:
-  group: npm-beta-release
-  cancel-in-progress: false
+  group: npm-beta-validation
+  cancel-in-progress: true
 
 jobs:
-  publish:
-    name: Publish @volatodev/cli
+  validate:
+    name: Validate @volatodev/cli candidate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: npm-beta
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,7 +30,6 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -52,29 +47,5 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: node scripts/assert-beta-release.mjs "$RELEASE_VERSION" "$RUNNER_TEMP/volato-cli-versions.json"
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        run: pnpm test
-
-      - name: Build
-        run: pnpm build
-
-      - name: Smoke packed CLI artifact
-        run: pnpm smoke:package
-
-      - name: Publish beta dist-tag
-        run: pnpm release:beta
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Verify alpha dist-tags
-        env:
-          EXPECTED_VERSION: ${{ inputs.version }}
-        run: |
-          test "$(npm view @volatodev/cli@beta version)" = "$EXPECTED_VERSION"
-          test "$(npm view @volatodev/cli@latest version)" = "$EXPECTED_VERSION"
+      - name: Run the local release gate
+        run: pnpm release:check
