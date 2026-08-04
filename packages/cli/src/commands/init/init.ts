@@ -60,15 +60,10 @@ export async function runInit(options: InitOptions): Promise<void> {
   });
 
   try {
-    const link = await markProjectLinked(projectId);
-    if (!link.tracked) {
-      process.stderr.write(
-        `${pc.yellow("!")} Repository linked, but the activation milestone was not recorded.\n`,
-      );
-    }
+    await markProjectLinked(projectId);
   } catch (error) {
     process.stderr.write(
-      `${pc.yellow("!")} Repository linked locally, but Volato could not confirm the milestone: ${
+      `${pc.yellow("!")} Repository linked locally, but Volato could not confirm it: ${
         error instanceof Error ? error.message : String(error)
       }\n`,
     );

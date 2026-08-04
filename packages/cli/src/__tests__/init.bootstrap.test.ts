@@ -34,7 +34,7 @@ beforeEach(() => {
     ingestToken: "server-only-token",
   });
   markProjectLinked.mockReset();
-  markProjectLinked.mockResolvedValue({ linked: true, tracked: true });
+  markProjectLinked.mockResolvedValue({ linked: true });
   runSkillsInstall.mockReset();
   vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 });

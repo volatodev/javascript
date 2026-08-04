@@ -44,12 +44,10 @@ export async function fetchProjectSetup(
 
 export async function markProjectLinked(projectId: string): Promise<{
   linked: boolean;
-  tracked: boolean;
 }> {
   const response = await postJson<{
     projectId: string;
     linked: boolean;
-    tracked: boolean;
   }>(
     `/v1/projects/${encodeURIComponent(projectId)}/linked`,
     {},
@@ -65,13 +63,11 @@ export async function markProjectLinked(projectId: string): Promise<{
   if (
     !response.data ||
     response.data.projectId !== projectId ||
-    response.data.linked !== true ||
-    typeof response.data.tracked !== "boolean"
+    response.data.linked !== true
   ) {
     throw new CliError("Volato returned an invalid project link response.");
   }
   return {
     linked: response.data.linked,
-    tracked: response.data.tracked,
   };
 }

@@ -29,12 +29,11 @@ describe("markProjectLinked", () => {
     postJson.mockResolvedValue({
       ok: true,
       status: 200,
-      data: { projectId, linked: true, tracked: true },
+      data: { projectId, linked: true },
     });
 
     await expect(markProjectLinked(projectId)).resolves.toEqual({
       linked: true,
-      tracked: true,
     });
     expect(postJson).toHaveBeenCalledWith(
       `/v1/projects/${projectId}/linked`,
@@ -47,7 +46,7 @@ describe("markProjectLinked", () => {
     postJson.mockResolvedValue({
       ok: true,
       status: 200,
-      data: { projectId, linked: false, tracked: false },
+      data: { projectId, linked: false },
     });
 
     await expect(markProjectLinked(projectId)).rejects.toThrow(
