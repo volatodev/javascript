@@ -13,11 +13,10 @@ const KEY_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_CONFIG_BYTES = 32 * 1024;
+// A journey needs at least two steps to describe progress. There is no upper
+// bound: the document size is the honest limit, and a founder who needs nine
+// steps should not be told that eight is a law.
 const MIN_MILESTONES = 2;
-const MAX_MILESTONES = 8;
-const MAX_RETENTION_DAYS = 90;
-const MIN_REPEAT_HOURS = 24;
-const MAX_REPEAT_HOURS = MAX_RETENTION_DAYS * 24;
 
 export type UsageDedupe = "actor" | "key" | "none";
 
@@ -33,6 +32,15 @@ export type UsageEventDefinition = {
   dedupe: UsageDedupe;
 };
 
+/**
+ * An approved product usage contract.
+ *
+ * The contract declares what is captured and in which order it is expected to
+ * happen — nothing else. Conversion rates, time to value and repeat are read
+ * from each actor's timeline at report time rather than declared up front:
+ * a founder cannot know the right cohort window before seeing any data, and a
+ * ratio over three actors says less than the three timelines themselves.
+ */
 export type UsageConfig = {
   schemaVersion: 1;
   projectId: string;
@@ -45,30 +53,16 @@ export type UsageConfig = {
     outcome: string;
   };
   events: UsageEventDefinition[];
-  branches?: {
-    property: string;
-    entryEvent: string;
-  };
+  /**
+   * The expected order of the journey, from first contact to delivered value.
+   * Ordering is what lets a report say "stalled at step 4" instead of listing
+   * unrelated facts. Only a minimum is enforced: the 32 KiB document bound is
+   * the real limit, an arbitrary step count is not.
+   */
   milestones: Array<{
     event: string;
     question: string;
   }>;
-  cohort: {
-    event: string;
-    windowDays: number;
-  };
-  activation: {
-    event: string;
-  };
-  repeat: {
-    event: string;
-    minHours: number;
-  };
-  retention: {
-    event: string;
-    minDays: number;
-    maxDays: number;
-  };
 };
 
 export type UsageSnapshot = {
@@ -117,23 +111,6 @@ function boundedString(
   return value;
 }
 
-function boundedInteger(
-  value: unknown,
-  path: string,
-  min: number,
-  max: number,
-): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isInteger(value) ||
-    value < min ||
-    value > max
-  ) {
-    invalid(`${path} must be an integer between ${min} and ${max}`);
-  }
-  return value;
-}
-
 function eventReference(
   value: unknown,
   path: string,
@@ -167,12 +144,7 @@ export function validateUsageConfig(value: unknown): UsageConfig {
       "product",
       "job",
       "events",
-      "branches",
       "milestones",
-      "cohort",
-      "activation",
-      "repeat",
-      "retention",
     ],
     "config",
   );
@@ -292,31 +264,12 @@ export function validateUsageConfig(value: unknown): UsageConfig {
     return parsed;
   });
 
-  const cohort = objectAt(root.cohort, "config.cohort");
-  exactKeys(cohort, ["event", "windowDays"], "config.cohort");
-  const cohortEvent = eventReference(cohort.event, "cohort", eventNames);
-  const windowDays = boundedInteger(
-    cohort.windowDays,
-    "config.cohort.windowDays",
-    1,
-    MAX_RETENTION_DAYS,
-  );
-
-  const activation = objectAt(root.activation, "config.activation");
-  exactKeys(activation, ["event"], "config.activation");
-  const activationEvent = eventReference(
-    activation.event,
-    "activation",
-    eventNames,
-  );
-
   if (
     !Array.isArray(root.milestones) ||
-    root.milestones.length < MIN_MILESTONES ||
-    root.milestones.length > MAX_MILESTONES
+    root.milestones.length < MIN_MILESTONES
   ) {
     invalid(
-      `config.milestones must contain between ${MIN_MILESTONES} and ${MAX_MILESTONES} milestones`,
+      `config.milestones must contain at least ${MIN_MILESTONES} milestones`,
     );
   }
   const milestoneEvents = new Set<string>();
@@ -338,138 +291,13 @@ export function validateUsageConfig(value: unknown): UsageConfig {
       ),
     };
   });
-  if (milestones[0]?.event !== cohortEvent) {
-    invalid(
-      "config.milestones[0].event must match config.cohort.event",
-    );
-  }
-  const lastMilestoneIndex = milestones.length - 1;
-  if (milestones[lastMilestoneIndex]?.event !== activationEvent) {
-    invalid(
-      `config.milestones[${lastMilestoneIndex}].event must match config.activation.event`,
-    );
-  }
-
-  const repeat = objectAt(root.repeat, "config.repeat");
-  exactKeys(repeat, ["event", "minHours"], "config.repeat");
-  const repeatEvent = eventReference(repeat.event, "repeat", eventNames);
-  const minHours = boundedInteger(
-    repeat.minHours,
-    "config.repeat.minHours",
-    MIN_REPEAT_HOURS,
-    MAX_REPEAT_HOURS,
-  );
-
-  const retention = objectAt(root.retention, "config.retention");
-  exactKeys(
-    retention,
-    ["event", "minDays", "maxDays"],
-    "config.retention",
-  );
-  const retentionEvent = eventReference(
-    retention.event,
-    "retention",
-    eventNames,
-  );
-  const minDays = boundedInteger(
-    retention.minDays,
-    "config.retention.minDays",
-    1,
-    MAX_RETENTION_DAYS,
-  );
-  const maxDays = boundedInteger(
-    retention.maxDays,
-    "config.retention.maxDays",
-    1,
-    MAX_RETENTION_DAYS,
-  );
-  if (maxDays <= minDays) {
-    invalid("config.retention.maxDays must be greater than minDays");
-  }
-  if (windowDays < maxDays) {
-    invalid("config.cohort.windowDays must be >= retention.maxDays");
-  }
-
-  let branches: UsageConfig["branches"];
-  if (root.branches !== undefined) {
-    const rawBranches = objectAt(root.branches, "config.branches");
-    exactKeys(
-      rawBranches,
-      ["property", "entryEvent"],
-      "config.branches",
-    );
-    const property = boundedString(
-      rawBranches.property,
-      "config.branches.property",
-      64,
-    );
-    if (!KEY_PATTERN.test(property)) {
-      invalid("config.branches.property has an invalid format");
-    }
-    const entryEvent = boundedString(
-      rawBranches.entryEvent,
-      "config.branches.entryEvent",
-      64,
-    );
-    const entryMilestoneIndex = milestones.findIndex(
-      (milestone) => milestone.event === entryEvent,
-    );
-    if (entryMilestoneIndex === -1) {
-      invalid(
-        "config.branches.entryEvent must reference a milestone event",
-      );
-    }
-    if (entryMilestoneIndex === 0) {
-      invalid("config.branches.entryEvent cannot be the cohort event");
-    }
-
-    const branchEventNames = new Set([
-      ...milestones
-        .slice(entryMilestoneIndex)
-        .map((milestone) => milestone.event),
-      activationEvent,
-      repeatEvent,
-      retentionEvent,
-    ]);
-    let expectedDefinition: UsageEnumDefinition | undefined;
-    for (const eventName of branchEventNames) {
-      const eventDefinition = eventsByName.get(eventName)!;
-      const definition = eventDefinition.properties[property];
-      if (!definition) {
-        invalid(
-          `event ${eventName} must declare enum property ${property} used by config.branches`,
-        );
-      }
-      if (eventDefinition.dedupe === "actor") {
-        invalid(
-          `event ${eventName} cannot use actor dedupe with branch property ${property}`,
-        );
-      }
-      if (
-        expectedDefinition &&
-        JSON.stringify(definition) !== JSON.stringify(expectedDefinition)
-      ) {
-        invalid(
-          `event ${eventName} must declare the same enum property ${property} used by config.branches`,
-        );
-      }
-      expectedDefinition ??= definition;
-    }
-    branches = { property, entryEvent };
-  }
-
   return {
     schemaVersion: USAGE_SCHEMA_VERSION,
     projectId,
     product: { summary: productSummary, targetActor },
     job: { statement, outcome },
     events,
-    ...(branches ? { branches } : {}),
     milestones,
-    cohort: { event: cohortEvent, windowDays },
-    activation: { event: activationEvent },
-    repeat: { event: repeatEvent, minHours },
-    retention: { event: retentionEvent, minDays, maxDays },
   };
 }
 

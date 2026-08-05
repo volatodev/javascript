@@ -49,10 +49,6 @@ const config = {
     { event: "checkout_started", question: "Did checkout start?" },
     { event: "order_confirmed", question: "Was the order confirmed?" },
   ],
-  cohort: { event: "checkout_started", windowDays: 35 },
-  activation: { event: "order_confirmed" },
-  repeat: { event: "order_confirmed", minHours: 24 },
-  retention: { event: "order_confirmed", minDays: 7, maxDays: 35 },
 };
 
 let cwd: string;

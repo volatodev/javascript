@@ -35,7 +35,7 @@ const config = {
   events: [
     {
       name: "account_registered",
-      description: "An eligible account enters the cohort.",
+      description: "An eligible account joins the product.",
       properties: {},
       dedupe: "actor",
     },
@@ -55,7 +55,7 @@ const config = {
   milestones: [
     {
       event: "account_registered",
-      question: "Did an eligible developer enter the cohort?",
+      question: "Did an eligible developer sign up?",
     },
     {
       event: "integration_connected",
@@ -66,16 +66,12 @@ const config = {
       question: "Did the developer resolve a real production error?",
     },
   ],
-  cohort: { event: "account_registered", windowDays: 90 },
-  activation: { event: "error_resolved" },
-  repeat: { event: "error_resolved", minHours: 24 },
-  retention: { event: "error_resolved", minDays: 7, maxDays: 35 },
 } as const;
 const skillEnum = {
   type: "enum",
   values: ["production-errors", "monitor-product-usage"],
 } as const;
-const branchedConfig = {
+const enumConfig = {
   ...config,
   events: [
     config.events[0],
@@ -89,19 +85,15 @@ const branchedConfig = {
       properties: { skill: skillEnum },
     },
   ],
-  branches: {
-    property: "skill",
-    entryEvent: "integration_connected",
-  },
 } as const;
 const snapshot = {
   schemaVersion: 1,
   configVersion: 3,
   approved: true,
   summary: "Eligible developers are reaching the production-error outcome.",
-  observations: ["Four eligible developers activated in the current cohort."],
-  caveats: ["The repeat-use window is still immature."],
-  nextDecision: "Wait for the repeat window, then review the same cohort.",
+  observations: ["Four eligible developers reached the outcome this month."],
+  caveats: ["Only two of them came back a second time."],
+  nextDecision: "Wait for more timelines, then read the same journey again.",
 } as const;
 
 let cwd: string;
@@ -173,29 +165,6 @@ describe("volato analytics validate", () => {
     );
   });
 
-  it("rejects repeat windows that cannot prove a later-day return", () => {
-    expect(() =>
-      validateUsageConfig({
-        ...config,
-        repeat: { ...config.repeat, minHours: 1 },
-      }),
-    ).toThrow("repeat.minHours must be an integer between 24 and 2160");
-  });
-
-  it("rejects the legacy schema version 1 shape without compatibility fallback", () => {
-    expect(() =>
-      validateUsageConfig({
-        schemaVersion: 1,
-        projectId,
-        events: config.events,
-        cohort: config.cohort,
-        activation: config.activation,
-        repeat: config.repeat,
-        retention: config.retention,
-      }),
-    ).toThrow("config.product must be an object");
-  });
-
   it("rejects fields outside the versioned backend contract", () => {
     expect(() =>
       validateUsageConfig({
@@ -205,34 +174,17 @@ describe("volato analytics validate", () => {
     ).toThrow("unsupported field tenantId");
   });
 
-  it("rejects cohorts that end before the retention window matures", () => {
+  it("rejects a legacy cohort declaration instead of silently ignoring it", () => {
     expect(() =>
       validateUsageConfig({
         ...config,
-        cohort: { ...config.cohort, windowDays: 30 },
+        cohort: { event: "account_registered", windowDays: 90 },
       }),
-    ).toThrow("cohort.windowDays must be >= retention.maxDays");
+    ).toThrow("unsupported field cohort");
   });
 
-  it("accepts strict enum properties and a comparable branch dimension", () => {
-    expect(validateUsageConfig(branchedConfig)).toEqual(branchedConfig);
-  });
-
-  it("keeps pre-branch milestones shared and property-free", () => {
-    const lateBranchConfig = {
-      ...branchedConfig,
-      events: branchedConfig.events.map((event) =>
-        event.name === "integration_connected"
-          ? { ...event, properties: {}, dedupe: "actor" as const }
-          : event,
-      ),
-      branches: {
-        property: "skill",
-        entryEvent: "error_resolved",
-      },
-    };
-
-    expect(validateUsageConfig(lateBranchConfig)).toEqual(lateBranchConfig);
+  it("accepts strict enum properties on events", () => {
+    expect(validateUsageConfig(enumConfig)).toEqual(enumConfig);
   });
 
   it("keeps property-free linear maps valid", () => {
@@ -259,6 +211,25 @@ describe("volato analytics validate", () => {
     expect(validateUsageConfig(value).events).toHaveLength(40);
   });
 
+  it("accepts a twelve-step journey now that the milestone cap is gone", () => {
+    const steps = Array.from({ length: 12 }, (_, index) => ({
+      name: `journey_step_${index}`,
+      description: "A step the actor is expected to reach.",
+      properties: {},
+      dedupe: "actor" as const,
+    }));
+    const value = {
+      ...config,
+      events: steps,
+      milestones: steps.map((step) => ({
+        event: step.name,
+        question: `Did the actor reach ${step.name}?`,
+      })),
+    };
+
+    expect(validateUsageConfig(value).milestones).toHaveLength(12);
+  });
+
   it("rejects free-form property definitions", () => {
     expect(() =>
       validateUsageConfig({
@@ -269,14 +240,6 @@ describe("volato analytics validate", () => {
             properties: { source: "string" },
           },
         ],
-        cohort: { event: "account_registered", windowDays: 90 },
-        activation: { event: "account_registered" },
-        repeat: { event: "account_registered", minHours: 24 },
-        retention: {
-          event: "account_registered",
-          minDays: 7,
-          maxDays: 35,
-        },
       }),
     ).toThrow("properties.source must be an object");
   });
@@ -285,8 +248,8 @@ describe("volato analytics validate", () => {
     {
       label: "an enum with unsupported definition fields",
       mutate: () => ({
-        ...branchedConfig,
-        events: branchedConfig.events.map((event) =>
+        ...enumConfig,
+        events: enumConfig.events.map((event) =>
           event.name === "integration_connected"
             ? {
                 ...event,
@@ -302,8 +265,8 @@ describe("volato analytics validate", () => {
     {
       label: "an empty enum",
       mutate: () => ({
-        ...branchedConfig,
-        events: branchedConfig.events.map((event) =>
+        ...enumConfig,
+        events: enumConfig.events.map((event) =>
           event.name === "integration_connected"
             ? {
                 ...event,
@@ -319,8 +282,8 @@ describe("volato analytics validate", () => {
     {
       label: "duplicate enum values",
       mutate: () => ({
-        ...branchedConfig,
-        events: branchedConfig.events.map((event) =>
+        ...enumConfig,
+        events: enumConfig.events.map((event) =>
           event.name === "integration_connected"
             ? {
                 ...event,
@@ -336,76 +299,6 @@ describe("volato analytics validate", () => {
       }),
       message: "properties.skill.values[1] must be unique",
     },
-    {
-      label: "a missing branch property",
-      mutate: () => ({
-        ...branchedConfig,
-        events: branchedConfig.events.map((event) =>
-          event.name === "integration_connected"
-            ? { ...event, properties: {} }
-            : event,
-        ),
-      }),
-      message:
-        "event integration_connected must declare enum property skill used by config.branches",
-    },
-    {
-      label: "different branch enums",
-      mutate: () => ({
-        ...branchedConfig,
-        events: branchedConfig.events.map((event) =>
-          event.name === "error_resolved"
-            ? {
-                ...event,
-                properties: {
-                  skill: {
-                    type: "enum",
-                    values: ["monitor-product-usage", "production-errors"],
-                  },
-                },
-              }
-            : event,
-        ),
-      }),
-      message:
-        "event error_resolved must declare the same enum property skill used by config.branches",
-    },
-    {
-      label: "actor dedupe on a branch stage",
-      mutate: () => ({
-        ...branchedConfig,
-        events: branchedConfig.events.map((event) =>
-          event.name === "integration_connected"
-            ? { ...event, dedupe: "actor" }
-            : event,
-        ),
-      }),
-      message:
-        "event integration_connected cannot use actor dedupe with branch property skill",
-    },
-    {
-      label: "a branch entry outside the milestones",
-      mutate: () => ({
-        ...branchedConfig,
-        branches: {
-          ...branchedConfig.branches,
-          entryEvent: "supporting_event",
-        },
-      }),
-      message:
-        "config.branches.entryEvent must reference a milestone event",
-    },
-    {
-      label: "the cohort as branch entry",
-      mutate: () => ({
-        ...branchedConfig,
-        branches: {
-          ...branchedConfig.branches,
-          entryEvent: "account_registered",
-        },
-      }),
-      message: "config.branches.entryEvent cannot be the cohort event",
-    },
   ])("rejects $label", ({ mutate, message }) => {
     expect(() => validateUsageConfig(mutate())).toThrow(message);
   });
@@ -414,22 +307,12 @@ describe("volato analytics validate", () => {
     {
       label: "fewer than two milestones",
       milestones: [config.milestones[0]],
-      message: "config.milestones must contain between 2 and 8 milestones",
+      message: "config.milestones must contain at least 2 milestones",
     },
     {
       label: "duplicate milestone events",
       milestones: [config.milestones[0], config.milestones[0]],
       message: "config.milestones[1].event must be unique",
-    },
-    {
-      label: "a first milestone outside the cohort",
-      milestones: [config.milestones[1], config.milestones[2]],
-      message: "config.milestones[0].event must match config.cohort.event",
-    },
-    {
-      label: "a last milestone outside activation",
-      milestones: [config.milestones[0], config.milestones[1]],
-      message: "config.milestones[1].event must match config.activation.event",
     },
     {
       label: "a milestone event outside the catalog",
@@ -454,22 +337,6 @@ describe("volato analytics validate", () => {
       label: "future UUID versions",
       value: { ...config, projectId: "11111111-1111-8111-8111-111111111111" },
       message: "config.projectId must be a UUID",
-    },
-    {
-      label: "equal retention boundaries",
-      value: {
-        ...config,
-        retention: { ...config.retention, minDays: 35 },
-      },
-      message: "maxDays must be greater than minDays",
-    },
-    {
-      label: "repeat windows beyond stored history",
-      value: {
-        ...config,
-        repeat: { ...config.repeat, minHours: 2161 },
-      },
-      message: "between 24 and 2160",
     },
     {
       label: "documents larger than 32 KiB",
