@@ -19,7 +19,13 @@
   "events": [
     {
       "name": "eligible_actor_entered",
-      "description": "An eligible actor enters the measurement cohort.",
+      "description": "An eligible actor enters the product.",
+      "properties": {},
+      "dedupe": "actor"
+    },
+    {
+      "name": "email_verified",
+      "description": "The actor clears the mandatory verification gate.",
       "properties": {},
       "dedupe": "actor"
     },
@@ -52,14 +58,14 @@
       "dedupe": "key"
     }
   ],
-  "branches": {
-    "property": "workflow",
-    "entryEvent": "workflow_started"
-  },
   "milestones": [
     {
       "event": "eligible_actor_entered",
-      "question": "Did an eligible actor enter the cohort?"
+      "question": "Did an eligible actor enter the product?"
+    },
+    {
+      "event": "email_verified",
+      "question": "Did the actor clear the mandatory verification gate?"
     },
     {
       "event": "setup_completed",
@@ -73,25 +79,17 @@
       "event": "outcome_delivered",
       "question": "Did the workflow deliver its promised result?"
     }
-  ],
-  "cohort": {
-    "event": "eligible_actor_entered",
-    "windowDays": 90
-  },
-  "activation": {
-    "event": "outcome_delivered"
-  },
-  "repeat": {
-    "event": "outcome_delivered",
-    "minHours": 24
-  },
-  "retention": {
-    "event": "outcome_delivered",
-    "minDays": 7,
-    "maxDays": 35
-  }
+  ]
 }
 ```
+
+The document declares what is captured and in which order it is expected to
+happen, and nothing else. Conversion, time to value and return are computed from
+each actor's timeline when the report is read: a founder cannot choose an honest
+cohort window before seeing any data, and a ratio over three actors says less
+than the three timelines themselves. `cohort`, `activation`, `repeat`,
+`retention` and `branches` are no longer part of the contract and are rejected
+as unsupported fields.
 
 The legacy shape without `product` and `milestones` is rejected; there is no
 compatibility mode. No additional fields are accepted. The complete JSON
@@ -125,20 +123,15 @@ Use different events for different actions. The skill proposes the values from
 the customer's product and obtains explicit founder approval; neither the
 backend nor the tracker owns a universal value list.
 
-`branches` is optional. Without it, property-free linear maps remain valid.
-When present, it contains exactly `property` and `entryEvent`. The entry event
-must reference a milestone after the cohort. Milestones before it are shared
-and do not need the branch property. The entry event and every later milestone,
-plus activation, repeat and retention, must declare the identical enum
-definition for that property. Use `dedupe: key` for branch-stage events when
-the same actor can legitimately use more than one branch.
+Use `dedupe: key` when the same actor can legitimately repeat the same action;
+use `dedupe: actor` for a one-time fact.
 
-The catalog contains 2-8 ordered milestones with unique event references. The
-first milestone is `cohort.event`; the last is `activation.event`.
-
-`cohort.windowDays` is 1-90 and must be at least `retention.maxDays`.
-`repeat.minHours` is 24-2160. Retention values are 1-90 and `maxDays` must be
-greater than `minDays`. Every metric event references the event catalog.
+The catalog contains at least two ordered milestones with unique event
+references, each referencing an event in the catalog. There is no maximum: the
+32 KiB document is the honest limit, and a journey that genuinely needs nine
+steps should not be told that eight is a law. The order is the contract's only
+claim about the journey — first milestone first, delivered value last — and it
+is what lets a report say an actor stalled at step four.
 
 ## CLI control plane
 
@@ -255,13 +248,12 @@ each value is one of its configured enum strings. Missing, unknown,
 out-of-enum and free-form values are rejected locally. Config, event-envelope
 and snapshot `schemaVersion` are each 1 and version their own document shape.
 
-The report keeps the overall milestone, activation, repeat and retention
-evidence across all enum values. When `branches` is configured, common
-milestones are evaluated without a branch filter; filtering starts at
-`branches.entryEvent`. The report returns the same evidence for every declared
-value under `branches.values[]`. Branch repeat distinguishes
-`sameBranchActors` from `crossBranchActors`, so an agent can separate repeat
-value within one workflow from adoption across a catalog.
+The report is derived, never declared. It rebuilds each actor's ordered timeline
+from the stored events, then reports where that actor stands and since when;
+conversion between milestones, time to first value and return to a delivered
+outcome follow from those timelines. Enum properties are carried through, so the
+same evidence can be read per value, but no value list, window, threshold or
+ratio is stored in the config.
 
 The tracker is server-only, adds a two-second `AbortSignal` timeout, and never
 rejects: invalid configuration, invalid input, a missing token, an ingest
