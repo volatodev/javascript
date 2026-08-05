@@ -12,10 +12,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { linkProject } from "../integrations/manifest";
 
 const fetchProjectSetup = vi.fn();
+const reportIntegrationInstalled = vi.fn(async () => undefined);
 const generateNextjsIntegration = vi.fn();
 
 vi.mock("../commands/init/project-setup.js", () => ({
   fetchProjectSetup: (projectId: string) => fetchProjectSetup(projectId),
+  reportIntegrationInstalled: reportIntegrationInstalled,
 }));
 vi.mock("../integrations/nextjs.js", () => ({
   generateNextjsIntegration: (options: unknown) =>
@@ -80,6 +82,12 @@ describe("volato errors init", () => {
 
     expect(fetchProjectSetup).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
+    );
+    // The journey cannot show "installed capture" unless init reports it:
+    // /setup fires on plain `volato init` too, long before anything exists.
+    expect(reportIntegrationInstalled).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "errors-nextjs",
     );
     expect(generateNextjsIntegration).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -71,3 +71,25 @@ export async function markProjectLinked(projectId: string): Promise<{
     linked: response.data.linked,
   };
 }
+
+/**
+ * Tell Volato a generated adapter now exists in this repository.
+ *
+ * Reporting failures never fail the init: the files are already written and
+ * the integration works whether or not the signal lands. `/setup` cannot serve
+ * this purpose because `volato init` calls it too, before anything is
+ * generated.
+ */
+export async function reportIntegrationInstalled(
+  projectId: string,
+  adapter: "errors-nextjs" | "analytics-nextjs",
+): Promise<void> {
+  try {
+    await postJson(
+      `/v1/projects/${encodeURIComponent(projectId)}/integrations/${adapter}`,
+      {},
+    );
+  } catch {
+    // Best effort by design.
+  }
+}

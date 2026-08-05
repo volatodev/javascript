@@ -14,7 +14,10 @@ import { CliError, postJson } from "../../lib/api-client.js";
 import { exitCodeForStatus } from "../../lib/exit.js";
 import { detectProject, DetectionError } from "./detect.js";
 import { ensureGitignoreCoversEnvLocal } from "./local-credentials.js";
-import { fetchProjectSetup } from "./project-setup.js";
+import {
+  fetchProjectSetup,
+  reportIntegrationInstalled,
+} from "./project-setup.js";
 
 export type AnalyticsInitOptions = {
   cwd: string;
@@ -82,6 +85,7 @@ export async function runAnalyticsInit(
       `  ${outcome.status.padEnd(7)} ${outcome.path}${outcome.detail ? ` — ${outcome.detail}` : ""}\n`,
     );
   }
+  await reportIntegrationInstalled(projectLink.id, "analytics-nextjs");
   process.stdout.write(
     `\n${pc.green("✓")} Analytics initialized from ${pc.cyan(configPath)}.\n` +
       `  Import ${pc.cyan(

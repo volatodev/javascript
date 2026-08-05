@@ -10,11 +10,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { linkProject } from "../integrations/manifest";
 
 const fetchProjectSetup = vi.fn();
+const reportIntegrationInstalled = vi.fn(async () => undefined);
 const assertAnalyticsNextjsWritable = vi.fn();
 const generateAnalyticsNextjsIntegration = vi.fn();
 
 vi.mock("../commands/init/project-setup.js", () => ({
   fetchProjectSetup: (projectId: string) => fetchProjectSetup(projectId),
+  reportIntegrationInstalled: reportIntegrationInstalled,
 }));
 vi.mock("../integrations/analytics-nextjs.js", () => ({
   assertAnalyticsNextjsWritable: (cwd: string) =>

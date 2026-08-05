@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchProjectSetup = vi.fn();
+const reportIntegrationInstalled = vi.fn(async () => undefined);
 const markProjectLinked = vi.fn();
 const runSkillsInstall = vi.fn();
 

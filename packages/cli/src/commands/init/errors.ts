@@ -26,7 +26,10 @@ import {
 } from "./patch";
 import { generateNextjsIntegration } from "../../integrations/nextjs";
 import { linkedProject } from "../../integrations/manifest.js";
-import { fetchProjectSetup } from "./project-setup.js";
+import {
+  fetchProjectSetup,
+  reportIntegrationInstalled,
+} from "./project-setup.js";
 import { ensureGitignoreCoversEnvLocal } from "./local-credentials.js";
 import { verifyGeneratedNextjsIntegration } from "./verify-nextjs.js";
 
@@ -109,6 +112,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
   ];
 
   for (const o of outcomes) printOutcome(cwd, o);
+  await reportIntegrationInstalled(projectLink.id, "errors-nextjs");
   process.stdout.write("\n");
   const manualOutcomes = outcomes.filter(
     (outcome) => outcome.status === "manual",
