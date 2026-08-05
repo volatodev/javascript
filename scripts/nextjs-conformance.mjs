@@ -1,8 +1,9 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -13,8 +14,68 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const cli = join(repositoryRoot, "packages", "cli", "dist", "cli.cjs");
 const scratch = mkdtempSync(join(tmpdir(), "volato-nextjs-conformance-"));
+
+/**
+ * Which CLI the conformance run exercises.
+ *
+ * By default the workspace build, which is fast and right for iteration.
+ * `VOLATO_CLI_SPEC` instead installs an immutable artifact into a scratch
+ * directory and runs its published bin — `pack` for the local candidate
+ * tarball, or an npm spec such as `@volatodev/cli@beta` for what users
+ * actually download. A release is proven from the artifact, not the build.
+ */
+const cliSpec = process.env.VOLATO_CLI_SPEC;
+
+function installPackagedCli() {
+  const home = join(scratch, "cli-install");
+  mkdirSync(home, { recursive: true });
+  writeFileSync(
+    join(home, "package.json"),
+    `${JSON.stringify({ name: "volato-cli-host", private: true }, null, 2)}\n`,
+  );
+
+  let spec = cliSpec;
+  if (spec === "pack") {
+    const packDir = join(scratch, "cli-pack");
+    mkdirSync(packDir, { recursive: true });
+    execFileSync(
+      "npm",
+      ["pack", "--pack-destination", packDir, "--cache", join(scratch, "npm")],
+      { cwd: join(repositoryRoot, "packages", "cli"), stdio: "pipe" },
+    );
+    const archive = readdirSync(packDir).find((name) => name.endsWith(".tgz"));
+    assert(archive, "npm pack returned no archive");
+    spec = join(packDir, archive);
+  }
+
+  execFileSync(
+    "npm",
+    ["install", "--no-audit", "--no-fund", "--cache", join(scratch, "npm"), spec],
+    { cwd: home, stdio: "pipe" },
+  );
+
+  const binary = join(home, "node_modules", ".bin", "volato");
+  assert(existsSync(binary), `installed CLI exposes no volato bin (${spec})`);
+  return { command: binary, args: [], label: spec };
+}
+
+function resolveCli() {
+  if (cliSpec) return installPackagedCli();
+  const built = join(repositoryRoot, "packages", "cli", "dist", "cli.cjs");
+  assert(existsSync(built), "CLI is not built; run the smoke through pnpm.");
+  return {
+    command: process.execPath,
+    args: [built],
+    label: "workspace build",
+  };
+}
+
+let cliRunner;
+
+function runCli(args, options) {
+  return run(cliRunner.command, [...cliRunner.args, ...args], options);
+}
 const AUTH_TOKEN = "conformance-agent-token";
 const INGEST_TOKEN = "conformance-ingest-token";
 const FULL_MATRIX = [
@@ -284,7 +345,8 @@ const server = createServer((req, res) => {
 });
 
 try {
-  assert(existsSync(cli), "CLI is not built; run the smoke through pnpm.");
+  cliRunner = resolveCli();
+  console.log(`Exercising CLI: ${cliRunner.label}`);
   await new Promise((resolveListen, rejectListen) => {
     server.once("error", rejectListen);
     server.listen(0, "127.0.0.1", resolveListen);
@@ -299,10 +361,8 @@ try {
     writeFixture(fixture, entry, projectId);
 
     await run("pnpm", ["install", "--ignore-scripts"], { cwd: fixture });
-    const bootstrap = await run(
-      process.execPath,
+    const bootstrap = await runCli(
       [
-        cli,
         "init",
         "--project",
         projectId,
@@ -317,9 +377,8 @@ try {
       },
     );
     const beforeEvents = state.testEvents.length;
-    const init = await run(
-      process.execPath,
-      [cli, "errors", "init", "--yes", "--send-test-event"],
+    const init = await runCli(
+      ["errors", "init", "--yes", "--send-test-event"],
       {
         cwd: fixture,
         env: {
@@ -329,9 +388,8 @@ try {
       },
     );
     const beforeAnalyticsConfigs = state.analyticsConfigs.length;
-    const analyticsInit = await run(
-      process.execPath,
-      [cli, "analytics", "init", "--yes"],
+    const analyticsInit = await runCli(
+      ["analytics", "init", "--yes"],
       {
         cwd: fixture,
         env: {
@@ -430,10 +488,8 @@ try {
 
     if (index === 0) {
       state.rejectTestEvents = true;
-      const rejected = await run(
-        process.execPath,
+      const rejected = await runCli(
         [
-          cli,
           "errors",
           "init",
           "--yes",
