@@ -9,6 +9,8 @@ const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
 const packageSpec = `${packageJson.name}@${packageJson.version}`;
 const promoteOnly = process.argv.includes("--promote-only");
 const unknownArguments = process.argv.slice(2).filter((arg) => arg !== "--promote-only");
+const registryRetryAttempts = 6;
+const registryRetryDelayMs = 5_000;
 
 if (unknownArguments.length > 0) {
   throw new Error(`Unknown release argument(s): ${unknownArguments.join(", ")}`);
@@ -29,6 +31,15 @@ function run(command, args, options = {}) {
     env: { ...process.env, ...options.env, NO_COLOR: "1" },
     stdio: "inherit",
   });
+}
+
+function wait(milliseconds) {
+  Atomics.wait(
+    new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)),
+    0,
+    0,
+    milliseconds,
+  );
 }
 
 function publishedVersions() {
@@ -56,13 +67,30 @@ function assertReleaseCheckout() {
   }
 }
 
-function verifyTag(tag) {
-  const resolvedVersion = capture("npm", ["view", `${packageJson.name}@${tag}`, "version"]);
-  if (resolvedVersion !== packageJson.version) {
-    throw new Error(
-      `${tag} resolves to ${resolvedVersion}, expected ${packageJson.version}.`,
-    );
+function verifyVersionWithRetries(spec, label = spec) {
+  let lastError;
+  for (let attempt = 1; attempt <= registryRetryAttempts; attempt += 1) {
+    try {
+      const resolvedVersion = capture("npm", ["view", spec, "version"]);
+      if (resolvedVersion === packageJson.version) return;
+      lastError = new Error(
+        `${label} resolves to ${resolvedVersion}, expected ${packageJson.version}.`,
+      );
+    } catch (error) {
+      lastError = error;
+    }
+    if (attempt < registryRetryAttempts) {
+      process.stderr.write(
+        `${label} has not propagated yet (attempt ${attempt}/${registryRetryAttempts}); retrying in ${registryRetryDelayMs / 1_000}s…\n`,
+      );
+      wait(registryRetryDelayMs);
+    }
   }
+  throw lastError;
+}
+
+function verifyTagWithRetries(tag) {
+  verifyVersionWithRetries(`${packageJson.name}@${tag}`, tag);
 }
 
 assertReleaseCheckout();
@@ -84,13 +112,14 @@ if (!promoteOnly) {
   throw new Error(`${packageSpec} is not published and cannot be promoted.`);
 }
 
+verifyVersionWithRetries(packageSpec);
 run("node", ["scripts/package-smoke.mjs", packageSpec]);
-verifyTag("beta");
+verifyTagWithRetries("beta");
 run("node", ["scripts/nextjs-conformance.mjs"], {
   env: { VOLATO_CLI_SPEC: packageSpec },
 });
 run("node", ["scripts/sync-alpha-dist-tags.mjs"]);
-verifyTag("latest");
+verifyTagWithRetries("latest");
 
 const metadata = capture("npm", [
   "view",

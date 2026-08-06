@@ -17,8 +17,16 @@ describe("release artifact gates", () => {
 
   it("runs clean-app conformance from the exact registry version before promotion", () => {
     expect(releaseBeta).toContain("VOLATO_CLI_SPEC: packageSpec");
-    expect(releaseBeta.indexOf('verifyTag("latest")')).toBeGreaterThan(
+    expect(releaseBeta.indexOf('verifyTagWithRetries("latest")')).toBeGreaterThan(
       releaseBeta.indexOf("VOLATO_CLI_SPEC: packageSpec"),
+    );
+  });
+
+  it("retries registry reads around publication and dist-tag propagation", () => {
+    expect(releaseBeta).toContain("verifyVersionWithRetries");
+    expect(releaseBeta).toContain("verifyTagWithRetries");
+    expect(releaseBeta.indexOf("verifyVersionWithRetries(packageSpec)")).toBeLessThan(
+      releaseBeta.indexOf('"scripts/package-smoke.mjs", packageSpec'),
     );
   });
 });
