@@ -93,7 +93,8 @@ function resolveEnvironment(config: VolatoConfig): string {
 
 function isEnabled(config: VolatoConfig | null): config is VolatoConfig {
   if (!config || !config.dsn) return false;
-  return resolveEnvironment(config) !== "development";
+  if (config.enabled === false) return false;
+  return config.enabled === true || resolveEnvironment(config) !== "development";
 }
 
 type ClientCapturedVia =
@@ -306,7 +307,7 @@ export function initClient(config: VolatoConfig): void {
 
   activeConfig = config;
 
-  if (resolveEnvironment(config) === "development") {
+  if (resolveEnvironment(config) === "development" && config.enabled !== true) {
     if (typeof console !== "undefined" && console.warn) {
       console.warn("[Volato] Disabled in development");
     }

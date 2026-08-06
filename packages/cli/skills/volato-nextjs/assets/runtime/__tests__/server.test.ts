@@ -184,6 +184,12 @@ describe("captureException (server / RSC)", () => {
     initServer({ environment: "production" });
     await captureException(new Error("production-override"));
     expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    initServer({ environment: "development", enabled: true });
+    await captureException(new Error("local-opt-in"));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    initServer({ environment: undefined, enabled: undefined });
   });
 
   it("swallows fetch errors so the host app never crashes", async () => {

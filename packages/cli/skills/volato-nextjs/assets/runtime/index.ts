@@ -29,8 +29,14 @@ export type {
 export type VolatoConfig = {
   dsn: string;
   /**
-   * Explicit environment override. When `"development"` capture no-ops (no
-   * network traffic). When `"production"` capture always ships events, even if
+   * Capture switch. Development capture stays off by default; set this to
+   * `true` to opt in deliberately. Set it to `false` to disable capture in
+   * any environment.
+   */
+  enabled?: boolean;
+  /**
+   * Explicit environment label. Development capture requires `enabled: true`.
+   * A `"production"` override ships events even if
    * `process.env.NODE_ENV === "development"`. Defaults to `process.env.NODE_ENV`
    * when unset, and falls back to `"production"` if no `NODE_ENV` is present.
    */

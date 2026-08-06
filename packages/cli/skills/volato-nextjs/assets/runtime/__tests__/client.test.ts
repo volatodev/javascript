@@ -332,6 +332,23 @@ describe("initClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("ships development events only after an explicit opt-in", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const { window, listeners } = makeMockWindow();
+    vi.stubGlobal("window", window);
+
+    initClient({ dsn: DSN, environment: "development", enabled: true });
+
+    const errorListener = listeners.get("error")?.[0];
+    expect(errorListener).toBeTypeOf("function");
+    errorListener!({
+      error: new Error("local-opt-in"),
+      message: "local-opt-in",
+    } as ErrorEvent);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("propagates scope breadcrumbs into the captured event payload", () => {
     // E2E: a breadcrumb added to the scope (auto-instrumentation,
     // user-driven addBreadcrumb, …) must end up inside the wire

@@ -137,6 +137,16 @@ describe("captureException (middleware / Edge)", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("captures the inlined development environment after an explicit opt-in", async () => {
+    const req = new Request("https://app.test/");
+    await captureException(new Error("local-opt-in"), req, {
+      ...config,
+      environment: "development",
+      enabled: true,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("logs a loud one-shot console.error when DSN is missing and skips the network call", async () => {
     __resetHubForTests();
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

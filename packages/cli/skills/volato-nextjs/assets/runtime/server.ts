@@ -38,6 +38,7 @@ import type { VolatoConfig } from "./index";
 
 type ServerExtras = Pick<
   VolatoConfig,
+  | "enabled"
   | "beforeSend"
   | "release"
   | "commitSha"
@@ -236,7 +237,9 @@ async function captureExceptionWithDelivery(
     }
     return false;
   }
-  if (captureEnvironment() === "development") return false;
+  if (serverExtras.enabled === false) return false;
+  if (captureEnvironment() === "development" && serverExtras.enabled !== true)
+    return false;
 
   const payload = serialize(err, ctx);
   const asEvent = payload as unknown as Record<string, unknown>;

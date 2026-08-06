@@ -110,7 +110,8 @@ export async function captureException(
     warnMissingDsn();
     return;
   }
-  if (config.environment === "development") return;
+  if (config.enabled === false) return;
+  if (config.environment === "development" && config.enabled !== true) return;
   try {
     const e = err instanceof Error ? err : new Error(String(err));
     const payload: EdgeErrorPayload = {
