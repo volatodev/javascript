@@ -15,17 +15,23 @@ const checks = [
   ["pnpm", ["build"], repositoryRoot],
   ["pnpm", ["audit", "--prod", "--audit-level", "high"], repositoryRoot],
   ["pnpm", ["smoke:package"], repositoryRoot],
-  ["pnpm", ["smoke:nextjs"], repositoryRoot],
+  [
+    "pnpm",
+    ["smoke:nextjs"],
+    repositoryRoot,
+    { VOLATO_CLI_SPEC: "pack" },
+  ],
   ["npm", ["pack", "--dry-run"], packageRoot],
 ];
 
 try {
-  for (const [command, args, cwd] of checks) {
+  for (const [command, args, cwd, checkEnv = {}] of checks) {
     process.stdout.write(`\n==> ${command} ${args.join(" ")}\n`);
     execFileSync(command, args, {
       cwd,
       env: {
         ...process.env,
+        ...checkEnv,
         NO_COLOR: "1",
         npm_config_cache: npmCache,
       },

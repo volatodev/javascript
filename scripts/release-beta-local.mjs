@@ -26,7 +26,7 @@ function run(command, args, options = {}) {
   process.stdout.write(`\n==> ${command} ${args.join(" ")}\n`);
   execFileSync(command, args, {
     cwd: options.cwd ?? repositoryRoot,
-    env: { ...process.env, NO_COLOR: "1" },
+    env: { ...process.env, ...options.env, NO_COLOR: "1" },
     stdio: "inherit",
   });
 }
@@ -86,6 +86,9 @@ if (!promoteOnly) {
 
 run("node", ["scripts/package-smoke.mjs", packageSpec]);
 verifyTag("beta");
+run("node", ["scripts/nextjs-conformance.mjs"], {
+  env: { VOLATO_CLI_SPEC: packageSpec },
+});
 run("node", ["scripts/sync-alpha-dist-tags.mjs"]);
 verifyTag("latest");
 
