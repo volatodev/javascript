@@ -41,6 +41,8 @@ export type VolatoConfig = {
    * to configure or publish a release.
    */
   release?: string;
+  /** Git commit containing this build. Used only for local source lookup. */
+  commitSha?: string;
   /**
    * Build distribution identifier — opaque, user-defined. Auto-detected
    * from `VOLATO_DIST` on client + server; pass explicitly for Edge.

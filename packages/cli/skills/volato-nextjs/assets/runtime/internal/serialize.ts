@@ -132,6 +132,7 @@ function reducedEnvelope(
     "colno",
     "route",
     "release",
+    "commitSha",
     "environment",
     "capturedVia",
     "request",

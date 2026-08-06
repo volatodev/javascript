@@ -34,6 +34,8 @@ export type WithVolatoOptions = {
    * not need to configure or publish a release.
    */
   release?: string;
+  /** Git commit containing this build. Auto-detected when `.git` is present. */
+  commitSha?: string;
   /**
    * Delete `.map` files from the build output after a successful
    * upload so they aren't served to end users. Default `true`.
@@ -406,12 +408,13 @@ export function __detectGitShaForTests(cwd?: string): string | undefined {
   return detectGitSha(cwd);
 }
 
-/** Test-only — exposes `buildEnvWithRelease` for direct assertion. */
-export function __buildEnvWithReleaseForTests(
+/** Test-only — exposes the build-identity env merge for direct assertion. */
+export function __buildEnvWithIdentityForTests(
   existingEnv: unknown,
-  sha: string | undefined,
+  release: string | undefined,
+  commitSha: string | undefined,
 ): Record<string, string> {
-  return buildEnvWithRelease(existingEnv, sha);
+  return buildEnvWithIdentity(existingEnv, release, commitSha);
 }
 
 /**
@@ -422,27 +425,35 @@ export function __buildEnvWithReleaseForTests(
  * load-bearing here.
  *
  * The user's own entries in `nextConfig.env` are preserved untouched,
- * and we never overwrite `VOLATO_RELEASE` / `NEXT_PUBLIC_VOLATO_RELEASE`
- * if they already exist in `nextConfig.env` — the user wired it
- * manually for a reason.
+ * and we never overwrite release or commit identity entries that already
+ * exist in `nextConfig.env` — the user wired them manually for a reason.
  *
- * Pure: the SHA is resolved by the caller. Keeps the function testable
+ * Pure: both identities are resolved by the caller. Keeps the function testable
  * in isolation from the `execSync` shell-out.
  */
-function buildEnvWithRelease(
+function buildEnvWithIdentity(
   existingEnv: unknown,
-  sha: string | undefined,
+  release: string | undefined,
+  commitSha: string | undefined,
 ): Record<string, string> {
   const userEnv: Record<string, string> =
     existingEnv && typeof existingEnv === "object" && !Array.isArray(existingEnv)
       ? { ...(existingEnv as Record<string, string>) }
       : {};
 
-  if (!sha) return userEnv;
-
-  if (!("VOLATO_RELEASE" in userEnv)) userEnv.VOLATO_RELEASE = sha;
-  if (!("NEXT_PUBLIC_VOLATO_RELEASE" in userEnv)) {
-    userEnv.NEXT_PUBLIC_VOLATO_RELEASE = sha;
+  if (release) {
+    if (!("VOLATO_RELEASE" in userEnv)) userEnv.VOLATO_RELEASE = release;
+    if (!("NEXT_PUBLIC_VOLATO_RELEASE" in userEnv)) {
+      userEnv.NEXT_PUBLIC_VOLATO_RELEASE = release;
+    }
+  }
+  if (commitSha) {
+    if (!("VOLATO_COMMIT_SHA" in userEnv)) {
+      userEnv.VOLATO_COMMIT_SHA = commitSha;
+    }
+    if (!("NEXT_PUBLIC_VOLATO_COMMIT_SHA" in userEnv)) {
+      userEnv.NEXT_PUBLIC_VOLATO_COMMIT_SHA = commitSha;
+    }
   }
   return userEnv;
 }
@@ -456,10 +467,11 @@ function buildEnvWithRelease(
  *
  * Returns undefined when none of the three yields a value.
  */
-function resolveRelease(options: WithVolatoOptions): string | undefined {
-  return (
-    options.release ?? process.env.VOLATO_RELEASE ?? detectGitSha()
-  );
+function resolveRelease(
+  options: WithVolatoOptions,
+  commitSha: string | undefined,
+): string | undefined {
+  return options.release ?? process.env.VOLATO_RELEASE ?? commitSha;
 }
 
 /**
@@ -479,14 +491,20 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
   // with uploaded sourcemaps. Re-detecting inside the webpack plugin breaks in
   // container builds where `.git` is intentionally absent from the build
   // context, and previously allowed the two paths to disagree.
-  const release = resolveRelease(options);
+  const configuredCommitSha =
+    options.commitSha ?? process.env.VOLATO_COMMIT_SHA;
+  const commitSha =
+    configuredCommitSha && /^[a-f0-9]{7,40}$/i.test(configuredCommitSha)
+      ? configuredCommitSha
+      : detectGitSha();
+  const release = resolveRelease(options, commitSha);
   const resolvedOptions = release ? { ...options, release } : options;
 
   if (options.disableUpload) {
     return {
       ...nextConfig,
       productionBrowserSourceMaps: true,
-      env: buildEnvWithRelease(nextConfig.env, release),
+      env: buildEnvWithIdentity(nextConfig.env, release, commitSha),
     };
   }
 
@@ -514,7 +532,7 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
   return {
     ...nextConfig,
     productionBrowserSourceMaps: true,
-    env: buildEnvWithRelease(nextConfig.env, release),
+    env: buildEnvWithIdentity(nextConfig.env, release, commitSha),
     webpack(
       config: { plugins?: unknown[] } & Record<string, unknown>,
       ctx: { isServer?: boolean },

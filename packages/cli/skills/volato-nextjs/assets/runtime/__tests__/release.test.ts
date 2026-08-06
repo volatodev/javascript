@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetReleaseCacheForTests,
-  applyReleaseTo,
+  applyBuildIdentityTo,
+  detectCommitSha,
   detectDist,
   detectEnvironment,
   detectRelease,
@@ -27,6 +28,8 @@ describe("detectRelease", () => {
     for (const name of [
       "VOLATO_RELEASE",
       "NEXT_PUBLIC_VOLATO_RELEASE",
+      "VOLATO_COMMIT_SHA",
+      "NEXT_PUBLIC_VOLATO_COMMIT_SHA",
       "VOLATO_ENVIRONMENT",
       "NEXT_PUBLIC_VOLATO_ENVIRONMENT",
       "VOLATO_DIST",
@@ -62,6 +65,18 @@ describe("detectRelease", () => {
   });
 });
 
+describe("detectCommitSha", () => {
+  it("accepts a validated Volato-owned commit SHA", () => {
+    vi.stubEnv("VOLATO_COMMIT_SHA", "0123456789abcdef");
+    expect(detectCommitSha()).toBe("0123456789abcdef");
+  });
+
+  it("rejects an opaque build identifier", () => {
+    vi.stubEnv("VOLATO_COMMIT_SHA", "local-build");
+    expect(detectCommitSha()).toBeUndefined();
+  });
+});
+
 describe("detectEnvironment", () => {
   it("prefers VOLATO_ENVIRONMENT", () => {
     vi.stubEnv("VOLATO_ENVIRONMENT", "staging");
@@ -86,15 +101,17 @@ describe("detectDist", () => {
   });
 });
 
-describe("applyReleaseTo", () => {
+describe("applyBuildIdentityTo", () => {
   it("populates release/environment/dist on a bare event", () => {
     vi.stubEnv("VOLATO_RELEASE", "v1.0.0");
+    vi.stubEnv("VOLATO_COMMIT_SHA", "0123456789abcdef");
     vi.stubEnv("VOLATO_ENVIRONMENT", "production");
     vi.stubEnv("VOLATO_DIST", "build-1");
     const event: Record<string, unknown> = {};
-    applyReleaseTo(event);
+    applyBuildIdentityTo(event);
     expect(event).toEqual({
       release: "v1.0.0",
+      commitSha: "0123456789abcdef",
       environment: "production",
       dist: "build-1",
     });
@@ -103,7 +120,7 @@ describe("applyReleaseTo", () => {
   it("does not overwrite explicit fields already on the event", () => {
     vi.stubEnv("VOLATO_RELEASE", "v1.0.0");
     const event: Record<string, unknown> = { release: "explicit" };
-    applyReleaseTo(event);
+    applyBuildIdentityTo(event);
     expect(event.release).toBe("explicit");
   });
 

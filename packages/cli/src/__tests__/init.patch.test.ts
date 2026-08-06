@@ -273,6 +273,7 @@ describe("buildMiddlewareSnippet", () => {
     const snippet = buildMiddlewareSnippet();
     expect(snippet).toContain("process.env.NEXT_PUBLIC_VOLATO_DSN");
     expect(snippet).toContain("process.env.NEXT_PUBLIC_VOLATO_RELEASE");
+    expect(snippet).toContain("process.env.NEXT_PUBLIC_VOLATO_COMMIT_SHA");
     expect(snippet).not.toMatch(/process\.env\.VOLATO_DSN(?!_)/);
   });
 });

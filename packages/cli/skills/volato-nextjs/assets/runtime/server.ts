@@ -21,7 +21,7 @@ import {
   withScope,
 } from "./internal/hub-node";
 import { unwrapCauseChain } from "./internal/linked-errors";
-import { applyReleaseTo } from "./internal/release";
+import { applyBuildIdentityTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
 import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
@@ -40,6 +40,7 @@ type ServerExtras = Pick<
   VolatoConfig,
   | "beforeSend"
   | "release"
+  | "commitSha"
   | "environment"
   | "dist"
   | "ignoreErrors"
@@ -101,6 +102,7 @@ export type ServerErrorPayload = {
   timestamp: number;
   linkedErrors?: LinkedError[];
   release?: string;
+  commitSha?: string;
   environment?: string;
   dist?: string;
   capturedVia?: CapturedVia;
@@ -190,10 +192,12 @@ function serialize(
   if (chain.length > 0) payload.linkedErrors = chain;
   const target = payload as unknown as Record<string, unknown>;
   if (serverExtras.release && !target.release) target.release = serverExtras.release;
+  if (serverExtras.commitSha && !target.commitSha)
+    target.commitSha = serverExtras.commitSha;
   if (serverExtras.environment && !target.environment)
     target.environment = serverExtras.environment;
   if (serverExtras.dist && !target.dist) target.dist = serverExtras.dist;
-  applyReleaseTo(target);
+  applyBuildIdentityTo(target);
   getCurrentScope().applyTo(target);
   return payload;
 }

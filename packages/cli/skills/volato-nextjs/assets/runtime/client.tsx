@@ -47,7 +47,7 @@ import {
 } from "./internal/hub-browser";
 import { detectBrowserContext } from "./internal/browser-context";
 import { unwrapCauseChain } from "./internal/linked-errors";
-import { applyReleaseTo } from "./internal/release";
+import { applyBuildIdentityTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
 import {
   __resetDedupeForTests as __resetDedupe,
@@ -75,6 +75,7 @@ export type ClientErrorPayload = {
   actionName?: string;
   linkedErrors?: ReturnType<typeof unwrapCauseChain>;
   release?: string;
+  commitSha?: string;
   environment?: string;
   dist?: string;
   capturedVia?: ClientCapturedVia;
@@ -197,9 +198,10 @@ function serialize(
   if (chain.length > 0) payload.linkedErrors = chain;
   const target = payload as unknown as Record<string, unknown>;
   if (activeConfig?.release) target.release = activeConfig.release;
+  if (activeConfig?.commitSha) target.commitSha = activeConfig.commitSha;
   if (activeConfig?.dist) target.dist = activeConfig.dist;
   if (activeConfig?.environment) target.environment = activeConfig.environment;
-  applyReleaseTo(target);
+  applyBuildIdentityTo(target);
   getCurrentScope().applyTo(target);
   return payload;
 }

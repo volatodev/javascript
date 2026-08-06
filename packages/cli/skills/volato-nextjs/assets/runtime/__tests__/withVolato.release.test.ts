@@ -5,7 +5,7 @@
  *
  * Three layers:
  *   - `__detectGitShaForTests` against real temp git repos.
- *   - `__buildEnvWithReleaseForTests` for the env-merge logic (pure).
+ *   - `__buildEnvWithIdentityForTests` for the env-merge logic (pure).
  *   - End-to-end through `withVolato()` to pin the glue.
  */
 
@@ -22,7 +22,7 @@ import {
   vi,
 } from "vitest";
 import {
-  __buildEnvWithReleaseForTests,
+  __buildEnvWithIdentityForTests,
   __detectGitShaForTests,
   __VolatoSourceMapsPlugin,
   withVolato,
@@ -61,79 +61,100 @@ describe("__detectGitShaForTests", () => {
   });
 });
 
-describe("__buildEnvWithReleaseForTests — pure env merge", () => {
-  it("injects both VOLATO_RELEASE and NEXT_PUBLIC_VOLATO_RELEASE", () => {
-    const out = __buildEnvWithReleaseForTests({}, "abc123");
+describe("__buildEnvWithIdentityForTests — pure env merge", () => {
+  it("injects separate release and commit identities", () => {
+    const out = __buildEnvWithIdentityForTests({}, "release-1", "abc123");
     expect(out).toEqual({
-      VOLATO_RELEASE: "abc123",
-      NEXT_PUBLIC_VOLATO_RELEASE: "abc123",
+      VOLATO_RELEASE: "release-1",
+      NEXT_PUBLIC_VOLATO_RELEASE: "release-1",
+      VOLATO_COMMIT_SHA: "abc123",
+      NEXT_PUBLIC_VOLATO_COMMIT_SHA: "abc123",
     });
   });
 
   it("preserves user entries unrelated to release", () => {
-    const out = __buildEnvWithReleaseForTests(
+    const out = __buildEnvWithIdentityForTests(
       { MY_API_KEY: "secret", FEATURE_X: "on" },
+      "release-1",
       "abc123",
     );
     expect(out).toEqual({
       MY_API_KEY: "secret",
       FEATURE_X: "on",
-      VOLATO_RELEASE: "abc123",
-      NEXT_PUBLIC_VOLATO_RELEASE: "abc123",
+      VOLATO_RELEASE: "release-1",
+      NEXT_PUBLIC_VOLATO_RELEASE: "release-1",
+      VOLATO_COMMIT_SHA: "abc123",
+      NEXT_PUBLIC_VOLATO_COMMIT_SHA: "abc123",
     });
   });
 
   it("respects a user-provided VOLATO_RELEASE in nextConfig.env (no overwrite)", () => {
-    const out = __buildEnvWithReleaseForTests(
+    const out = __buildEnvWithIdentityForTests(
       { VOLATO_RELEASE: "user-set-v1.2.3" },
-      "git-detected-sha",
+      "release-1",
+      "abc1234",
     );
     expect(out.VOLATO_RELEASE).toBe("user-set-v1.2.3");
     // The PUBLIC mirror still gets injected because the user only
     // wired the server side — we extend, never replace.
-    expect(out.NEXT_PUBLIC_VOLATO_RELEASE).toBe("git-detected-sha");
+    expect(out.NEXT_PUBLIC_VOLATO_RELEASE).toBe("release-1");
+    expect(out.VOLATO_COMMIT_SHA).toBe("abc1234");
   });
 
   it("respects a user-provided NEXT_PUBLIC_VOLATO_RELEASE", () => {
-    const out = __buildEnvWithReleaseForTests(
+    const out = __buildEnvWithIdentityForTests(
       { NEXT_PUBLIC_VOLATO_RELEASE: "user-public" },
-      "git-detected-sha",
+      "release-1",
+      "abc1234",
     );
-    expect(out.VOLATO_RELEASE).toBe("git-detected-sha");
+    expect(out.VOLATO_RELEASE).toBe("release-1");
     expect(out.NEXT_PUBLIC_VOLATO_RELEASE).toBe("user-public");
   });
 
-  it("leaves user env untouched when no SHA is available", () => {
-    const out = __buildEnvWithReleaseForTests(
+  it("leaves user env untouched when no identity is available", () => {
+    const out = __buildEnvWithIdentityForTests(
       { MY_API_KEY: "secret" },
+      undefined,
       undefined,
     );
     expect(out).toEqual({ MY_API_KEY: "secret" });
     expect(out).not.toHaveProperty("VOLATO_RELEASE");
     expect(out).not.toHaveProperty("NEXT_PUBLIC_VOLATO_RELEASE");
+    expect(out).not.toHaveProperty("VOLATO_COMMIT_SHA");
   });
 
-  it("returns an empty object when no SHA + no existing env", () => {
-    expect(__buildEnvWithReleaseForTests(undefined, undefined)).toEqual({});
-    expect(__buildEnvWithReleaseForTests(null, undefined)).toEqual({});
+  it("returns an empty object when no identity + no existing env", () => {
+    expect(
+      __buildEnvWithIdentityForTests(undefined, undefined, undefined),
+    ).toEqual({});
+    expect(
+      __buildEnvWithIdentityForTests(null, undefined, undefined),
+    ).toEqual({});
   });
 
   it("tolerates non-object existing env without throwing", () => {
     // Defensive: nextConfig.env is `unknown`, a typed-poorly user might
     // pass an array or a primitive. We should not crash.
-    expect(__buildEnvWithReleaseForTests([], "abc123")).toEqual({
-      VOLATO_RELEASE: "abc123",
-      NEXT_PUBLIC_VOLATO_RELEASE: "abc123",
+    expect(__buildEnvWithIdentityForTests([], "release-1", "abc123")).toEqual({
+      VOLATO_RELEASE: "release-1",
+      NEXT_PUBLIC_VOLATO_RELEASE: "release-1",
+      VOLATO_COMMIT_SHA: "abc123",
+      NEXT_PUBLIC_VOLATO_COMMIT_SHA: "abc123",
     });
-    expect(__buildEnvWithReleaseForTests("garbage", "abc123")).toEqual({
-      VOLATO_RELEASE: "abc123",
-      NEXT_PUBLIC_VOLATO_RELEASE: "abc123",
+    expect(
+      __buildEnvWithIdentityForTests("garbage", "release-1", "abc123"),
+    ).toEqual({
+      VOLATO_RELEASE: "release-1",
+      NEXT_PUBLIC_VOLATO_RELEASE: "release-1",
+      VOLATO_COMMIT_SHA: "abc123",
+      NEXT_PUBLIC_VOLATO_COMMIT_SHA: "abc123",
     });
   });
 });
 
 describe("withVolato — end-to-end release injection", () => {
   const ORIGINAL_RELEASE = process.env.VOLATO_RELEASE;
+  const ORIGINAL_COMMIT_SHA = process.env.VOLATO_COMMIT_SHA;
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -145,6 +166,11 @@ describe("withVolato — end-to-end release injection", () => {
       delete process.env.VOLATO_RELEASE;
     } else {
       process.env.VOLATO_RELEASE = ORIGINAL_RELEASE;
+    }
+    if (ORIGINAL_COMMIT_SHA === undefined) {
+      delete process.env.VOLATO_COMMIT_SHA;
+    } else {
+      process.env.VOLATO_COMMIT_SHA = ORIGINAL_COMMIT_SHA;
     }
   });
 
@@ -159,6 +185,8 @@ describe("withVolato — end-to-end release injection", () => {
     expect(env).toBeDefined();
     expect(env?.VOLATO_RELEASE).toMatch(/^[a-f0-9]{40}$/);
     expect(env?.NEXT_PUBLIC_VOLATO_RELEASE).toBe(env?.VOLATO_RELEASE);
+    expect(env?.VOLATO_COMMIT_SHA).toBe(env?.VOLATO_RELEASE);
+    expect(env?.NEXT_PUBLIC_VOLATO_COMMIT_SHA).toBe(env?.VOLATO_COMMIT_SHA);
   });
 
   it("passes the same auto-detected build SHA to the sourcemap uploader", () => {
@@ -196,6 +224,7 @@ describe("withVolato — end-to-end release injection", () => {
     const env = (out as { env?: Record<string, string> }).env;
     expect(env?.VOLATO_RELEASE).toBe("explicit-v9.9.9");
     expect(env?.NEXT_PUBLIC_VOLATO_RELEASE).toBe("explicit-v9.9.9");
+    expect(env?.VOLATO_COMMIT_SHA).toMatch(/^[a-f0-9]{40}$/);
   });
 
   it("honours options.release over both process.env and git", () => {
@@ -203,6 +232,16 @@ describe("withVolato — end-to-end release injection", () => {
     const out = withVolato({}, { release: "from-options" });
     const env = (out as { env?: Record<string, string> }).env;
     expect(env?.VOLATO_RELEASE).toBe("from-options");
+    expect(env?.VOLATO_COMMIT_SHA).toMatch(/^[a-f0-9]{40}$/);
+  });
+
+  it("honours an explicit validated commit SHA independently", () => {
+    process.env.VOLATO_RELEASE = "release-1";
+    process.env.VOLATO_COMMIT_SHA = "0123456789abcdef";
+    const out = withVolato({});
+    const env = (out as { env?: Record<string, string> }).env;
+    expect(env?.VOLATO_RELEASE).toBe("release-1");
+    expect(env?.VOLATO_COMMIT_SHA).toBe("0123456789abcdef");
   });
 
   it("preserves user nextConfig.env entries when injecting release", () => {

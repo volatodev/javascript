@@ -47,6 +47,7 @@ export type EdgeErrorPayload = {
   timestamp: number;
   linkedErrors?: LinkedError[];
   release?: string;
+  commitSha?: string;
   environment?: string;
   dist?: string;
   capturedVia?: "wrap_middleware";
@@ -125,6 +126,7 @@ export async function captureException(
     const chain = unwrapCauseChain(err);
     if (chain.length > 0) payload.linkedErrors = chain;
     if (config.release) payload.release = config.release;
+    if (config.commitSha) payload.commitSha = config.commitSha;
     if (config.environment) payload.environment = config.environment;
     if (config.dist) payload.dist = config.dist;
     const asEvent = payload as unknown as Record<string, unknown>;

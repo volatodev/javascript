@@ -4,6 +4,7 @@
  * Priority (first non-empty wins):
  *
  *   release:       VOLATO_RELEASE | NEXT_PUBLIC_VOLATO_RELEASE
+ *   commit SHA:    VOLATO_COMMIT_SHA | NEXT_PUBLIC_VOLATO_COMMIT_SHA
  *   environment:   VOLATO_ENVIRONMENT | NEXT_PUBLIC_VOLATO_ENVIRONMENT
  *                  | NODE_ENV
  *   dist:          VOLATO_DIST | NEXT_PUBLIC_VOLATO_DIST
@@ -34,6 +35,7 @@ function trimmed(v: unknown): string | undefined {
 }
 
 let cachedRelease: string | null | undefined;
+let cachedCommitSha: string | null | undefined;
 let cachedEnvironment: string | null | undefined;
 let cachedDist: string | null | undefined;
 
@@ -53,6 +55,23 @@ export function detectRelease(): string | undefined {
     cachedRelease = fromServer ?? fromPublic ?? null;
   }
   return cachedRelease ?? undefined;
+}
+
+export function detectCommitSha(): string | undefined {
+  if (cachedCommitSha === undefined) {
+    const hasProcessEnv =
+      typeof process !== "undefined" && Boolean(process.env);
+    const fromServer = hasProcessEnv
+      ? trimmed(process.env.VOLATO_COMMIT_SHA)
+      : undefined;
+    const fromPublic = hasProcessEnv
+      ? trimmed(process.env.NEXT_PUBLIC_VOLATO_COMMIT_SHA)
+      : undefined;
+    const candidate = fromServer ?? fromPublic;
+    cachedCommitSha =
+      candidate && /^[a-f0-9]{7,40}$/i.test(candidate) ? candidate : null;
+  }
+  return cachedCommitSha ?? undefined;
 }
 
 export function detectEnvironment(): string | undefined {
@@ -87,14 +106,18 @@ export function detectDist(): string | undefined {
 }
 
 /**
- * Apply detected release / environment / dist onto an event payload.
+ * Apply detected release / commit / environment / dist onto an event payload.
  * Existing explicit values on the event are preserved — auto-detection
  * never overwrites a user-supplied field.
  */
-export function applyReleaseTo(event: Record<string, unknown>): void {
+export function applyBuildIdentityTo(event: Record<string, unknown>): void {
   if (!event.release) {
     const r = detectRelease();
     if (r) event.release = r;
+  }
+  if (!event.commitSha) {
+    const sha = detectCommitSha();
+    if (sha) event.commitSha = sha;
   }
   if (!event.environment) {
     const e = detectEnvironment();
@@ -109,6 +132,7 @@ export function applyReleaseTo(event: Record<string, unknown>): void {
 /** Test-only — invalidate the memoized release/env/dist cache. */
 export function __resetReleaseCacheForTests(): void {
   cachedRelease = undefined;
+  cachedCommitSha = undefined;
   cachedEnvironment = undefined;
   cachedDist = undefined;
 }
