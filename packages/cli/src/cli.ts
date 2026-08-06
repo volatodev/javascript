@@ -297,6 +297,7 @@ errors
     "filter: unresolved (default), resolved, ignored, all",
   )
   .option("-r, --release <release>", "scope to a release tag or commit SHA")
+  .option("-e, --environment <environment>", "scope environment (default: production)")
   .option("-q, --query <substring>", "case-insensitive match on error message")
   .option("-p, --project-id <id>", "scope to a single project")
   .option(
@@ -309,6 +310,7 @@ errors
     async (opts: {
       status?: string;
       release?: string;
+      environment?: string;
       query?: string;
       projectId?: string;
       limit?: number;
@@ -326,11 +328,12 @@ errors
   )
   .description("One-call fix context for an error group")
   .option("-p, --project-id <id>", "scope to a single project")
+  .option("-e, --environment <environment>", "scope environment (default: production)")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
     async (
       id: string | undefined,
-      opts: { projectId?: string; json?: boolean },
+      opts: { projectId?: string; environment?: string; json?: boolean },
     ) => {
       await runErrorsShow({ id, ...opts });
     },

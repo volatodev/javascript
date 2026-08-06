@@ -17,6 +17,7 @@ import {
 export async function runErrorsList(opts: {
   status?: string;
   release?: string;
+  environment?: string;
   query?: string;
   projectId?: string;
   limit?: number;
@@ -26,6 +27,7 @@ export async function runErrorsList(opts: {
   const resp = await getJson("/v1/errors", {
     status: opts.status,
     release: opts.release,
+    environment: opts.environment ?? "production",
     query: opts.query,
     projectId: opts.projectId,
     limit: opts.limit,
@@ -41,6 +43,7 @@ export async function runErrorsList(opts: {
 export async function runErrorsShow(opts: {
   id?: string;
   projectId?: string;
+  environment?: string;
   json?: boolean;
 }): Promise<void> {
   const mode: OutputMode = opts.json ? "json" : "human";
@@ -50,6 +53,7 @@ export async function runErrorsShow(opts: {
   const resp = await getJson("/v1/errors/context", {
     id: opts.id,
     projectId: opts.projectId,
+    environment: opts.environment ?? "production",
   });
   if (!resp.ok) {
     printApiError(resp);

@@ -83,11 +83,11 @@ approved interpretation; reporting never saves one automatically.
 ## Reading errors
 
     volato errors init [--yes] [--send-test-event]
-    volato errors list [--status <s>] [--release <r>] [--query <q>] [--project-id <id>] [--limit <n>] [--json]
+    volato errors list [--status <s>] [--release <r>] [--environment <env>] [--query <q>] [--project-id <id>] [--limit <n>] [--json]
 
 Status filter: unresolved (default), resolved, ignored, all.
 
-    volato errors show [<id>] [--project-id <id>] [--json]
+    volato errors show [<id>] [--project-id <id>] [--environment <env>] [--json]
 
 Returns the one-call fix context for an error group: stack,
 breadcrumbs, commit transition, source pointer, affected users,
