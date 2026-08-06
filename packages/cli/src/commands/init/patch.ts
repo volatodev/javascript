@@ -378,6 +378,7 @@ export default wrapMiddleware(async (req) => {
   dsn: process.env.NEXT_PUBLIC_VOLATO_DSN!,
   release: process.env.NEXT_PUBLIC_VOLATO_RELEASE,
   commitSha: process.env.NEXT_PUBLIC_VOLATO_COMMIT_SHA,
+  environment: process.env.NODE_ENV,
 });`;
 }
 

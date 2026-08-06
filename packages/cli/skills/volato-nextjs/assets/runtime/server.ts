@@ -58,6 +58,16 @@ export function initServer(config: ServerExtras): void {
   serverExtras = { ...serverExtras, ...config };
 }
 
+function captureEnvironment(): string {
+  return (
+    serverExtras.environment?.trim() ||
+    process.env.VOLATO_ENVIRONMENT?.trim() ||
+    process.env.NEXT_PUBLIC_VOLATO_ENVIRONMENT?.trim() ||
+    process.env.NODE_ENV?.trim() ||
+    "production"
+  );
+}
+
 const WHITELISTED_HEADERS = [
   "user-agent",
   "referer",
@@ -226,6 +236,7 @@ async function captureExceptionWithDelivery(
     }
     return false;
   }
+  if (captureEnvironment() === "development") return false;
 
   const payload = serialize(err, ctx);
   const asEvent = payload as unknown as Record<string, unknown>;

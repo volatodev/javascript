@@ -174,6 +174,18 @@ describe("captureException (server / RSC)", () => {
     expect(String(warnSpy.mock.calls[0]![0])).toMatch(/VOLATO_DSN/);
   });
 
+  it("does not capture in development unless explicitly overridden", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    initServer({ environment: undefined });
+
+    await captureException(new Error("local-only"));
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    initServer({ environment: "production" });
+    await captureException(new Error("production-override"));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("swallows fetch errors so the host app never crashes", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
     await expect(captureException(new Error("boom"))).resolves.toBeUndefined();

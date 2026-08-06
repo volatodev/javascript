@@ -128,6 +128,15 @@ describe("captureException (middleware / Edge)", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("does not capture when the inlined environment is development", async () => {
+    const req = new Request("https://app.test/");
+    await captureException(new Error("local-only"), req, {
+      ...config,
+      environment: "development",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("logs a loud one-shot console.error when DSN is missing and skips the network call", async () => {
     __resetHubForTests();
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
