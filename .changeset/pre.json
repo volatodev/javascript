@@ -6,6 +6,7 @@
     "@volatodev/cli": "0.1.0-beta.0"
   },
   "changesets": [
+    "actor-timelines-ship",
     "branch-signals-compare",
     "bright-bugs-travel",
     "calm-builds-align",

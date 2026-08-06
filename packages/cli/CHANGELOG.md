@@ -1,5 +1,13 @@
 # @volatodev/cli
 
+## 0.1.0-beta.9
+
+### Minor Changes
+
+- f88ec12: Replace declared cohort ratios with actor timelines, report installed Errors
+  and Analytics adapters, and require clean-app conformance from the packed and
+  published CLI artifacts.
+
 ## 0.1.0-beta.8
 
 ### Minor Changes
