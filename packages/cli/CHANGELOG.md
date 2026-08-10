@@ -1,5 +1,18 @@
 # @volatodev/cli
 
+## 0.1.0-beta.10
+
+### Minor Changes
+
+- bfa8c9c: Add the `volato-errors` business skill, natural-language investigation handoff,
+  and a fresh-agent eval that proves production evidence is queried before a
+  locally verified patch while resolution remains explicit.
+- 757d850: Add bounded release comparison, richer error-group filters and rankings, and
+  privacy-filtered representative event samples for local agent composition.
+- e90005a: Add independently detected Vite + React browser and Node.js server adapters,
+  with Express HTTP context, privacy-stripped sourcemaps, honest partial support,
+  and packed-artifact full-stack conformance.
+
 ## 0.1.0-beta.9
 
 ### Minor Changes
