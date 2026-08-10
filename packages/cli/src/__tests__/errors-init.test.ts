@@ -96,8 +96,10 @@ describe("volato errors init", () => {
         ingestToken: "server-only-token",
       }),
     );
-    expect(vi.mocked(process.stdout.write).mock.calls.join("\n")).toContain(
-      'Volato Errors is ready. Now ask your agent: “Fix the latest production error.”',
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toContain("Volato Errors is ready.");
+    expect(output).toContain(
+      'Now ask your agent: “Fix the latest production error.”',
     );
   });
 });
