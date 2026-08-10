@@ -33,8 +33,8 @@ Headless / CI — skip \`login\` and set the token in the environment:
     volato init --project "<project_id>" --yes
     volato errors init --yes --send-test-event
 
-\`volato init\` verifies access, installs \`volato-setup\`, \`volato-nextjs\` and
-\`volato-product\`, then links the repository through
+\`volato init\` verifies access, installs \`volato-setup\`, \`volato-errors\`,
+\`volato-nextjs\` and \`volato-product\`, then links the repository through
 \`.volato/manifest.json\`. It does not detect a framework, write credentials or
 instrument the app.
 
@@ -43,8 +43,9 @@ local capture source for a Next.js 15 or 16 App Router project. No Volato
 runtime dependency is added. Re-running is idempotent and refuses to overwrite
 locally edited generated files.
 
-The installed product domains are Next.js production errors and product-usage
-analytics. Their authoritative application and platform transitions emit the
+The installed product domains are production Errors and Product Analytics.
+\`volato-errors\` owns the investigation job while \`volato-nextjs\` owns the
+current capture integration. Their authoritative application and platform transitions emit the
 bounded events used by Volato; the CLI does not expose a free-form tracking
 command.
 
@@ -97,6 +98,10 @@ Omit the id to get the most recent unresolved group across the
 workspace (or scoped to --project-id). This is the painkiller path
 for "fix the last error" — one call, everything an agent needs.
 
+After verified setup, ask the coding agent: "Fix the latest production error."
+The \`volato-errors\` skill selects the read path, inspects local source and Git,
+patches and tests the cause, and keeps resolution separate from investigation.
+
 ## Triaging
 
     volato errors resolve <id> [--note "fixed in PR #123"] [--json]
@@ -106,6 +111,10 @@ for "fix the last error" — one call, everything an agent needs.
 The note is persisted on the resolution history (append-only —
 reopen does NOT erase prior notes; the full history surfaces in
 \`volato errors show\`).
+
+A locally verified patch is not proof that production recovered. Do not mark a
+group resolved until sufficient deployment evidence exists or the user makes
+that status mutation explicit.
 
 ## Auth
 

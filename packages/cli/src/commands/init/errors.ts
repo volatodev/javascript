@@ -257,8 +257,8 @@ function printNextSteps(
   );
   if (complete) {
     process.stdout.write(
-      `${pc.green("✓")} Done. ${pc.dim(
-        "Trigger an error, then run `volato errors show`.",
+      `${pc.green("✓")} ${pc.bold("Volato Errors is ready.")} ${pc.dim(
+        "Now ask your agent: “Fix the latest production error.”",
       )}\n`,
     );
   } else {

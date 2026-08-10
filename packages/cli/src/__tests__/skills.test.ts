@@ -26,6 +26,7 @@ beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "volato-skills-"));
   sourceRoot = join(cwd, "bundled");
   addSkill("volato-setup", "generic");
+  addSkill("volato-errors", "errors");
   addSkill("volato-nextjs", "next");
   addSkill("volato-product", "analytics");
 });
@@ -40,6 +41,7 @@ describe("installSkills", () => {
 
     expect(outcomes.map(({ skill, status }) => ({ skill, status }))).toEqual([
       { skill: "volato-setup", status: "created" },
+      { skill: "volato-errors", status: "created" },
       { skill: "volato-nextjs", status: "created" },
       { skill: "volato-product", status: "created" },
     ]);
@@ -56,7 +58,7 @@ describe("installSkills", () => {
 
     expect(
       installSkills({ cwd, sourceRoot }).map((outcome) => outcome.status),
-    ).toEqual(["unchanged", "unchanged", "unchanged"]);
+    ).toEqual(["unchanged", "unchanged", "unchanged", "unchanged"]);
   });
 
   it("does not overwrite a locally modified skill without force", () => {

@@ -17,8 +17,10 @@ volato errors init --yes --send-test-event
 volato analytics init --yes
 ```
 
-The installed domains cover Next.js production errors and outcome-led product
-analytics through the `volato-nextjs` and `volato-product` skills. Generated
+The installed domains cover production Errors and outcome-led Product
+Analytics. `volato-errors` owns the investigation and correction job;
+`volato-nextjs` owns the current capture integration; `volato-product` owns the
+usage job. Generated
 application source emits only contract-declared data;
 the CLI does not expose a free-form event command.
 
@@ -38,10 +40,19 @@ sourcemaps during production builds.
 
 ## Agent loop
 
+After verified setup, ask the agent:
+
+```text
+Fix the latest production error.
+```
+
+The agent selects `volato-errors`, queries Volato, inspects source and Git, then
+patches and verifies the cause. The underlying bounded primitives remain:
+
 ```bash
 volato errors list
 volato errors show
-volato errors resolve <id> --note "fixed in PR #123"
+volato errors resolve <id> --note "verified in deployed release abc123"
 ```
 
 Run `volato readme` for the complete agent-facing command contract.

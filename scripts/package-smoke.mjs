@@ -72,6 +72,9 @@ try {
   for (const required of [
     "dist/cli.cjs",
     "skills/volato-setup/SKILL.md",
+    "skills/volato-errors/SKILL.md",
+    "skills/volato-errors/agents/openai.yaml",
+    "skills/volato-errors/references/investigation.md",
     "skills/volato-nextjs/SKILL.md",
     "skills/volato-nextjs/assets/runtime/server.ts",
     "skills/volato-nextjs/assets/runtime/withVolato.ts",
@@ -158,6 +161,7 @@ try {
   });
   for (const required of [
     ".agents/skills/volato-setup/SKILL.md",
+    ".agents/skills/volato-errors/SKILL.md",
     ".agents/skills/volato-nextjs/SKILL.md",
     ".agents/skills/volato-product/SKILL.md",
     ".agents/skills/volato-product/assets/analytics-tracker.ts",

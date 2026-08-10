@@ -1,0 +1,4 @@
+interface:
+  display_name: "Volato Errors"
+  short_description: "Investigate and fix production errors"
+  default_prompt: "Use $volato-errors to investigate and fix the latest production error from this repository."

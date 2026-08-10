@@ -432,6 +432,7 @@ try {
     );
     for (const required of [
       ".agents/skills/volato-setup/SKILL.md",
+      ".agents/skills/volato-errors/SKILL.md",
       ".agents/skills/volato-nextjs/SKILL.md",
       ".agents/skills/volato-product/SKILL.md",
       ".volato/manifest.json",
@@ -448,6 +449,12 @@ try {
         `${entry.label} setup did not create ${required}.`,
       );
     }
+    assert(
+      init.stdout.includes(
+        "Volato Errors is ready. Now ask your agent: “Fix the latest production error.”",
+      ),
+      `${entry.label} setup did not hand off to the natural-language Errors job.`,
+    );
     const envLocal = readFileSync(join(fixture, ".env.local"), "utf8");
     assert(
       envLocal.includes("NEXT_PUBLIC_VOLATO_DSN=") &&

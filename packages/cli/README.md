@@ -31,7 +31,7 @@ volato errors show                        # most-recent unresolved across the wo
 volato errors resolve <id> --note "..."  # mark resolved (append-only history)
 volato errors reopen <id>
 volato errors ignore <id>
-volato skills install                     # install agent-facing setup skills
+volato skills install                     # install business + integration skills
 volato init --project <id> --yes          # connect repository + install skills
 volato errors init --yes --send-test-event
 volato analytics init --yes               # publish plan + generate typed tracker
@@ -72,7 +72,10 @@ activation, repeat-use, and retention evidence. `snapshot save` validates
 
 ## For agents
 
-Tell your agent to run `volato readme` once — it discovers the whole surface in a single call, then drives the loop: `errors list` → `errors show <id>` → fix → `errors resolve <id>`.
+Ask your agent: `Fix the latest production error.` The `volato-errors` skill
+queries Volato, inspects source and Git, patches the cause and runs the
+available checks without requiring a copied email or dashboard step. A local
+patch does not automatically resolve the production group.
 
 ## Self-hosting
 

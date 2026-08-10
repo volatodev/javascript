@@ -1,6 +1,6 @@
 ---
 name: volato-setup
-description: Connect a repository to Volato, inspect its project link, and select the Errors or Analytics integration skill. Use when an agent is asked to initialize Volato, repair a generated integration, verify delivery, or choose a framework-specific Volato workflow.
+description: Connect a repository to Volato, inspect its project link, and select an Errors or Analytics integration skill. Use when an agent is asked to initialize Volato, when volato-errors delegates missing capture setup, or when a generated integration must be repaired or verified.
 ---
 
 # Set up Volato
@@ -36,6 +36,9 @@ data path. Do not invent capture code from scratch.
 10. Report the generated files, configured browser origins, any manual
    integration points, and every check
    that could not be completed.
+11. After verified Errors setup, return control to `volato-errors` when setup
+    was delegated from an investigation. Otherwise finish with: `Volato Errors
+    is ready. Now ask your agent: “Fix the latest production error.”`
 
 Read [references/protocol.md](references/protocol.md) before changing
 transport, credentials, event fields, privacy filtering or sourcemap upload.

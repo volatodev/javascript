@@ -13,6 +13,7 @@ import prompts from "prompts";
 
 const BUNDLED_SKILLS = [
   "volato-setup",
+  "volato-errors",
   "volato-nextjs",
   "volato-product",
 ] as const;

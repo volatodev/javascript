@@ -16,6 +16,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "smoke:package": "pnpm --filter @volatodev/cli build && node scripts/package-smoke.mjs",
+    "eval:errors-agent": "node scripts/errors-agent-eval.mjs",
     "smoke:nextjs": "pnpm --filter @volatodev/cli build && node scripts/nextjs-conformance.mjs",
     "smoke:published": "node scripts/package-smoke.mjs @volatodev/cli@beta",
     "release:check": "node scripts/release-check.mjs",

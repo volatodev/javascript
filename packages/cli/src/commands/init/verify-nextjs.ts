@@ -35,13 +35,14 @@ function localModule(fromFile: string, target: string): string {
   return path;
 }
 
-function verificationRouteSource(
+export function verificationRouteSource(
   serverModule: string,
   marker: string,
 ): string {
-  return `import { __captureExceptionWithDelivery } from ${JSON.stringify(serverModule)};
+  return `import { __captureExceptionWithDelivery, initServer } from ${JSON.stringify(serverModule)};
 
 const marker = ${JSON.stringify(marker)};
+initServer({ enabled: true, environment: "development" });
 
 export async function GET() {
   const error = new Error("Volato integration test — generated Next.js runtime");
