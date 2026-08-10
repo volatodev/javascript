@@ -143,15 +143,21 @@ test("falls back when the production payload has no user", () => {
 import { appendFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
-appendFileSync(process.env.VOLATO_EVAL_LOG, JSON.stringify(args) + "\\n");
+function finish(payload, status = 0) {
+  const output = typeof payload === "string" ? payload : JSON.stringify(payload);
+  appendFileSync(
+    process.env.VOLATO_EVAL_LOG,
+    JSON.stringify({ args, responseBytes: Buffer.byteLength(output), status }) + "\\n",
+  );
+  (status === 0 ? console.log : console.error)(output);
+  process.exit(status);
+}
 
 if (args[0] === "--version") {
-  console.log("0.1.0-eval");
-  process.exit(0);
+  finish("0.1.0-eval");
 }
 if (args[0] === "whoami") {
-  console.log("Authenticated as eval@volato.dev");
-  process.exit(0);
+  finish("Authenticated as eval@volato.dev");
 }
 if (args[0] === "errors" && args[1] === "show") {
   const data = {
@@ -174,23 +180,33 @@ if (args[0] === "errors" && args[1] === "show") {
     events: [{ runtime: "client", environment: "production" }],
   };
   if (args.includes("--json")) {
-    console.log(JSON.stringify(data));
+    finish(data);
   } else {
-    console.log("# TypeError: Cannot read properties of undefined (reading 'name')\\n\\n" +
+    finish("# TypeError: Cannot read properties of undefined (reading 'name')\\n\\n" +
       "**Status:** unresolved · **Occurrences:** 47\\n" +
       "**Source:** src/profile.js:2:23\\n" +
       "**Commit since clean:** ${priorCleanCommit}..${firstSeenCommit}\\n" +
       "**Runtime:** client · **Environment:** production\\n\\n" +
       "The production payload can omit user. Inspect the source and commit transition before patching.");
   }
-  process.exit(0);
+}
+if (args[0] === "errors" && args[1] === "samples") {
+  finish({
+    kind: "ok",
+    group: {
+      id: "11111111-1111-4111-8111-111111111111",
+      message: "Cannot read properties of undefined (reading 'name')",
+    },
+    samples: [{
+      roles: ["recent", "representative"],
+      event: { runtime: "client", environment: "production" },
+    }],
+  });
 }
 if (args[0] === "errors" && args[1] === "resolve") {
-  console.log(JSON.stringify({ status: "resolved" }));
-  process.exit(0);
+  finish({ status: "resolved" });
 }
-console.error("Unsupported eval command: volato " + args.join(" "));
-process.exit(2);
+finish("Unsupported eval command: volato " + args.join(" "), 2);
 `;
   const mockPath = join(fixtureRoot, "bin", "volato");
   writeFileSync(mockPath, mock);
@@ -206,10 +222,26 @@ function parseCommands() {
     .map((line) => JSON.parse(line));
 }
 
+function usageFromTrace(trace) {
+  let result = null;
+  for (const line of trace.split("\n")) {
+    if (!line.trim().startsWith("{")) continue;
+    try {
+      const event = JSON.parse(line);
+      const usage = event.usage ?? event.data?.usage;
+      if (usage && typeof usage === "object") result = usage;
+    } catch {
+      // Non-JSON stderr is retained in the trace but carries no usage data.
+    }
+  }
+  return result;
+}
+
 let keepFixture = process.env.VOLATO_KEEP_EVAL === "1";
 
 try {
   writeFixture();
+  const startedAt = Date.now();
   const evaluation = run(
     "codex",
     [
@@ -234,24 +266,48 @@ try {
       },
     },
   );
+  const wallClockMs = Date.now() - startedAt;
   const trace = `${evaluation.stdout}\n${evaluation.stderr}`;
   writeFileSync(join(fixtureRoot, ".volato-eval-trace.jsonl"), trace);
   const commands = parseCommands();
   const selectedSkill = trace.includes("volato-errors/SKILL.md");
   const calledVolato = commands.some(
-    (args) => args[0] === "errors" && args[1] === "show",
+    ({ args }) => args[0] === "errors" && args[1] === "show",
   );
   const resolvedBeforeDeploy = commands.some(
-    (args) => args[0] === "errors" && args[1] === "resolve",
+    ({ args }) => args[0] === "errors" && args[1] === "resolve",
+  );
+  const operational = commands.filter(({ args }) => args[0] === "errors");
+  const operationalCallsSucceeded = operational.every(
+    ({ status }) => status === 0,
   );
   const tests = run("npm", ["test"], { allowFailure: true });
+  const changedTrackedFiles = run("git", ["diff", "--name-only", "HEAD"])
+    .stdout.trim()
+    .split("\n")
+    .filter(Boolean);
+  const minimalSourcePatch =
+    changedTrackedFiles.length === 1 &&
+    changedTrackedFiles[0] === "src/profile.js";
   const result = {
     prompt: "Fix the latest production error.",
     agentExitCode: evaluation.status,
     selectedSkill,
     calledVolato,
+    operationalCallsSucceeded,
     testsPassed: tests.status === 0,
+    minimalSourcePatch,
     resolvedBeforeDeploy,
+    metrics: {
+      wallClockMs,
+      operationalVolatoCalls: operational.length,
+      operationalResponseBytes: operational.reduce(
+        (sum, entry) => sum + entry.responseBytes,
+        0,
+      ),
+      agentTraceBytes: Buffer.byteLength(trace),
+      usage: usageFromTrace(trace),
+    },
     commands,
   };
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
@@ -259,7 +315,15 @@ try {
   assert(evaluation.status === 0, "the fresh coding agent did not complete");
   assert(selectedSkill, "the agent did not select volato-errors");
   assert(calledVolato, "the agent did not invoke Volato from the natural prompt");
+  assert(
+    operationalCallsSucceeded,
+    "an operational Volato call failed during the eval",
+  );
   assert(tests.status === 0, "the agent's patch did not pass the fixture tests");
+  assert(
+    minimalSourcePatch,
+    "the agent did not produce the expected minimal source patch",
+  );
   assert(
     !resolvedBeforeDeploy,
     "the agent resolved the production group without deployment evidence",

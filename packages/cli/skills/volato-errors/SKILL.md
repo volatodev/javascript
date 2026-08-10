@@ -9,6 +9,14 @@ Treat Volato as the production evidence source and the repository as the place
 where investigation and correction happen. Do not ask the user to copy an
 email, paste a stack, open the dashboard, or name a Volato command.
 
+Requests covered by this skill ask for the complete investigation-and-fix loop
+by default, including question-shaped prompts such as “What is broken in
+production?” and “What broke after the last deploy?”. Do not stop after a
+diagnosis when a supported root cause can be patched and verified locally.
+Stop before editing only when the user explicitly requests a diagnosis or
+read-only report, or when the available evidence cannot support a safe patch;
+state that limit precisely.
+
 ## Establish the path
 
 1. Inspect `.volato/manifest.json`, then confirm `volato --version` and
