@@ -14,7 +14,9 @@ vi.mock("../lib/output.js", () => ({
   printApiError: vi.fn(),
 }));
 
-const { runErrorsList, runErrorsShow } = await import("../commands/errors.js");
+const { runErrorSamples, runErrorsList, runErrorsShow } = await import(
+  "../commands/errors.js"
+);
 
 beforeEach(() => {
   getJson.mockReset().mockResolvedValue({
@@ -57,5 +59,75 @@ describe("errors environment scope", () => {
       "/v1/errors/context",
       expect.objectContaining({ environment: "development" }),
     );
+  });
+
+  it("forwards bounded search and ranking filters", async () => {
+    await runErrorsList({
+      status: "all",
+      release: "head",
+      baselineRelease: "base",
+      runtime: "node",
+      route: "/checkout",
+      fingerprint: "abc",
+      firstSeenAfter: "2026-08-01T00:00:00.000Z",
+      firstSeenBefore: "2026-08-10T00:00:00.000Z",
+      lastSeenAfter: "2026-08-02T00:00:00.000Z",
+      lastSeenBefore: "2026-08-09T00:00:00.000Z",
+      minEvents: 3,
+      minUsers: 2,
+      sort: "growth",
+      projectId: "project-1",
+      limit: 10,
+      json: true,
+    });
+
+    expect(getJson).toHaveBeenCalledWith("/v1/errors", {
+      status: "all",
+      release: "head",
+      baselineRelease: "base",
+      environment: "production",
+      runtime: "node",
+      route: "/checkout",
+      fingerprint: "abc",
+      firstSeenAfter: "2026-08-01T00:00:00.000Z",
+      firstSeenBefore: "2026-08-10T00:00:00.000Z",
+      lastSeenAfter: "2026-08-02T00:00:00.000Z",
+      lastSeenBefore: "2026-08-09T00:00:00.000Z",
+      minEvents: 3,
+      minUsers: 2,
+      sort: "growth",
+      query: undefined,
+      projectId: "project-1",
+      limit: 10,
+    });
+    expect(printSuccess).toHaveBeenCalledWith(expect.anything(), "json");
+  });
+
+  it("requests bounded, filtered event samples for one group", async () => {
+    await runErrorSamples({
+      id: "group/id",
+      projectId: "project-1",
+      environment: "staging",
+      release: "head",
+      runtime: "browser",
+      route: "/checkout",
+      strategy: "variations",
+      limit: 3,
+      json: true,
+    });
+
+    expect(getJson).toHaveBeenCalledWith(
+      "/v1/errors/group%2Fid/events",
+      {
+        projectId: "project-1",
+        environment: "staging",
+        release: "head",
+        runtime: "browser",
+        route: "/checkout",
+        strategy: "variations",
+        limit: 3,
+      },
+    );
+    expect(printSuccess).toHaveBeenCalledWith(expect.anything(), "json");
   });
 });

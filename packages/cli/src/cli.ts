@@ -12,9 +12,12 @@
  *   volato errors init                — install detected Errors capture adapters
  *   volato errors list                — list error groups
  *   volato errors show [id]           — fix context (omit id → most recent)
+ *   volato errors samples <id>        — bounded representative events
  *   volato errors resolve <id>        — mark resolved (append a note)
  *   volato errors reopen  <id>        — reopen (note preserved on history)
  *   volato errors ignore  <id>        — mark ignored
+ *   volato releases list              — latest captured releases
+ *   volato releases compare [head]    — compare a release to its predecessor
  *   volato projects origins set       — replace a browser-origin allowlist
  *   volato analytics init             — install generated Next.js analytics
  *   volato analytics validate         — validate .volato/analytics.json locally
@@ -33,10 +36,15 @@ import { runErrorsInit } from "./commands/init/errors.js";
 import { runAnalyticsInit } from "./commands/init/analytics.js";
 import { runLogin, runLogout, runWhoami } from "./commands/login.js";
 import {
+  runErrorSamples,
   runErrorsList,
   runErrorsShow,
   runErrorsResolve,
 } from "./commands/errors.js";
+import {
+  runReleasesCompare,
+  runReleasesList,
+} from "./commands/releases.js";
 import { runReadme } from "./commands/readme.js";
 import { runSkillsInstall } from "./commands/skills.js";
 import { runProjectOriginsSet } from "./commands/projects.js";
@@ -297,8 +305,36 @@ errors
     "filter: unresolved (default), resolved, ignored, all",
   )
   .option("-r, --release <release>", "scope to a release tag or commit SHA")
+  .option(
+    "--baseline-release <release>",
+    "comparison baseline used by --sort growth (auto-detected when omitted)",
+  )
   .option("-e, --environment <environment>", "scope environment (default: production)")
   .option("-q, --query <substring>", "case-insensitive match on error message")
+  .option("--fingerprint <substring>", "case-insensitive fingerprint match")
+  .option(
+    "--runtime <runtime>",
+    "scope runtime: browser, node, client, rsc, server_action, route_handler, middleware",
+  )
+  .option("--route <route>", "scope to an exact normalized route")
+  .option("--first-seen-after <iso>", "group first seen at or after ISO timestamp")
+  .option("--first-seen-before <iso>", "group first seen at or before ISO timestamp")
+  .option("--last-seen-after <iso>", "group last seen at or after ISO timestamp")
+  .option("--last-seen-before <iso>", "group last seen at or before ISO timestamp")
+  .option(
+    "--min-events <n>",
+    "minimum matching events",
+    (v) => Number.parseInt(v, 10),
+  )
+  .option(
+    "--min-users <n>",
+    "minimum distinct affected user ids",
+    (v) => Number.parseInt(v, 10),
+  )
+  .option(
+    "--sort <ranking>",
+    "ranking: recent (default), new, users, events, growth",
+  )
   .option("-p, --project-id <id>", "scope to a single project")
   .option(
     "-l, --limit <n>",
@@ -310,13 +346,61 @@ errors
     async (opts: {
       status?: string;
       release?: string;
+      baselineRelease?: string;
       environment?: string;
       query?: string;
+      fingerprint?: string;
+      runtime?: string;
+      route?: string;
+      firstSeenAfter?: string;
+      firstSeenBefore?: string;
+      lastSeenAfter?: string;
+      lastSeenBefore?: string;
+      minEvents?: number;
+      minUsers?: number;
+      sort?: string;
       projectId?: string;
       limit?: number;
       json?: boolean;
     }) => {
       await runErrorsList(opts);
+    },
+  );
+
+errors
+  .command("samples")
+  .argument("<id>", "error group id")
+  .description("Read a bounded set of privacy-filtered event samples")
+  .option("-p, --project-id <id>", "scope to a single project")
+  .option("-e, --environment <environment>", "scope environment (default: production)")
+  .option("-r, --release <release>", "scope to a release")
+  .option("--runtime <runtime>", "scope to a runtime")
+  .option("--route <route>", "scope to an exact normalized route")
+  .option(
+    "--strategy <strategy>",
+    "sample role: all (default), recent, representative, variations",
+  )
+  .option(
+    "-l, --limit <n>",
+    "max samples to return (1-10, default 5)",
+    (v) => Number.parseInt(v, 10),
+  )
+  .option("--json", "emit the structured payload instead of markdown")
+  .action(
+    async (
+      id: string,
+      opts: {
+        projectId?: string;
+        environment?: string;
+        release?: string;
+        runtime?: string;
+        route?: string;
+        strategy?: string;
+        limit?: number;
+        json?: boolean;
+      },
+    ) => {
+      await runErrorSamples({ id, ...opts });
     },
   );
 
@@ -368,6 +452,64 @@ errors
   .action(async (id: string, opts: { note?: string; json?: boolean }) => {
     await runErrorsResolve({ id, action: "ignored", ...opts });
   });
+
+const releases = program
+  .command("releases")
+  .description("Read captured releases and compare their error groups");
+
+releases
+  .command("list")
+  .description("List captured releases, newest first")
+  .option("-p, --project-id <id>", "scope to a single project")
+  .option("-e, --environment <environment>", "scope environment (default: production)")
+  .option("--runtime <runtime>", "scope to a runtime")
+  .option(
+    "-l, --limit <n>",
+    "max releases to return (1-100, default 20)",
+    (v) => Number.parseInt(v, 10),
+  )
+  .option("--json", "emit the structured payload instead of markdown")
+  .action(
+    async (opts: {
+      projectId?: string;
+      environment?: string;
+      runtime?: string;
+      limit?: number;
+      json?: boolean;
+    }) => {
+      await runReleasesList(opts);
+    },
+  );
+
+releases
+  .command("compare")
+  .argument("[head]", "head release (default: latest captured release)")
+  .description("Compare a release to a base or its captured predecessor")
+  .option("--base <release>", "baseline release (default: captured predecessor)")
+  .option("-p, --project-id <id>", "scope to a single project")
+  .option("-e, --environment <environment>", "scope environment (default: production)")
+  .option("--runtime <runtime>", "scope to a runtime")
+  .option(
+    "-l, --limit <n>",
+    "max changed groups to return (1-100, default 20)",
+    (v) => Number.parseInt(v, 10),
+  )
+  .option("--json", "emit the structured payload instead of markdown")
+  .action(
+    async (
+      head: string | undefined,
+      opts: {
+        base?: string;
+        projectId?: string;
+        environment?: string;
+        runtime?: string;
+        limit?: number;
+        json?: boolean;
+      },
+    ) => {
+      await runReleasesCompare({ head, ...opts });
+    },
+  );
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);

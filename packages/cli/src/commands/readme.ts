@@ -88,11 +88,15 @@ approved interpretation; reporting never saves one automatically.
 ## Reading errors
 
     volato errors init [--yes] [--send-test-event]
-    volato errors list [--status <s>] [--release <r>] [--environment <env>] [--query <q>] [--project-id <id>] [--limit <n>] [--json]
+    volato errors list [--status <s>] [--release <r>] [--runtime <runtime>] [--route <route>] [--min-events <n>] [--min-users <n>] [--sort recent|new|users|events|growth] [--project-id <id>] [--limit <n>] [--json]
 
 Status filter: unresolved (default), resolved, ignored, all.
 
     volato errors show [<id>] [--project-id <id>] [--environment <env>] [--json]
+    volato errors samples <id> [--release <r>] [--runtime <runtime>] [--route <route>] [--strategy all|recent|representative|variations] [--limit <n>] [--json]
+
+    volato releases list [--project-id <id>] [--runtime <runtime>] [--limit <n>] [--json]
+    volato releases compare [<head>] [--base <release>] [--project-id <id>] [--runtime <runtime>] [--limit <n>] [--json]
 
 Returns the one-call fix context for an error group: stack,
 breadcrumbs, commit transition, source pointer, affected users,
@@ -105,6 +109,12 @@ for "fix the last error" — one call, everything an agent needs.
 After verified setup, ask the coding agent: "Fix the latest production error."
 The \`volato-errors\` skill selects the read path, inspects local source and Git,
 patches and tests the cause, and keeps resolution separate from investigation.
+
+For a broad post-deploy regression, compare the latest and previous captured
+releases, rank new/aggravated groups, then request only bounded representative
+event samples. Release growth is a raw captured-event comparison, not a
+traffic-normalized rate. Sample output excludes request bodies, cookies,
+headers, query values, arbitrary tags, and user identity.
 
 ## Triaging
 

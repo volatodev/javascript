@@ -26,8 +26,12 @@ The token is stored at `~/.config/volato/credentials` (mode `0600`). Override th
 
 ```bash
 volato errors list                       # browse open error groups
+volato errors list --release <r> --sort growth --json
 volato errors show <id>                   # one-call fix context for a group
 volato errors show                        # most-recent unresolved across the workspace
+volato errors samples <id> --strategy all --json
+volato releases list --json               # latest + previous captured releases
+volato releases compare [head] --json     # new/aggravated/fixed groups
 volato errors resolve <id> --note "..."  # mark resolved (append-only history)
 volato errors reopen <id>
 volato errors ignore <id>
@@ -76,6 +80,11 @@ Ask your agent: `Fix the latest production error.` The `volato-errors` skill
 queries Volato, inspects source and Git, patches the cause and runs the
 available checks without requiring a copied email or dashboard step. A local
 patch does not automatically resolve the production group.
+
+For broad regressions, the agent can compare captured releases, rank groups by
+new appearance, impact or raw event growth, and request a privacy-filtered,
+bounded sample. The JSON is designed for temporary local `jq`/Node composition;
+Volato does not execute arbitrary investigation code on customer data.
 
 ## Self-hosting
 

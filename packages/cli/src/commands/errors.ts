@@ -17,8 +17,19 @@ import {
 export async function runErrorsList(opts: {
   status?: string;
   release?: string;
+  baselineRelease?: string;
   environment?: string;
   query?: string;
+  fingerprint?: string;
+  runtime?: string;
+  route?: string;
+  firstSeenAfter?: string;
+  firstSeenBefore?: string;
+  lastSeenAfter?: string;
+  lastSeenBefore?: string;
+  minEvents?: number;
+  minUsers?: number;
+  sort?: string;
   projectId?: string;
   limit?: number;
   json?: boolean;
@@ -27,11 +38,54 @@ export async function runErrorsList(opts: {
   const resp = await getJson("/v1/errors", {
     status: opts.status,
     release: opts.release,
+    baselineRelease: opts.baselineRelease,
     environment: opts.environment ?? "production",
     query: opts.query,
+    fingerprint: opts.fingerprint,
+    runtime: opts.runtime,
+    route: opts.route,
+    firstSeenAfter: opts.firstSeenAfter,
+    firstSeenBefore: opts.firstSeenBefore,
+    lastSeenAfter: opts.lastSeenAfter,
+    lastSeenBefore: opts.lastSeenBefore,
+    minEvents: opts.minEvents,
+    minUsers: opts.minUsers,
+    sort: opts.sort,
     projectId: opts.projectId,
     limit: opts.limit,
   });
+  if (!resp.ok) {
+    printApiError(resp);
+    process.exit(exitCodeForStatus(resp.status));
+    return;
+  }
+  printSuccess(resp, mode);
+}
+
+export async function runErrorSamples(opts: {
+  id: string;
+  projectId?: string;
+  environment?: string;
+  release?: string;
+  runtime?: string;
+  route?: string;
+  strategy?: string;
+  limit?: number;
+  json?: boolean;
+}): Promise<void> {
+  const mode: OutputMode = opts.json ? "json" : "human";
+  const resp = await getJson(
+    `/v1/errors/${encodeURIComponent(opts.id)}/events`,
+    {
+      projectId: opts.projectId,
+      environment: opts.environment ?? "production",
+      release: opts.release,
+      runtime: opts.runtime,
+      route: opts.route,
+      strategy: opts.strategy,
+      limit: opts.limit,
+    },
+  );
   if (!resp.ok) {
     printApiError(resp);
     process.exit(exitCodeForStatus(resp.status));

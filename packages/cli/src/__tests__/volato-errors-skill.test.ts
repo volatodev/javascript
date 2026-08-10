@@ -9,6 +9,13 @@ const openai = readFileSync(
   new URL("../../skills/volato-errors/agents/openai.yaml", import.meta.url),
   "utf8",
 );
+const investigation = readFileSync(
+  new URL(
+    "../../skills/volato-errors/references/investigation.md",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("volato-errors skill contract", () => {
   it("advertises the bounded production-error intentions in discovery metadata", () => {
@@ -39,5 +46,14 @@ describe("volato-errors skill contract", () => {
   it("offers a natural-language UI prompt", () => {
     expect(openai).toContain("$volato-errors");
     expect(openai).toContain("latest production error");
+  });
+
+  it("uses stable release, ranking, and privacy-filtered sample primitives", () => {
+    expect(investigation).toContain("volato releases compare");
+    expect(investigation).toContain("--sort growth");
+    expect(investigation).toContain("volato errors samples");
+    expect(investigation).toContain("bodies, cookies, headers, query values");
+    expect(investigation).toContain("ephemeral local `jq`");
+    expect(investigation).toContain("do not register a persistent tool");
   });
 });
