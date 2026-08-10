@@ -48,3 +48,6 @@ jobs:
 
       - name: Conformance on Next.js 15 and 16
         run: pnpm smoke:nextjs
+
+      - name: Conformance on Vite + React and Node + Express
+        run: pnpm smoke:vite-node

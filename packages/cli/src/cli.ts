@@ -9,7 +9,7 @@
  *   volato whoami                     — confirm a token is loaded
  *   volato readme                     — print full command surface (markdown)
  *   volato init                       — link this repository to a Volato project
- *   volato errors init                — install generated Next.js error capture
+ *   volato errors init                — install detected Errors capture adapters
  *   volato errors list                — list error groups
  *   volato errors show [id]           — fix context (omit id → most recent)
  *   volato errors resolve <id>        — mark resolved (append a note)
@@ -269,11 +269,11 @@ const errors = program
 
 errors
   .command("init")
-  .description("Install the generated Next.js Errors integration")
+  .description("Install detected Next.js, Vite + React, and Node Errors adapters")
   .option("--yes", "apply safe setup defaults without prompts")
   .option(
     "--send-test-event",
-    "send a synthetic error through the generated application path",
+    "send a synthetic error through the generated Next.js application path",
   )
   .action(async (opts: { yes?: boolean; sendTestEvent?: boolean }) => {
     try {

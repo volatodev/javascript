@@ -3,7 +3,7 @@
  *
  *   1. Read the project linked by `volato init` and fetch its credentials.
  *   2. Drive the interactive safety and verification prompts.
- *   3. Call the deterministic Next.js adapter with the detected project.
+ *   3. Call the deterministic adapters applicable to the detected project.
  *   4. Print a final report — one line per touched file with
  *      its `created / updated / skipped / manual` outcome — so
  *      the dev sees exactly what was modified before running
@@ -18,13 +18,18 @@
 import { dirname, join, relative } from "node:path";
 import pc from "picocolors";
 import prompts from "prompts";
-import { detectProject, DetectionError } from "./detect";
+import {
+  detectErrorsStack,
+  ErrorsStackDetectionError,
+} from "./detect-errors.js";
 import {
   buildMiddlewareSnippet,
   type PatchOutcome,
   type PatchStatus,
 } from "./patch";
 import { generateNextjsIntegration } from "../../integrations/nextjs";
+import { generateViteReactIntegration } from "../../integrations/vite-react.js";
+import { generateNodeIntegration } from "../../integrations/node.js";
 import { linkedProject } from "../../integrations/manifest.js";
 import {
   fetchProjectSetup,
@@ -70,11 +75,11 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
 
   process.stdout.write(`${pc.bold("volato")} errors init  ${pc.dim(cwd)}\n\n`);
 
-  let project;
+  let stack;
   try {
-    project = detectProject(cwd);
+    stack = detectErrorsStack(cwd);
   } catch (err) {
-    if (err instanceof DetectionError) {
+    if (err instanceof ErrorsStackDetectionError) {
       throw new Error(err.message);
     }
     throw err;
@@ -91,39 +96,109 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
   // and patch `.gitignore` afterwards.
   await ensureGitignoreCoversEnvLocal(cwd, options.nonInteractive);
 
-  const generated = generateNextjsIntegration({
-    cwd,
-    dsn: setup.dsn,
-    ingestToken: setup.ingestToken,
-    project,
-  });
-  const outcomes: PatchOutcome[] = [
-    {
-      path: generated.runtimeRoot,
-      status: "created",
-      detail: `${generated.generatedFiles.length} local runtime files`,
-    },
-    ...generated.outcomes,
-    {
-      path: generated.manifestPath,
-      status: "created",
-      detail: "generated-file integrity manifest",
-    },
-  ];
+  const outcomes: PatchOutcome[] = [];
+  let nextjsRuntimeRoot: string | null = null;
+  let nextjsAppDir: "app" | "src/app" | null = null;
+
+  if (stack.nextjs) {
+    const generated = generateNextjsIntegration({
+      cwd,
+      dsn: setup.dsn,
+      ingestToken: setup.ingestToken,
+      project: stack.nextjs,
+    });
+    nextjsRuntimeRoot = generated.runtimeRoot;
+    nextjsAppDir = stack.nextjs.appDir;
+    outcomes.push(
+      {
+        path: generated.runtimeRoot,
+        status: "created",
+        detail: `${generated.generatedFiles.length} local Next.js runtime files`,
+      },
+      ...generated.outcomes,
+      {
+        path: generated.manifestPath,
+        status: "created",
+        detail: "generated-file integrity manifest",
+      },
+    );
+  } else {
+    if (stack.viteReact) {
+      const generated = generateViteReactIntegration({
+        cwd,
+        dsn: setup.dsn,
+        ingestToken: setup.ingestToken,
+        project: stack.viteReact,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Vite + React browser files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
+    if (stack.node) {
+      const generated = generateNodeIntegration({
+        cwd,
+        dsn: setup.dsn,
+        ingestToken: setup.ingestToken,
+        project: stack.node,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Node runtime files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
+  }
+  if (options.sendTestEvent && !stack.nextjs) {
+    outcomes.push({
+      path: cwd,
+      status: "manual",
+      detail:
+        "--send-test-event is currently a Next.js-only verifier; run the Vite browser and Node/Express conformance scenarios from their integration skills",
+    });
+  }
 
   for (const o of outcomes) printOutcome(cwd, o);
-  await reportIntegrationInstalled(projectLink.id, "errors-nextjs");
   process.stdout.write("\n");
   const manualOutcomes = outcomes.filter(
     (outcome) => outcome.status === "manual",
   );
 
   if (manualOutcomes.length === 0) {
+    if (stack.nextjs) {
+      await reportIntegrationInstalled(projectLink.id, "errors-nextjs");
+    }
+    if (stack.viteReact) {
+      await reportIntegrationInstalled(projectLink.id, "errors-vite-react");
+    }
+    if (stack.node) {
+      await reportIntegrationInstalled(projectLink.id, "errors-node");
+    }
+  }
+
+  if (manualOutcomes.length === 0 && stack.nextjs && nextjsRuntimeRoot && nextjsAppDir) {
     await maybeSendTestEvent(
       {
         cwd,
-        appDir: project.appDir,
-        runtimeRoot: generated.runtimeRoot,
+        appDir: nextjsAppDir,
+        runtimeRoot: nextjsRuntimeRoot,
         dsn: setup.dsn,
       },
       options.nonInteractive,
@@ -131,12 +206,19 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
     );
   }
 
-  printNextSteps(
-    project.middlewarePath,
-    generated.runtimeRoot,
-    cwd,
-    manualOutcomes.length === 0,
-  );
+  for (const notice of stack.notices) {
+    process.stdout.write(`  ${pc.yellow("!")} ${notice}\n`);
+  }
+  if (stack.nextjs && nextjsRuntimeRoot) {
+    printNextSteps(
+      stack.nextjs.middlewarePath,
+      nextjsRuntimeRoot,
+      cwd,
+      manualOutcomes.length === 0,
+    );
+  } else {
+    printPortableNextSteps(cwd, Boolean(stack.viteReact), Boolean(stack.node), manualOutcomes.length === 0);
+  }
   if (manualOutcomes.length > 0) {
     throw new Error(
       `Integration setup is incomplete: ${manualOutcomes.length} file${manualOutcomes.length === 1 ? "" : "s"} require manual composition.`,
@@ -197,6 +279,47 @@ function localModule(fromFile: string, target: string): string {
   let path = relative(dirname(fromFile), target).replaceAll("\\", "/");
   if (!path.startsWith(".")) path = `./${path}`;
   return path;
+}
+
+function printPortableNextSteps(
+  cwd: string,
+  hasBrowser: boolean,
+  hasNode: boolean,
+  complete: boolean,
+): void {
+  process.stdout.write(`${pc.bold("Next steps")}\n`);
+  process.stdout.write(
+    `  ${pc.dim("1.")} Review the generated integration and run the repository's production build.\n`,
+  );
+  let step = 2;
+  if (hasBrowser) {
+    process.stdout.write(
+      `  ${pc.dim(`${step}.`)} Exercise one window error, one unhandled rejection, and one React render error.\n`,
+    );
+    step += 1;
+  }
+  if (hasNode) {
+    process.stdout.write(
+      `  ${pc.dim(`${step}.`)} Set ${pc.cyan("VOLATO_RELEASE")} to the deployed Git SHA and exercise a controlled Node/Express error.\n`,
+    );
+    step += 1;
+  }
+  process.stdout.write(
+    `  ${pc.dim(`${step}.`)} In CI, keep ${pc.cyan("VOLATO_INGEST_TOKEN")} server-only and verify the uploaded maps contain no ${pc.cyan("sourcesContent")}.\n\n`,
+  );
+  if (complete) {
+    process.stdout.write(
+      `${pc.green("✓")} ${pc.bold("Volato Errors is ready.")} ${pc.dim(
+        "Now ask your agent: “Fix the latest production error.”",
+      )}\n`,
+    );
+  } else {
+    process.stdout.write(
+      `${pc.yellow("!")} Setup incomplete. ${pc.dim(
+        `Complete every manual file action above, then rerun \`volato errors init\` from ${relpath(cwd, cwd) || "the application root"}.`,
+      )}\n`,
+    );
+  }
 }
 
 function printNextSteps(

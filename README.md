@@ -12,19 +12,24 @@ source inside the application repository.
 npm install -g @volatodev/cli
 volato login
 volato init --project "<project_id>" --yes
-volato errors init --yes --send-test-event
+volato errors init --yes
 # after defining .volato/analytics.json
 volato analytics init --yes
 ```
 
 The installed domains cover production Errors and outcome-led Product
 Analytics. `volato-errors` owns the investigation and correction job;
-`volato-nextjs` owns the current capture integration; `volato-product` owns the
-usage job. Generated
+`volato-nextjs`, `volato-vite-react`, and `volato-node` own independent capture
+integrations; `volato-product` owns the usage job. Generated
 application source emits only contract-declared data;
 the CLI does not expose a free-form event command.
 
-For Next.js 15 and 16 App Router, setup generates:
+Errors supports Next.js 15/16 App Router and Vite + React browser capture, with
+independent Node.js runtime capture and Express HTTP context. A Vite frontend
+does not imply Node: a project may install the browser adapter, the Node
+adapter, or both.
+
+Setup generates:
 
 ```text
 .agents/skills/        agent instructions
@@ -32,6 +37,8 @@ For Next.js 15 and 16 App Router, setup generates:
 .volato/analytics.json versioned product data plan
 src/volato/            local capture runtime when src/app is used
 volato/                local capture runtime when app is used
+src/volato/            also hosts the Vite + React browser runtime
+src/volato-node/       Node runtime and Express adapter when detected
 ```
 
 The application keeps its existing Next.js and React dependencies. Generated
@@ -64,12 +71,18 @@ pnpm install
 pnpm build
 pnpm test
 pnpm smoke:nextjs
+pnpm smoke:vite-node
 ```
 
 `pnpm smoke:nextjs` creates clean Next.js 15 and 16 applications, connects each
 repository, initializes Errors and Analytics independently, sends an error test
 event, builds for production and requires real sourcemap uploads without a
 Volato runtime dependency.
+
+`pnpm smoke:vite-node` creates a clean full-stack fixture, installs both
+adapters through the packed CLI, builds Vite and Node, captures browser,
+React, Express and fatal-process failures, and proves map privacy plus fatal
+exit semantics.
 
 ## License
 

@@ -68,17 +68,26 @@ export function patchEnvLocal(
   dsn: string,
   ingestToken?: string,
 ): PatchOutcome {
+  return patchEnvValues(
+    cwd,
+    [
+      { key: "NEXT_PUBLIC_VOLATO_DSN", value: dsn },
+      ...(ingestToken
+        ? [{ key: "VOLATO_INGEST_TOKEN", value: ingestToken }]
+        : []),
+    ],
+    ingestToken !== undefined,
+  );
+}
+
+export function patchEnvValues(
+  cwd: string,
+  keys: Array<{ key: string; value: string }>,
+  authoritative = false,
+): PatchOutcome {
   const path = `${cwd}/.env.local`;
   const existing = readIfExists(path) ?? "";
-
-  const keys: Array<{ key: string; value: string }> = [
-    { key: "NEXT_PUBLIC_VOLATO_DSN", value: dsn },
-    ...(ingestToken
-      ? [{ key: "VOLATO_INGEST_TOKEN", value: ingestToken }]
-      : []),
-  ];
-
-  const projectSetup = ingestToken !== undefined;
+  const projectSetup = authoritative;
   const values = new Map(keys.map(({ key, value }) => [key, value]));
   const present = new Set<string>();
   let refreshed = false;

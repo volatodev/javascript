@@ -1,0 +1,4 @@
+interface:
+  display_name: "Volato Vite + React"
+  short_description: "Install and verify browser Errors capture for Vite + React."
+  default_prompt: "Install and verify Volato Errors browser capture in this Vite + React repository."

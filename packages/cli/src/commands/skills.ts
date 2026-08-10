@@ -15,6 +15,8 @@ const BUNDLED_SKILLS = [
   "volato-setup",
   "volato-errors",
   "volato-nextjs",
+  "volato-vite-react",
+  "volato-node",
   "volato-product",
 ] as const;
 const RETIRED_SKILLS = ["monitor-product-usage"] as const;

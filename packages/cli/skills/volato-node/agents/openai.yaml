@@ -1,0 +1,4 @@
+interface:
+  display_name: "Volato Node.js"
+  short_description: "Install and verify Node.js and Express Errors capture."
+  default_prompt: "Install and verify Volato Errors server capture in this Node.js repository."

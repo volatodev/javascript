@@ -28,24 +28,28 @@ Headless / CI — skip \`login\` and set the token in the environment:
     export VOLATO_TOKEN=...        # the API client reads it directly
     echo "$VOLATO_TOKEN" | volato login --stdin   # or store it once
 
-## Install into a Next.js app
+## Install Errors capture
 
     volato init --project "<project_id>" --yes
-    volato errors init --yes --send-test-event
+    volato errors init --yes
 
 \`volato init\` verifies access, installs \`volato-setup\`, \`volato-errors\`,
-\`volato-nextjs\` and \`volato-product\`, then links the repository through
+\`volato-nextjs\`, \`volato-vite-react\`, \`volato-node\` and
+\`volato-product\`, then links the repository through
 \`.volato/manifest.json\`. It does not detect a framework, write credentials or
 instrument the app.
 
 \`volato errors init\` retrieves the linked project's credentials and generates
-local capture source for a Next.js 15 or 16 App Router project. No Volato
-runtime dependency is added. Re-running is idempotent and refuses to overwrite
-locally edited generated files.
+the applicable independent adapters: Next.js 15/16 App Router, Vite + React
+browser capture, and Node.js runtime capture with Express HTTP context when
+Express is present. Vite alone never implies a Node server. No Volato runtime
+dependency is added. Re-running is idempotent and refuses to overwrite locally
+edited generated files. \`--send-test-event\` is the built-in Next.js verifier;
+the Vite and Node skills define their production-build conformance scenarios.
 
 The installed product domains are production Errors and Product Analytics.
-\`volato-errors\` owns the investigation job while \`volato-nextjs\` owns the
-current capture integration. Their authoritative application and platform transitions emit the
+\`volato-errors\` owns the investigation job while the framework skills own
+capture integration. Their authoritative application and platform transitions emit the
 bounded events used by Volato; the CLI does not expose a free-form tracking
 command.
 

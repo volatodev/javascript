@@ -4,10 +4,14 @@ import { dirname, join, relative } from "node:path";
 
 export const MANIFEST_SCHEMA_VERSION = 2;
 export const ERRORS_NEXTJS_INTEGRATION = "errors-nextjs" as const;
+export const ERRORS_VITE_REACT_INTEGRATION = "errors-vite-react" as const;
+export const ERRORS_NODE_INTEGRATION = "errors-node" as const;
 export const ANALYTICS_NEXTJS_INTEGRATION = "analytics-nextjs" as const;
 
 export type IntegrationId =
   | typeof ERRORS_NEXTJS_INTEGRATION
+  | typeof ERRORS_VITE_REACT_INTEGRATION
+  | typeof ERRORS_NODE_INTEGRATION
   | typeof ANALYTICS_NEXTJS_INTEGRATION;
 
 export type GeneratedIntegration = {
@@ -94,6 +98,8 @@ function parseManifest(value: unknown, path: string): IntegrationManifest {
   for (const [id, integration] of Object.entries(manifest.integrations)) {
     if (
       id !== ERRORS_NEXTJS_INTEGRATION &&
+      id !== ERRORS_VITE_REACT_INTEGRATION &&
+      id !== ERRORS_NODE_INTEGRATION &&
       id !== ANALYTICS_NEXTJS_INTEGRATION
     ) {
       throw new Error(`Unsupported Volato integration ${JSON.stringify(id)}: ${path}`);

@@ -28,6 +28,8 @@ beforeEach(() => {
   addSkill("volato-setup", "generic");
   addSkill("volato-errors", "errors");
   addSkill("volato-nextjs", "next");
+  addSkill("volato-vite-react", "vite-react");
+  addSkill("volato-node", "node");
   addSkill("volato-product", "analytics");
 });
 
@@ -43,6 +45,8 @@ describe("installSkills", () => {
       { skill: "volato-setup", status: "created" },
       { skill: "volato-errors", status: "created" },
       { skill: "volato-nextjs", status: "created" },
+      { skill: "volato-vite-react", status: "created" },
+      { skill: "volato-node", status: "created" },
       { skill: "volato-product", status: "created" },
     ]);
     expect(
@@ -58,7 +62,14 @@ describe("installSkills", () => {
 
     expect(
       installSkills({ cwd, sourceRoot }).map((outcome) => outcome.status),
-    ).toEqual(["unchanged", "unchanged", "unchanged", "unchanged"]);
+    ).toEqual([
+      "unchanged",
+      "unchanged",
+      "unchanged",
+      "unchanged",
+      "unchanged",
+      "unchanged",
+    ]);
   });
 
   it("does not overwrite a locally modified skill without force", () => {
