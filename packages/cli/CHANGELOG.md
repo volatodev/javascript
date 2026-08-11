@@ -1,5 +1,14 @@
 # @volatodev/cli
 
+## 0.1.0-beta.14
+
+### Patch Changes
+
+- 95a8427: Resolve Next.js server stacks with privacy-cleaned source maps, keep temporary
+  verification types consistent, scope latest-error investigations to the linked
+  project, align headless authentication checks, omit arbitrary thrown-object
+  fields, and select safe Node build output directories.
+
 ## 0.1.0-beta.13
 
 ### Patch Changes
