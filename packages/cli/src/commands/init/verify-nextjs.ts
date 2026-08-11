@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
+  readFileSync,
   rmSync,
   rmdirSync,
   writeFileSync,
@@ -29,6 +30,29 @@ type VerificationResponse = {
 
 type VerificationChild = ChildProcessByStdio<null, Readable, Readable>;
 const VERIFICATION_REQUEST_TIMEOUT_MS = 15_000;
+const GENERATED_ROUTE_CLEANUP_TIMEOUT_MS = 10_000;
+
+async function waitForGeneratedRouteCleanup(
+  cwd: string,
+  routeDirectoryName: string,
+): Promise<void> {
+  const validators = [
+    join(cwd, ".next", "dev", "types", "validator.ts"),
+    join(cwd, ".next", "types", "validator.ts"),
+  ];
+  const deadline = Date.now() + GENERATED_ROUTE_CLEANUP_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const stale = validators.some((path) => {
+      if (!existsSync(path)) return false;
+      return readFileSync(path, "utf8").includes(routeDirectoryName);
+    });
+    if (!stale) return;
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+  }
+  throw new Error(
+    `Next.js kept generated type references to the removed ${routeDirectoryName} verification route. Remove .next and rerun the repository checks.`,
+  );
+}
 
 export function verificationFailureMessage(
   detail: string,
@@ -305,6 +329,15 @@ export async function verifyGeneratedNextjsIntegration(
       startedChild,
       () => logs,
       options.timeoutMs ?? 60_000,
+    );
+    // Delete the temporary source while `next dev` is still watching. Next can
+    // then evict its generated validator import before we terminate the child;
+    // stopping first leaves a stale `.next/dev/types/validator.ts` that breaks
+    // the repository's next `tsc --noEmit`.
+    cleanupFiles();
+    await waitForGeneratedRouteCleanup(
+      options.cwd,
+      routeDir.split(/[\\/]/).at(-1)!,
     );
   } finally {
     process.off("SIGINT", onSigint);

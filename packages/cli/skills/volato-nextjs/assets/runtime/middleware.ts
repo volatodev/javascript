@@ -113,7 +113,16 @@ export async function captureException(
   if (config.enabled === false) return;
   if (config.environment === "development" && config.enabled !== true) return;
   try {
-    const e = err instanceof Error ? err : new Error(String(err));
+    const e =
+      err instanceof Error
+        ? err
+        : new Error(
+            typeof err === "string"
+              ? err
+              : err === null || err === undefined
+                ? `Thrown ${String(err)}`
+                : `Thrown non-Error ${typeof err}`,
+          );
     const payload: EdgeErrorPayload = {
       type: e.name ?? "Error",
       message: e.message ?? "",

@@ -44,11 +44,26 @@ function ingestUrl(dsn: string): string {
 function asError(value: unknown): Error {
   if (value instanceof Error) return value;
   if (typeof value === "string") return new Error(value);
-  try {
-    return new Error(JSON.stringify(value));
-  } catch {
-    return new Error(String(value));
+  if (value === null || value === undefined) {
+    return new Error(`Thrown ${String(value)}`);
   }
+  if (typeof value === "object") {
+    try {
+      const record = value as Record<string, unknown>;
+      const message = typeof record.message === "string" ? record.message : "";
+      const stack = typeof record.stack === "string" ? record.stack : undefined;
+      if (message || stack) {
+        const error = new Error(message || "Unknown error");
+        if (typeof record.name === "string") error.name = record.name;
+        if (stack) error.stack = stack;
+        return error;
+      }
+    } catch {
+      // A throwing property getter is still an opaque non-Error object.
+    }
+    return new Error("Thrown non-Error object");
+  }
+  return new Error(`Thrown non-Error ${typeof value}`);
 }
 
 export async function captureNodeException(

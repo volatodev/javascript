@@ -117,7 +117,10 @@ function writeFixture() {
     join(fixtureRoot, "AGENTS.md"),
     `# Eval context\n\nThe human already selected and authorized Volato project \`${projectId}\`. No additional authorization is required.\n`,
   );
-  writeFileSync(join(fixtureRoot, ".gitignore"), ".env.local\ndist/\n");
+  writeFileSync(
+    join(fixtureRoot, ".gitignore"),
+    ".env.local\ndist/\n.volato-eval-*\n",
+  );
   writeFileSync(
     join(fixtureRoot, "package.json"),
     `${JSON.stringify(
@@ -237,6 +240,8 @@ try {
       "--json",
       "-c",
       'shell_environment_policy.inherit="all"',
+      "-c",
+      "sandbox_workspace_write.network_access=true",
       "-C",
       fixtureRoot,
       "Install Volato in this project.",

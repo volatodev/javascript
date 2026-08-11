@@ -142,6 +142,10 @@ app.get("/manual", async (_req, res) => {
   await captureNodeException(new Error("Manual Node conformance"));
   res.send("ok");
 });
+app.get("/private-object", async (_req, res) => {
+  await captureNodeException({ email: "private@example.com", token: "node-secret" });
+  res.send("ok");
+});
 app.get("/boom", () => { throw new Error("Express conformance failure"); });
 if (process.argv.includes("--fatal")) {
   setTimeout(() => { throw new Error("Fatal Node conformance failure"); }, 20);
@@ -175,6 +179,7 @@ describe("generated browser runtime", () => {
     expect(await captureBrowserError(new Error("Development browser event"))).toBe(false);
     initVolatoBrowser({ dsn, environment: "production", release: process.env.VOLATO_RELEASE });
     expect(await captureBrowserError(new Error("Manual browser conformance"))).toBe(true);
+    expect(await captureBrowserError({ email: "private@example.com", token: "browser-secret" })).toBe(true);
     window.dispatchEvent(new ErrorEvent("error", { error: new Error("Window browser conformance") }));
     const rejection = new Event("unhandledrejection");
     Object.defineProperty(rejection, "reason", {
@@ -404,6 +409,11 @@ try {
       !browserEvents.some((event) => event.message === "Development browser event"),
     `browser conformance produced unexpected events: ${JSON.stringify(browserEvents)}`,
   );
+  assert(
+    !JSON.stringify(browserEvents).includes("private@example.com") &&
+      !JSON.stringify(browserEvents).includes("browser-secret"),
+    "browser capture serialized arbitrary rejected-object fields",
+  );
 
   const beforeDevelopmentNode = state.events.length;
   const developmentServer = spawn(
@@ -445,6 +455,8 @@ try {
   const port = await waitForServer(server);
   const manualResponse = await fetch(`http://127.0.0.1:${port}/manual`);
   assert(manualResponse.status === 200, `Manual Node capture changed response to ${manualResponse.status}`);
+  const privateObjectResponse = await fetch(`http://127.0.0.1:${port}/private-object`);
+  assert(privateObjectResponse.status === 200, `Private-object Node capture changed response to ${privateObjectResponse.status}`);
   const response = await fetch(`http://127.0.0.1:${port}/boom`);
   assert(response.status === 500, `Express error response changed to ${response.status}`);
   await new Promise((resolveWait) => setTimeout(resolveWait, 100));
@@ -468,6 +480,11 @@ try {
         event.capturedVia === "manual",
     ),
     "manual Node capture did not reach ingest",
+  );
+  assert(
+    !JSON.stringify(state.events).includes("private@example.com") &&
+      !JSON.stringify(state.events).includes("node-secret"),
+    "Node capture serialized arbitrary thrown-object fields",
   );
 
   const fatal = await run(

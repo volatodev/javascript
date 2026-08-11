@@ -9,7 +9,7 @@ Treat an integration as complete only when all applicable surfaces pass:
 | Server action | thrown error and explicit reported failure |
 | Route handler | thrown handler error |
 | Middleware | thrown Edge-runtime error |
-| Build | automatic commit identity and browser sourcemap upload |
+| Build | automatic commit identity and browser/server sourcemap upload |
 
 Also verify:
 
@@ -19,5 +19,7 @@ Also verify:
 - the ingest token is absent from browser output;
 - query-string secrets are redacted everywhere;
 - capture remains idempotent under React Strict Mode;
+- stale `.next/dev` maps are not uploaded by a production build;
 - sourcemaps arrive without `sourcesContent`;
-- a production stack resolves to a repository-relative source location.
+- browser and server production stacks resolve to repository-relative source
+  locations.

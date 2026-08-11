@@ -109,4 +109,67 @@ describe("Node + Express generated integration", () => {
       "volatoExpressErrorHandler",
     );
   });
+
+  it("uses the TypeScript outDir for the sourcemap uploader", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "fixture",
+        type: "module",
+        scripts: { build: "tsc --sourceMap" },
+        dependencies: { express: "5.1.0" },
+      }, null, 2)}\n`,
+    );
+    writeFileSync(
+      join(cwd, "tsconfig.json"),
+      `${JSON.stringify({ compilerOptions: { outDir: "build" } }, null, 2)}\n`,
+    );
+
+    const result = generateNodeIntegration({
+      cwd,
+      project: detectErrorsStack(cwd).node!,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    const build = JSON.parse(
+      readFileSync(join(cwd, "package.json"), "utf8"),
+    ).scripts.build as string;
+    expect(build).toContain("upload-sourcemaps.mjs build");
+    expect(result.outcomes).toContainEqual(
+      expect.objectContaining({
+        status: "updated",
+        detail: expect.stringContaining("from build"),
+      }),
+    );
+  });
+
+  it("leaves an explicit manual action for an ambiguous build output", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "fixture",
+        type: "module",
+        scripts: { build: "node scripts/build.mjs --source-map" },
+        dependencies: { express: "5.1.0" },
+      }, null, 2)}\n`,
+    );
+
+    const result = generateNodeIntegration({
+      cwd,
+      project: detectErrorsStack(cwd).node!,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    expect(result.outcomes).toContainEqual(
+      expect.objectContaining({
+        path: join(cwd, "package.json"),
+        status: "manual",
+        detail: expect.stringMatching(/output directory is ambiguous/i),
+      }),
+    );
+    expect(
+      JSON.parse(readFileSync(join(cwd, "package.json"), "utf8")).scripts
+        .build,
+    ).toBe("node scripts/build.mjs --source-map");
+  });
 });

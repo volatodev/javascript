@@ -192,10 +192,25 @@ function serialize(
   } else if (typeof err === "string") {
     payload.message = err;
   } else if (err !== null && err !== undefined) {
-    try {
-      payload.message = JSON.stringify(err);
-    } catch {
-      payload.message = String(err);
+    if (typeof err === "object") {
+      try {
+        const record = err as Record<string, unknown>;
+        const message =
+          typeof record.message === "string" ? record.message : "";
+        const stack = typeof record.stack === "string" ? record.stack : null;
+        if (message || stack) {
+          payload.type =
+            typeof record.name === "string" ? record.name : "Error";
+          payload.message = message || "Unknown error";
+          payload.stack = stack;
+        } else {
+          payload.message = "Thrown non-Error object";
+        }
+      } catch {
+        payload.message = "Thrown non-Error object";
+      }
+    } else {
+      payload.message = `Thrown non-Error ${typeof err}`;
     }
   }
 

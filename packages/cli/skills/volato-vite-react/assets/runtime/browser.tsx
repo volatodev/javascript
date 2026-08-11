@@ -71,11 +71,29 @@ function errorShape(value: unknown): {
   if (value === null || value === undefined) {
     return { type: "Error", message: `Rejected with ${String(value)}`, stack: null };
   }
-  try {
-    return { type: "Error", message: JSON.stringify(value).slice(0, 16_384), stack: null };
-  } catch {
-    return { type: "Error", message: String(value).slice(0, 16_384), stack: null };
+  if (typeof value === "object") {
+    try {
+      const record = value as Record<string, unknown>;
+      const message = typeof record.message === "string" ? record.message : "";
+      const type = typeof record.name === "string" ? record.name : "Error";
+      const stack = typeof record.stack === "string" ? record.stack : null;
+      if (message || stack) {
+        return { type, message: message || "Unknown error", stack };
+      }
+    } catch {
+      // A throwing property getter is still an opaque non-Error object.
+    }
+    return {
+      type: "Error",
+      message: "Rejected with non-Error object",
+      stack: null,
+    };
   }
+  return {
+    type: "Error",
+    message: `Rejected with non-Error ${typeof value}`,
+    stack: null,
+  };
 }
 
 function alreadyCaptured(value: unknown): boolean {

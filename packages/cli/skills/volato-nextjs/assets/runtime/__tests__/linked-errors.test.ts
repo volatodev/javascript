@@ -55,6 +55,23 @@ describe("unwrapCauseChain", () => {
     ]);
   });
 
+  it("does not serialize arbitrary fields from an object cause", () => {
+    const root = new Error("outer", {
+      cause: { email: "person@example.com", token: "secret-token" },
+    });
+    const chain = unwrapCauseChain(root);
+
+    expect(chain).toEqual([
+      {
+        type: "Error",
+        message: "Cause was a non-Error object",
+        stack: null,
+      },
+    ]);
+    expect(JSON.stringify(chain)).not.toContain("person@example.com");
+    expect(JSON.stringify(chain)).not.toContain("secret-token");
+  });
+
   it("extracts name/message/stack from an Error-shaped duck", () => {
     const root = new Error("outer", {
       cause: { name: "DBError", message: "timeout", stack: "DBError\n at x" },

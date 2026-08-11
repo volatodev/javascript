@@ -74,13 +74,56 @@ export function dsnToIngestUrl(dsn: string | ParsedDSN): string {
   return `${parsed.origin}/api/ingest`;
 }
 
-const FILENAME_HASH_REGEX = /-([a-f0-9]{8,20})\.js(?:\.map)?(?:[?#]|$)/;
+const FILENAME_HASH_REGEX = /-([a-zA-Z0-9_-]{8,20})\.js(?:\.map)?(?:[?#]|$)/;
+const NEXT_SERVER_BUILD_PATH_REGEX = /^server\/.+\.[cm]?js(?:\.map)?$/;
+
+function nextServerBuildPath(path: string): string | null {
+  let value = path.replace(/^file:\/\//, "").replaceAll("\\", "/");
+  value = value.replace(/[?#].*$/, "");
+  const marker = value.indexOf("/.next/server/");
+  if (marker >= 0) {
+    value = value.slice(marker + "/.next/".length);
+  } else {
+    value = value.replace(/^\.next\//, "");
+  }
+  value = value.replace(/\.map$/, "");
+  return NEXT_SERVER_BUILD_PATH_REGEX.test(value) ? value : null;
+}
+
+function stablePathHash(path: string): string {
+  // FNV-1a 64 represented as two uint32 words. Avoid BigInt syntax because
+  // many Next.js repositories still type-check generated files as ES2017.
+  let high = 0xcbf29ce4;
+  let low = 0x84222325;
+  for (const character of path) {
+    low = (low ^ (character.codePointAt(0) ?? 0)) >>> 0;
+    const lowProduct = low * 0x1b3;
+    high =
+      (high * 0x1b3 +
+        low * 0x100 +
+        Math.floor(lowProduct / 0x1_0000_0000)) >>>
+      0;
+    low = lowProduct >>> 0;
+  }
+  const hex = `${high.toString(16).padStart(8, "0")}${low
+    .toString(16)
+    .padStart(8, "0")}`;
+  return `p${hex.slice(-15)}`;
+}
 
 export function projectFramePath(
   framePath: string,
 ): { filename_hash: string; display_path: string } | null {
   const match = FILENAME_HASH_REGEX.exec(framePath);
-  if (!match?.[1]) return null;
+  if (!match?.[1]) {
+    const displayPath = nextServerBuildPath(framePath);
+    return displayPath
+      ? {
+          filename_hash: stablePathHash(displayPath),
+          display_path: displayPath,
+        }
+      : null;
+  }
   let displayPath = framePath.replace(/^https?:\/\/[^/]+/, "");
   displayPath = displayPath.replace(/[?#].*$/, "");
   displayPath = displayPath.replace(/^.*\/_next\//, "");

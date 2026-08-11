@@ -47,8 +47,8 @@ it for both runtime events and sourcemap uploads.
 - Use Next's `onRequestError` hook for leaked RSC errors.
 - Use the generated React helper from `app/error.tsx`; do not wrap the root
   layout in a competing error boundary.
-- Upload sourcemaps during the production build and remove `sourcesContent`
-  before transit.
+- Upload browser and server sourcemaps during the production build, skip stale
+  development artifacts, and remove `sourcesContent` before transit.
 - Browser capture sends directly to ingest by default. Add a same-origin tunnel
   only when the application explicitly needs it, then use the generated
   `createTunnelHandler()` with strict DSN, body-size, and timeout controls.

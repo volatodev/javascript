@@ -38,15 +38,17 @@ function coerceCause(cause: unknown): LinkedError {
     if (message || name || stack) {
       return { type: name || "Error", message: message || "Unknown", stack };
     }
-    let dumped: string;
-    try {
-      dumped = JSON.stringify(o);
-    } catch {
-      dumped = String(o);
-    }
-    return { type: "Error", message: dumped || "Unknown", stack: null };
+    return {
+      type: "Error",
+      message: "Cause was a non-Error object",
+      stack: null,
+    };
   }
-  return { type: "Error", message: String(cause), stack: null };
+  return {
+    type: "Error",
+    message: `Cause was a non-Error ${typeof cause}`,
+    stack: null,
+  };
 }
 
 export function unwrapCauseChain(root: unknown): LinkedError[] {

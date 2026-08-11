@@ -21,6 +21,7 @@ describe("withVolato", () => {
   it("forces productionBrowserSourceMaps on", () => {
     const out = withVolato({ reactStrictMode: true });
     expect(out.productionBrowserSourceMaps).toBe(true);
+    expect(out.experimental?.serverSourceMaps).toBe(true);
     expect(out.reactStrictMode).toBe(true);
   });
 
@@ -53,16 +54,25 @@ describe("withVolato", () => {
     expect(typeof volatoPlugin.apply).toBe("function");
   });
 
-  it("does not push the plugin into the server bundle", () => {
+  it("uploads maps from the server bundle", () => {
     const out = withVolato({});
     const cfg = { plugins: [] as unknown[] };
     out.webpack!(cfg, { isServer: true });
-    expect(cfg.plugins.length).toBe(0);
+    expect(cfg.plugins).toHaveLength(1);
+    expect(typeof (cfg.plugins[0] as { apply: unknown }).apply).toBe("function");
+  });
+
+  it("does not upload transient development maps", () => {
+    const out = withVolato({});
+    const cfg = { plugins: [] as unknown[] };
+    out.webpack!(cfg, { isServer: true, dev: true });
+    expect(cfg.plugins).toHaveLength(0);
   });
 
   it("disableUpload skips the webpack hook entirely but still emits maps", () => {
     const out = withVolato({}, { disableUpload: true });
     expect(out.productionBrowserSourceMaps).toBe(true);
+    expect(out.experimental?.serverSourceMaps).toBe(true);
     expect(out.webpack).toBeUndefined();
   });
 });

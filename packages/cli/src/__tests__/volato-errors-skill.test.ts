@@ -49,6 +49,11 @@ describe("volato-errors skill contract", () => {
   });
 
   it("uses stable release, ranking, and privacy-filtered sample primitives", () => {
+    expect(investigation).toContain(
+      "volato errors show --project-id <project-id> --json",
+    );
+    expect(investigation).toContain(".volato/manifest.json");
+    expect(investigation).toContain("whole workspace");
     expect(investigation).toContain("volato releases compare");
     expect(investigation).toContain("--sort growth");
     expect(investigation).toContain("volato errors samples");

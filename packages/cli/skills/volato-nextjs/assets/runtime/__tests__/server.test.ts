@@ -163,6 +163,22 @@ describe("captureException (server / RSC)", () => {
     expect(body.stack).toBeNull();
   });
 
+  it("does not serialize arbitrary fields from a thrown object", async () => {
+    await captureException({
+      email: "person@example.com",
+      token: "secret-token",
+      body: { card: "4111111111111111" },
+    });
+    const serialized = (fetchMock.mock.calls[0]![1] as RequestInit)
+      .body as string;
+    const body = JSON.parse(serialized) as Record<string, unknown>;
+
+    expect(body.message).toBe("Thrown non-Error object");
+    expect(serialized).not.toContain("person@example.com");
+    expect(serialized).not.toContain("secret-token");
+    expect(serialized).not.toContain("4111111111111111");
+  });
+
   it("warns and skips the POST when NEXT_PUBLIC_VOLATO_DSN is unset", async () => {
     vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", "");
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});

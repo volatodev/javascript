@@ -274,6 +274,13 @@ try {
   const calledVolato = commands.some(
     ({ args }) => args[0] === "errors" && args[1] === "show",
   );
+  const scopedCurrentProject = commands.some(
+    ({ args }) =>
+      args[0] === "errors" &&
+      args[1] === "show" &&
+      args.includes("--project-id") &&
+      args.includes("11111111-1111-4111-8111-111111111111"),
+  );
   const resolvedBeforeDeploy = commands.some(
     ({ args }) => args[0] === "errors" && args[1] === "resolve",
   );
@@ -294,6 +301,7 @@ try {
     agentExitCode: evaluation.status,
     selectedSkill,
     calledVolato,
+    scopedCurrentProject,
     operationalCallsSucceeded,
     testsPassed: tests.status === 0,
     minimalSourcePatch,
@@ -315,6 +323,10 @@ try {
   assert(evaluation.status === 0, "the fresh coding agent did not complete");
   assert(selectedSkill, "the agent did not select volato-errors");
   assert(calledVolato, "the agent did not invoke Volato from the natural prompt");
+  assert(
+    scopedCurrentProject,
+    "the agent did not scope the latest error to the repository's linked project",
+  );
   assert(
     operationalCallsSucceeded,
     "an operational Volato call failed during the eval",

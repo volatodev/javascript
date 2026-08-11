@@ -284,21 +284,27 @@ describe("initClient", () => {
     expect(body.stack).toMatch(/form\.tsx:12/);
   });
 
-  it("JSON-stringifies a plain-object rejection with no Error-like fields", () => {
+  it("does not serialize arbitrary fields from a plain-object rejection", () => {
     const { window, listeners } = makeMockWindow();
     vi.stubGlobal("window", window);
     initClient({ dsn: DSN, environment: "production" });
 
     const rejectionListener = listeners.get("unhandledrejection")?.[0]!;
     rejectionListener({
-      reason: { code: 500, retryable: false },
+      reason: {
+        code: 500,
+        retryable: false,
+        email: "person@example.com",
+        token: "secret-token",
+      },
     } as PromiseRejectionEvent);
 
     const body = JSON.parse(
       (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
     ) as Record<string, unknown>;
-    expect(body.message).toContain("500");
-    expect(body.message).toContain("retryable");
+    expect(body.message).toBe("Rejected with non-Error object");
+    expect(JSON.stringify(body)).not.toContain("person@example.com");
+    expect(JSON.stringify(body)).not.toContain("secret-token");
   });
 
   it("is a no-op when NODE_ENV=development and no environment override is set", () => {
@@ -486,6 +492,32 @@ describe("instrumentFetch", () => {
     expect(body.type).toBe("FetchNetworkError");
     expect(body.message).toContain("POST");
     expect(body.message).toContain("https://api.example.com/y");
+  });
+
+  it("does not serialize arbitrary fields from a non-Error fetch rejection", async () => {
+    const privateReason = {
+      email: "person@example.com",
+      token: "secret-token",
+    };
+    upstreamFetch.mockImplementation(async (input: string | Request) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.startsWith("https://volato.dev/api/ingest")) {
+        return new Response(null, { status: 202 });
+      }
+      throw privateReason;
+    });
+
+    initClient({ dsn: DSN, environment: "production", tunnel: false });
+    instrumentFetch();
+
+    await expect(
+      getWindowFetch()("https://api.example.com/private"),
+    ).rejects.toBe(privateReason);
+
+    const serialized = JSON.stringify(lastIngestBody());
+    expect(serialized).toContain("non-Error object");
+    expect(serialized).not.toContain("person@example.com");
+    expect(serialized).not.toContain("secret-token");
   });
 
   it("does not loop-capture its own ingest traffic", async () => {
@@ -724,6 +756,23 @@ describe("instrumentConsole", () => {
     const crumbs = getCurrentScope().breadcrumbs;
     expect(crumbs.length).toBe(1);
     expect(crumbs[0]?.message).toBe("boom from console");
+  });
+
+  it("does not serialize arbitrary fields from a console object", () => {
+    initClient({ dsn: DSN, environment: "production" });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    instrumentConsole({ ignore: [] });
+
+    console.error({
+      email: "person@example.com",
+      token: "secret-token",
+    });
+
+    const crumbs = getCurrentScope().breadcrumbs;
+    expect(crumbs).toHaveLength(1);
+    expect(crumbs[0]?.message).toBe("Console object omitted");
+    expect(JSON.stringify(crumbs)).not.toContain("person@example.com");
+    expect(JSON.stringify(crumbs)).not.toContain("secret-token");
   });
 
   it("still calls the underlying console method (does not swallow output)", () => {

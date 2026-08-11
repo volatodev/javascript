@@ -5,8 +5,12 @@ default and stable structured data with `--json`.
 
 ## One group or the latest production error
 
-1. Run `volato errors show --json` for the most recent unresolved production
-   group, or `volato errors show <group-id> --json` for an explicit group.
+1. Read the linked project id from `.volato/manifest.json`, then run
+   `volato errors show --project-id <project-id> --json` for the most recent
+   unresolved production group in this repository. Use
+   `volato errors show <group-id> --json` for an explicit group. Omit
+   `--project-id` only when the user explicitly wants the latest group across
+   the whole workspace.
 2. If the response has no group, stop with the bounded “nothing to fix” result.
 3. Keep only the fields needed to test the cause: group metadata, representative
    events, resolved frame, resolution state, commit transition, affected-user

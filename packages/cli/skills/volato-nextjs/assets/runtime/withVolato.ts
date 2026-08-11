@@ -1,8 +1,8 @@
 /**
  * `withVolato(nextConfig, options)` — wraps a Next.js config to:
  *
- *   1. Force-enable production browser source maps so a real stack can be
- *      symbolicated.
+ *   1. Force-enable production browser and server source maps so real stacks
+ *      can be symbolicated.
  *   2. Inject a webpack plugin that, after build, uploads every `.js.map`
  *      under the build output to the project's ingest endpoint.
  *   3. Optionally delete the `.map` files from the served output so they
@@ -58,7 +58,7 @@ export type WithVolatoOptions = {
 // `.map` files from previous compilations that are not part of the
 // served bundle. Walking them would upload thousands of stale maps
 // every build.
-const SKIP_DIRS = new Set(["cache", ".cache", "node_modules"]);
+const SKIP_DIRS = new Set(["cache", ".cache", "dev", "node_modules"]);
 
 const UPLOAD_CONCURRENCY = 8;
 // Backoff sequence for transient failures (network / 5xx). 4xx errors
@@ -356,6 +356,10 @@ export class __VolatoSourceMapsPlugin {
 
 type NextConfigLike = {
   productionBrowserSourceMaps?: boolean;
+  // Next's `ExperimentalConfig` is structurally an object but deliberately
+  // has no string index signature. Keep this broad enough for the official
+  // `NextConfig` type while still guaranteeing it is safe to spread.
+  experimental?: object;
   // Params widened to `any` because Next.js's own webpack callback type
   // (WebpackConfiguration, WebpackConfigContext) -> WebpackConfiguration
   // is invariant under TS strict mode — `unknown` params would reject
@@ -504,6 +508,10 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
     return {
       ...nextConfig,
       productionBrowserSourceMaps: true,
+      experimental: {
+        ...nextConfig.experimental,
+        serverSourceMaps: true,
+      },
       env: buildEnvWithIdentity(nextConfig.env, release, commitSha),
     };
   }
@@ -532,16 +540,18 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
   return {
     ...nextConfig,
     productionBrowserSourceMaps: true,
+    experimental: {
+      ...nextConfig.experimental,
+      serverSourceMaps: true,
+    },
     env: buildEnvWithIdentity(nextConfig.env, release, commitSha),
     webpack(
       config: { plugins?: unknown[] } & Record<string, unknown>,
-      ctx: { isServer?: boolean },
+      ctx: { isServer?: boolean; dev?: boolean },
     ) {
       const next = userWebpack ? userWebpack(config, ctx) : config;
-      // Source maps for the browser bundle only — server-side maps live
-      // in the user's own infra and don't need symbolication.
       if (
-        !ctx.isServer &&
+        ctx.dev !== true &&
         typeof next === "object" &&
         next !== null &&
         "plugins" in next

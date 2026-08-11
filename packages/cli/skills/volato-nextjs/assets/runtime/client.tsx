@@ -124,9 +124,9 @@ type CoercedError = {
 
 /**
  * Coerce any thrown / rejected value into an Error-shaped payload. Browsers
- * allow `throw "boom"`, `Promise.reject(undefined)`, `reject({ code: 500 })`,
- * etc. — without normalization, the LLM gets `message: "[object Object]"`
- * or `message: ""`, which is useless.
+ * allow `throw "boom"`, `Promise.reject(undefined)`, and arbitrary rejected
+ * objects. Error-shaped objects keep their diagnostic fields; other objects
+ * are described without serializing arbitrary application data.
  */
 function coerceError(value: unknown): CoercedError {
   if (value instanceof Error) {
@@ -160,15 +160,17 @@ function coerceError(value: unknown): CoercedError {
         stack: stackField,
       };
     }
-    let message: string;
-    try {
-      message = JSON.stringify(obj);
-    } catch {
-      message = String(obj);
-    }
-    return { type: "Error", message: message || "Unknown error", stack: null };
+    return {
+      type: "Error",
+      message: "Rejected with non-Error object",
+      stack: null,
+    };
   }
-  return { type: "Error", message: String(value), stack: null };
+  return {
+    type: "Error",
+    message: `Rejected with non-Error ${typeof value}`,
+    stack: null,
+  };
 }
 
 function serialize(
@@ -429,6 +431,10 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
       return res;
     } catch (err) {
       if (shouldCapture(url) && isEnabled(activeConfig)) {
+        const reason =
+          err instanceof Error
+            ? err.message
+            : `non-Error ${err === null ? "null" : typeof err}`;
         getCurrentScope().addBreadcrumb({
           category: "fetch",
           type: "http",
@@ -437,10 +443,9 @@ export function instrumentFetch(options: InstrumentFetchOptions = {}): void {
             url: scrubUrl(url),
             method,
             duration_ms: Date.now() - startedAt,
-            error: err instanceof Error ? err.message : String(err),
+            error: reason,
           },
         });
-        const reason = err instanceof Error ? err.message : String(err);
         const synthetic = new Error(
           `Network failure ${method} ${scrubUrl(url)}: ${reason}`,
         );
@@ -508,11 +513,7 @@ function consoleArgsToMessage(args: readonly unknown[]): string {
   const first = args[0];
   if (typeof first === "string") return first;
   if (first instanceof Error) return first.message;
-  try {
-    return JSON.stringify(first);
-  } catch {
-    return String(first);
-  }
+  return `Console ${typeof first} omitted`;
 }
 
 /**

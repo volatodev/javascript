@@ -33,4 +33,19 @@ describe("generated protocol helpers", () => {
       projectFramePath(".next/static/chunks/page-abc12345.js"),
     );
   });
+
+  it("projects Next.js server runtime and build paths onto the same key", () => {
+    const runtime = projectFramePath(
+      "/var/task/.next/server/app/api/crash/route.js",
+    );
+    const build = projectFramePath(
+      ".next/server/app/api/crash/route.js.map",
+    );
+
+    expect(runtime).toEqual(build);
+    expect(runtime).toMatchObject({
+      display_path: "server/app/api/crash/route.js",
+      filename_hash: "p322b04c226bf424",
+    });
+  });
 });

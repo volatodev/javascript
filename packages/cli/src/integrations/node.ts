@@ -4,7 +4,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import type { NodeProjectShape } from "../commands/init/detect-errors.js";
 import {
   patchEnvValues,
@@ -157,13 +157,75 @@ function patchBuildScript(cwd: string, runtimeRoot: string): PatchOutcome {
         "the Node build does not visibly enable sourcemaps; enable them, then append the generated uploader",
     };
   }
+  const outputDirectory = detectBuildOutputDirectory(cwd, build);
+  if (!outputDirectory) {
+    return {
+      path,
+      status: "manual",
+      detail:
+        "the Node build output directory is ambiguous; run the generated sourcemap uploader with the repository-relative output directory after the production build",
+    };
+  }
   const uploader = relative(cwd, join(runtimeRoot, "upload-sourcemaps.mjs")).replaceAll(
     "\\",
     "/",
   );
-  scripts!.build = `${build} && node ${uploader} dist`;
+  scripts!.build = `${build} && node ${uploader} ${outputDirectory}`;
   writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
-  return { path, status: "updated", detail: "uploads privacy-cleaned Node sourcemaps after build" };
+  return {
+    path,
+    status: "updated",
+    detail: `uploads privacy-cleaned Node sourcemaps from ${outputDirectory} after build`,
+  };
+}
+
+function safeOutputDirectory(value: string | undefined): string | null {
+  const normalized = value?.trim().replace(/^['"]|['"]$/g, "");
+  if (
+    !normalized ||
+    normalized.startsWith("/") ||
+    normalized === ".." ||
+    normalized.startsWith("../") ||
+    normalized.includes("/../") ||
+    !/^[a-zA-Z0-9._/-]+$/.test(normalized)
+  ) {
+    return null;
+  }
+  return normalized.replace(/^\.\//, "").replace(/\/$/, "");
+}
+
+function detectBuildOutputDirectory(cwd: string, build: string): string | null {
+  const explicit =
+    /(?:--out-dir|--outDir|--outdir)(?:=|\s+)(['"]?[a-zA-Z0-9._/-]+['"]?)/.exec(
+      build,
+    )?.[1];
+  if (explicit) return safeOutputDirectory(explicit);
+
+  if (/(?:^|\s)tsup(?:\s|$)/.test(build)) return "dist";
+
+  if (/(?:^|\s)tsc(?:\s|$)/.test(build)) {
+    const configMatch = /(?:--project|-p)(?:=|\s+)(['"]?[a-zA-Z0-9._/-]+['"]?)/.exec(
+      build,
+    )?.[1];
+    const configRelative = configMatch
+      ? safeOutputDirectory(configMatch)
+      : "tsconfig.json";
+    if (!configRelative) return null;
+    const configPath = join(cwd, configRelative);
+    if (!existsSync(configPath)) return null;
+    const config = readFileSync(configPath, "utf8");
+    const configuredOutDir =
+      /["']outDir["']\s*:\s*["']([^"']+)["']/.exec(config)?.[1];
+    if (!configuredOutDir) return null;
+    return safeOutputDirectory(
+      relative(cwd, resolve(dirname(configPath), configuredOutDir)).replaceAll(
+        "\\",
+        "/",
+      ),
+    );
+  }
+
+  return null;
 }
 
 export function generateNodeIntegration(

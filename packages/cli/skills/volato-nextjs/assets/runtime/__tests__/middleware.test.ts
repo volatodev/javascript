@@ -92,6 +92,23 @@ describe("captureException (middleware / Edge)", () => {
     expect(body.message).toBe("just a string");
   });
 
+  it("does not serialize arbitrary fields from a thrown object", async () => {
+    const req = new Request("https://app.test/", { method: "GET" });
+
+    await captureException(
+      { email: "person@example.com", token: "secret-token" },
+      req,
+      config,
+    );
+
+    const serialized = (fetchMock.mock.calls[0]![1] as RequestInit)
+      .body as string;
+    const body = JSON.parse(serialized) as Record<string, unknown>;
+    expect(body.message).toBe("Thrown non-Error object");
+    expect(serialized).not.toContain("person@example.com");
+    expect(serialized).not.toContain("secret-token");
+  });
+
   it("scrubs sensitive query params from url and searchParams", async () => {
     const req = new Request(
       "https://app.test/protected?email=alice@example.com&token=abc&page=2",

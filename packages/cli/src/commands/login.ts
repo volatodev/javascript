@@ -132,7 +132,8 @@ export async function runWhoami(): Promise<void> {
   // token is present and where it lives. A real /whoami endpoint
   // (user email + workspace name) lands when we add the API call
   // in a follow-up.
-  const token = await readToken();
+  const environmentToken = process.env.VOLATO_TOKEN?.trim();
+  const token = environmentToken || (await readToken());
   if (!token) {
     printLocalError(
       `No token found. Run \`volato login\` first.\n` +
@@ -142,7 +143,9 @@ export async function runWhoami(): Promise<void> {
     return;
   }
   process.stdout.write(
-    `Authenticated. Token stored at ${credentialsLocation()}.\n`,
+    environmentToken
+      ? "Authenticated with VOLATO_TOKEN.\n"
+      : `Authenticated. Token stored at ${credentialsLocation()}.\n`,
   );
 }
 

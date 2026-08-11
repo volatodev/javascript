@@ -23,6 +23,8 @@ the first explicit HTTP adapter.
    id are not covered.
 6. Build with sourcemaps, set `VOLATO_RELEASE` to the deployed Git identity,
    and run the generated privacy-cleaned uploader with the server-only token.
+   For `tsc`, use its configured `outDir`; if a custom build output cannot be
+   identified safely, leave a precise manual upload action.
 7. Exercise manual capture, a controlled Express error when applicable, and a
    fatal child-process error. Confirm fatal capture flushes within its bounded
    deadline and the child still exits non-zero.

@@ -277,6 +277,33 @@ describe("__uploadOneForTests — error surfaces (never silent)", () => {
 });
 
 describe("__uploadOneForTests — skip cases", () => {
+  it("uploads a deterministic Next.js server entry map without a chunk hash", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "volato-upload-"));
+    const mapPath = join(dir, "route.js.map");
+    writeFileSync(mapPath, SAMPLE_MAP);
+
+    const fetchImpl = vi.fn(async () =>
+      new Response(null, { status: 201 }),
+    ) as unknown as typeof fetch;
+    const warn = vi.fn();
+    const outcome = await __uploadOneForTests({
+      mapPath,
+      jsRelative: ".next/server/app/api/crash/route.js",
+      release: "sha",
+      endpoint: "https://api.volato.dev",
+      token: "t",
+      fetchImpl,
+      warn,
+    });
+
+    expect(outcome).toBe("uploaded");
+    const request = fetchImpl.mock.calls[0]?.[1] as RequestInit;
+    const form = request.body as FormData;
+    expect(form.get("display_path")).toBe("server/app/api/crash/route.js");
+    expect(form.get("filename_hash")).toMatch(/^p[a-f0-9]{15}$/);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it("non-hashed filename → 'skipped' + warning, no fetch", async () => {
     const dir = mkdtempSync(join(tmpdir(), "volato-upload-"));
     const mapPath = join(dir, "no-hash.js.map");
@@ -397,6 +424,26 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     // Map file kept on disk because hideSourceMaps:false.
     expect(existsSync(mapPath)).toBe(true);
+  });
+
+  it("does not upload stale maps left by next dev", async () => {
+    const { root } = makeBuildDir();
+    const devChunks = join(root, "dev", "server", "chunks");
+    mkdirSync(devChunks, { recursive: true });
+    writeFileSync(join(devChunks, "stale-abc12345.js.map"), SAMPLE_MAP);
+    const fetchImpl = vi.fn(async () =>
+      new Response(null, { status: 201 }),
+    ) as unknown as typeof fetch;
+
+    const plugin = new __VolatoSourceMapsPlugin(
+      { hideSourceMaps: false },
+      { fetchImpl, cwd: root },
+    );
+    const { compiler, trigger } = makeFakeCompiler(root);
+    plugin.apply(compiler);
+    await trigger();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("deletes maps after upload when hideSourceMaps is on (default)", async () => {
