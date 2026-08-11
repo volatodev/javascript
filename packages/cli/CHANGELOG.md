@@ -1,5 +1,11 @@
 # @volatodev/cli
 
+## 0.1.0-beta.16
+
+### Patch Changes
+
+- 7f634e5: Deduplicate source-map uploads shared by Next.js webpack compilers so a production build sends each map once and stays within the protected ingest budget.
+
 ## 0.1.0-beta.15
 
 ### Patch Changes
