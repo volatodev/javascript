@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   verificationFailureMessage,
+  verificationRequestTimeoutMs,
   verificationRouteSource,
 } from "../commands/init/verify-nextjs";
 
@@ -26,5 +27,10 @@ describe("generated Next.js verification route", () => {
     ).toBe(
       "ingest did not accept the generated capture\n[Volato] Server reason: invalid_dsn",
     );
+  });
+
+  it("lets a cold Next.js route compile before retrying the capture", () => {
+    expect(verificationRequestTimeoutMs(60_000)).toBe(15_000);
+    expect(verificationRequestTimeoutMs(750)).toBe(750);
   });
 });

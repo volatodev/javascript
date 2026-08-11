@@ -28,6 +28,7 @@ type VerificationResponse = {
 };
 
 type VerificationChild = ChildProcessByStdio<null, Readable, Readable>;
+const VERIFICATION_REQUEST_TIMEOUT_MS = 15_000;
 
 export function verificationFailureMessage(
   detail: string,
@@ -35,6 +36,10 @@ export function verificationFailureMessage(
 ): string {
   const trimmed = logs.trim();
   return trimmed ? `${detail}\n${trimmed}` : detail;
+}
+
+export function verificationRequestTimeoutMs(remainingMs: number): number {
+  return Math.max(1, Math.min(VERIFICATION_REQUEST_TIMEOUT_MS, remainingMs));
 }
 
 function localModule(fromFile: string, target: string): string {
@@ -144,7 +149,10 @@ async function waitForVerification(
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2_000);
+    const timer = setTimeout(
+      () => controller.abort(),
+      verificationRequestTimeoutMs(deadline - Date.now()),
+    );
     try {
       const response = await fetch(endpoint, { signal: controller.signal });
       const body = (await response.json()) as VerificationResponse;
