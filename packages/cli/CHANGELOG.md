@@ -1,5 +1,12 @@
 # @volatodev/cli
 
+## 0.1.0-beta.11
+
+### Patch Changes
+
+- 4b2dea1: Include the captured Next.js development logs when the generated integration
+  canary is rejected, so transport status and server reason remain actionable.
+
 ## 0.1.0-beta.10
 
 ### Minor Changes
