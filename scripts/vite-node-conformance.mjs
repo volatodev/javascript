@@ -390,6 +390,34 @@ try {
     state.maps.some((body) => body.includes("dist/server/") && /p[a-f0-9]{15}/.test(body)),
     "Node sourcemap did not use the stable dist-path key",
   );
+  const deployedMapCount = state.maps.length;
+  writeFileSync(
+    join(fixture, "src", "App.tsx"),
+    'export default function App() { return <main>Dirty local verification</main>; }\n',
+  );
+  const dirtyBuild = await run("pnpm", ["build"], {
+    cwd: fixture,
+    env: {
+      VITE_VOLATO_DSN: dsn,
+      VOLATO_DSN: dsn,
+      VOLATO_INGEST_TOKEN: ingestToken,
+      VOLATO_RELEASE: "",
+    },
+  });
+  assert(
+    state.maps.length === deployedMapCount,
+    "a dirty local build replaced sourcemaps for the auto-detected deployed release",
+  );
+  assert(
+    `${dirtyBuild.stdout}\n${dirtyBuild.stderr}`.includes("uncommitted changes"),
+    "a dirty local build did not explain why sourcemaps were skipped",
+  );
+  assert(
+    allFiles(join(fixture, "dist"))
+      .filter((path) => path.endsWith(".map"))
+      .every((path) => !readFileSync(path, "utf8").includes("sourcesContent")),
+    "a dirty local build left source content in generated Vite or Node maps",
+  );
   const browserBundles = allFiles(join(fixture, "dist", "assets"))
     .filter((path) => path.endsWith(".js"))
     .map((path) => readFileSync(path, "utf8"))

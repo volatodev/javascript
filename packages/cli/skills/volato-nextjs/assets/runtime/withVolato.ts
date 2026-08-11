@@ -280,6 +280,7 @@ async function withConcurrency<T, R>(
 export type __VolatoSourceMapsPluginInternals = {
   fetchImpl?: typeof fetch;
   cwd?: string;
+  skipUploadBecauseDirty?: boolean;
 };
 
 export class __VolatoSourceMapsPlugin {
@@ -356,6 +357,28 @@ export class __VolatoSourceMapsPlugin {
         const maps: string[] = [];
         for (const mapPath of walkJsMapFiles(outputRoot)) maps.push(mapPath);
         if (maps.length === 0) return;
+
+        if (this.internals.skipUploadBecauseDirty) {
+          if (hide) {
+            await Promise.all(
+              maps
+                .filter((mapPath) => isPublicBrowserMap(outputRoot, mapPath))
+                .map(async (mapPath) => {
+                  try {
+                    await unlink(mapPath);
+                  } catch {
+                    // best-effort
+                  }
+                }),
+            );
+          }
+          warn(
+            "sourcemaps were not uploaded because the release was inferred from Git " +
+              "but the worktree has uncommitted changes. Commit the build inputs or " +
+              "set VOLATO_RELEASE explicitly for this build.",
+          );
+          return;
+        }
 
         const outcomes = await withConcurrency(
           maps,
@@ -453,6 +476,21 @@ function detectGitSha(cwd?: string): string | undefined {
   }
 }
 
+function gitWorktreeIsClean(cwd?: string): boolean {
+  try {
+    return (
+      execSync("git status --porcelain=v1 --untracked-files=normal", {
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 1000,
+        encoding: "utf8",
+        cwd,
+      }).trim() === ""
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Test-only — exposes `detectGitSha` for direct assertion. */
 export function __detectGitShaForTests(cwd?: string): string | undefined {
   return detectGitSha(cwd);
@@ -517,11 +555,9 @@ function buildEnvWithIdentity(
  *
  * Returns undefined when none of the three yields a value.
  */
-function resolveRelease(
-  options: WithVolatoOptions,
-  commitSha: string | undefined,
-): string | undefined {
-  return options.release ?? process.env.VOLATO_RELEASE ?? commitSha;
+function explicitRelease(options: WithVolatoOptions): string | undefined {
+  const configured = options.release?.trim() || process.env.VOLATO_RELEASE?.trim();
+  return configured || undefined;
 }
 
 /**
@@ -542,12 +578,22 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
   // container builds where `.git` is intentionally absent from the build
   // context, and previously allowed the two paths to disagree.
   const configuredCommitSha =
-    options.commitSha ?? process.env.VOLATO_COMMIT_SHA;
-  const commitSha =
+    options.commitSha?.trim() || process.env.VOLATO_COMMIT_SHA?.trim();
+  const validatedCommitSha =
     configuredCommitSha && /^[a-f0-9]{7,40}$/i.test(configuredCommitSha)
       ? configuredCommitSha
-      : detectGitSha();
-  const release = resolveRelease(options, commitSha);
+      : undefined;
+  const autoDetectedCommitSha = validatedCommitSha ? undefined : detectGitSha();
+  const commitSha = validatedCommitSha ?? autoDetectedCommitSha;
+  const configuredRelease = explicitRelease(options);
+  const release = configuredRelease ?? commitSha;
+  const skipUploadBecauseDirty = Boolean(
+    release &&
+      !configuredRelease &&
+      !validatedCommitSha &&
+      autoDetectedCommitSha &&
+      !gitWorktreeIsClean(),
+  );
   const resolvedOptions = release ? { ...options, release } : options;
 
   if (options.disableUpload) {
@@ -603,7 +649,11 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
         "plugins" in next
       ) {
         const plugins = (next as { plugins?: unknown[] }).plugins ?? [];
-        plugins.push(new __VolatoSourceMapsPlugin(resolvedOptions));
+        plugins.push(
+          new __VolatoSourceMapsPlugin(resolvedOptions, {
+            skipUploadBecauseDirty,
+          }),
+        );
         (next as { plugins?: unknown[] }).plugins = plugins;
       }
       return next;

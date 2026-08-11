@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 
 const outputRoot = process.argv[2] ?? "dist";
@@ -26,14 +26,31 @@ function stablePathHash(path) {
 }
 
 function releaseIdentity() {
-  if (process.env.VOLATO_RELEASE?.trim()) return process.env.VOLATO_RELEASE.trim();
+  if (process.env.VOLATO_RELEASE?.trim()) {
+    return { release: process.env.VOLATO_RELEASE.trim(), inferredFromGit: false };
+  }
   try {
-    return execFileSync("git", ["rev-parse", "HEAD"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
+    return {
+      release: execFileSync("git", ["rev-parse", "HEAD"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim(),
+      inferredFromGit: true,
+    };
   } catch {
-    return undefined;
+    return { release: undefined, inferredFromGit: false };
+  }
+}
+
+function gitWorktreeIsClean() {
+  try {
+    return execFileSync(
+      "git",
+      ["status", "--porcelain=v1", "--untracked-files=normal"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim() === "";
+  } catch {
+    return false;
   }
 }
 
@@ -47,8 +64,22 @@ function endpointFromDsn(dsn) {
 
 const dsn = process.env.VOLATO_DSN;
 const token = process.env.VOLATO_INGEST_TOKEN;
-const release = releaseIdentity();
+const identity = releaseIdentity();
+const release = identity.release;
 const paths = filesUnder(outputRoot);
+const maps = paths.map((path) => {
+  const raw = JSON.parse(readFileSync(path, "utf8"));
+  delete raw.sourcesContent;
+  const sanitized = `${JSON.stringify(raw)}\n`;
+  writeFileSync(path, sanitized, "utf8");
+  return { path, sanitized };
+});
+if (paths.length > 0 && identity.inferredFromGit && !gitWorktreeIsClean()) {
+  console.warn(
+    "[Volato] Node sourcemaps were privacy-cleaned but not uploaded because the release was inferred from Git but the worktree has uncommitted changes. Commit the build inputs or set VOLATO_RELEASE explicitly for this build.",
+  );
+  process.exit(0);
+}
 if (paths.length > 0 && (!dsn || !token || !release)) {
   console.warn(
     "[Volato] Node sourcemaps were not uploaded. Set VOLATO_DSN, VOLATO_INGEST_TOKEN, and VOLATO_RELEASE in CI.",
@@ -56,10 +87,7 @@ if (paths.length > 0 && (!dsn || !token || !release)) {
   process.exit(0);
 }
 
-for (const path of paths) {
-  const raw = JSON.parse(readFileSync(path, "utf8"));
-  delete raw.sourcesContent;
-  const sanitized = JSON.stringify(raw);
+for (const { path, sanitized } of maps) {
   const displayPath = relative(process.cwd(), path)
     .replaceAll("\\", "/")
     .replace(/\.map$/, "");

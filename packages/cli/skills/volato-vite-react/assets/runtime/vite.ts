@@ -27,6 +27,24 @@ function detectRelease(explicit?: string): string | undefined {
   }
 }
 
+function gitWorktreeIsClean(root: string): boolean {
+  try {
+    return (
+      execFileSync(
+        "git",
+        ["status", "--porcelain=v1", "--untracked-files=normal"],
+        {
+          cwd: root,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "ignore"],
+        },
+      ).trim() === ""
+    );
+  } catch {
+    return false;
+  }
+}
+
 function mapsUnder(root: string): string[] {
   if (!existsSync(root)) return [];
   return readdirSync(root).flatMap((name) => {
@@ -56,6 +74,7 @@ async function uploadMaps(args: {
   dsn?: string;
   ingestToken?: string;
   release?: string;
+  skipUploadBecauseDirty?: boolean;
 }): Promise<void> {
   const paths = mapsUnder(args.outDir);
   for (const path of paths) {
@@ -67,7 +86,14 @@ async function uploadMaps(args: {
     if (!filenameHash) {
       throw new Error(`[Volato] Vite emitted an unaddressable sourcemap: ${path}`);
     }
-    if (!args.dsn || !args.ingestToken || !args.release) continue;
+    if (
+      !args.dsn ||
+      !args.ingestToken ||
+      !args.release ||
+      args.skipUploadBecauseDirty
+    ) {
+      continue;
+    }
     const form = new FormData();
     form.set("release", args.release);
     form.set("filename_hash", filenameHash);
@@ -86,7 +112,14 @@ async function uploadMaps(args: {
       throw new Error(`[Volato] Sourcemap upload failed with HTTP ${response.status}.`);
     }
   }
-  if (paths.length > 0 && (!args.ingestToken || !args.dsn || !args.release)) {
+  if (paths.length > 0 && args.skipUploadBecauseDirty) {
+    console.warn(
+      "[Volato] Sourcemaps were privacy-cleaned but not uploaded because the release was inferred from Git but the worktree has uncommitted changes. Commit the build inputs or set VOLATO_RELEASE explicitly for this build.",
+    );
+  } else if (
+    paths.length > 0 &&
+    (!args.ingestToken || !args.dsn || !args.release)
+  ) {
     console.warn(
       "[Volato] Sourcemaps were privacy-cleaned but not uploaded. Set VOLATO_INGEST_TOKEN and VITE_VOLATO_DSN in CI and ensure a Git release is available.",
     );
@@ -98,9 +131,13 @@ export function withVolato(
   options: VolatoViteOptions = {},
 ): UserConfig {
   let outDir = "dist";
+  let projectRoot = process.cwd();
   let dsn: string | undefined;
   let ingestToken: string | undefined;
   const release = detectRelease(options.release);
+  const releaseWasExplicit = Boolean(
+    options.release?.trim() || process.env.VOLATO_RELEASE?.trim(),
+  );
   const plugin: Plugin = {
     name: "volato-errors",
     apply: "build",
@@ -120,9 +157,18 @@ export function withVolato(
     },
     configResolved(resolved) {
       outDir = resolved.build.outDir;
+      projectRoot = resolved.root;
     },
     async closeBundle() {
-      await uploadMaps({ outDir, dsn, ingestToken, release });
+      await uploadMaps({
+        outDir,
+        dsn,
+        ingestToken,
+        release,
+        skipUploadBecauseDirty: Boolean(
+          release && !releaseWasExplicit && !gitWorktreeIsClean(projectRoot),
+        ),
+      });
     },
   };
   return {

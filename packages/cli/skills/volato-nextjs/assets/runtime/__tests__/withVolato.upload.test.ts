@@ -396,6 +396,20 @@ function makeBuildDir(): { root: string; mapPath: string } {
   return { root, mapPath };
 }
 
+function makeDirtyAutoDetectedBuildDir(): {
+  root: string;
+  outputRoot: string;
+  mapPath: string;
+} {
+  const root = mkdtempSync(join(tmpdir(), "volato-dirty-build-"));
+  const outputRoot = join(root, ".next");
+  const chunks = join(outputRoot, "static", "chunks");
+  mkdirSync(chunks, { recursive: true });
+  const mapPath = join(chunks, "page-abc12345.js.map");
+  writeFileSync(mapPath, SAMPLE_MAP);
+  return { root, outputRoot, mapPath };
+}
+
 describe("__VolatoSourceMapsPlugin — env-var gating", () => {
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
@@ -424,6 +438,27 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     // Map file kept on disk because hideSourceMaps:false.
     expect(existsSync(mapPath)).toBe(true);
+  });
+
+  it("does not replace a deployed release's maps from a dirty auto-detected build", async () => {
+    const { root, outputRoot, mapPath } = makeDirtyAutoDetectedBuildDir();
+    const fetchImpl = vi.fn(async () =>
+      new Response(null, { status: 201 }),
+    ) as unknown as typeof fetch;
+
+    const plugin = new __VolatoSourceMapsPlugin(
+      { release: "0123456789abcdef", hideSourceMaps: true },
+      { fetchImpl, cwd: root, skipUploadBecauseDirty: true },
+    );
+    const { compiler, trigger } = makeFakeCompiler(outputRoot);
+    plugin.apply(compiler);
+    await trigger();
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(existsSync(mapPath)).toBe(false);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/uncommitted changes.*VOLATO_RELEASE/i),
+    );
   });
 
   it("uploads an overlapping map once across Next webpack compilers", async () => {
