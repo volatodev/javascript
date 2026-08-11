@@ -1,5 +1,13 @@
 # @volatodev/cli
 
+## 0.1.0-beta.17
+
+### Patch Changes
+
+- 018c107: Keep a dirty local verification build from replacing sourcemaps for the last
+  deployed Git release. Explicit release identities remain available for CI, and
+  Vite and Node maps are privacy-cleaned even when their upload is skipped.
+
 ## 0.1.0-beta.16
 
 ### Patch Changes
