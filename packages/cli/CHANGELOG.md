@@ -1,5 +1,13 @@
 # @volatodev/cli
 
+## 0.1.0-beta.12
+
+### Patch Changes
+
+- 94c8336: Give cold Next.js verification routes enough time to compile before retrying,
+  preventing an accepted first capture from being mistaken for a deduplicated
+  ingest rejection on Next.js 15.
+
 ## 0.1.0-beta.11
 
 ### Patch Changes
