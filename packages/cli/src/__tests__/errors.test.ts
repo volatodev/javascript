@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getJson = vi.fn();
+const postJson = vi.fn();
 const printSuccess = vi.fn();
 
 vi.mock("../lib/api-client.js", () => ({
+  CliError: class CliError extends Error {},
   getJson: (path: string, query: unknown) => getJson(path, query),
-  postJson: vi.fn(),
+  postJson: (path: string, body: unknown) => postJson(path, body),
 }));
 
 vi.mock("../lib/output.js", () => ({
@@ -14,9 +16,8 @@ vi.mock("../lib/output.js", () => ({
   printApiError: vi.fn(),
 }));
 
-const { runErrorSamples, runErrorsList, runErrorsShow } = await import(
-  "../commands/errors.js"
-);
+const { runErrorSamples, runErrorsList, runErrorsResolve, runErrorsShow } =
+  await import("../commands/errors.js");
 
 beforeEach(() => {
   getJson.mockReset().mockResolvedValue({
@@ -26,6 +27,39 @@ beforeEach(() => {
     data: null,
   });
   printSuccess.mockReset();
+  postJson.mockReset().mockResolvedValue({
+    ok: true,
+    status: 200,
+    markdown: "Error group resolved.",
+    data: { status: "resolved" },
+  });
+});
+
+describe("errors status mutations", () => {
+  it.each([undefined, "", "   "])(
+    "refuses a mutation without a factual note (%s)",
+    async (note) => {
+      await expect(
+        runErrorsResolve({ id: "group-1", action: "resolved", note }),
+      ).rejects.toThrow(/note is required/i);
+      expect(postJson).not.toHaveBeenCalled();
+    },
+  );
+
+  it("sends the trimmed note as an explicit mutation", async () => {
+    await runErrorsResolve({
+      id: "group-1",
+      action: "reopened",
+      note: "  still failing after release abc123  ",
+      json: true,
+    });
+
+    expect(postJson).toHaveBeenCalledWith("/v1/errors/group-1/resolve", {
+      action: "reopened",
+      note: "still failing after release abc123",
+    });
+    expect(printSuccess).toHaveBeenCalledWith(expect.anything(), "json");
+  });
 });
 
 describe("errors environment scope", () => {

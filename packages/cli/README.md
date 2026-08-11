@@ -33,8 +33,8 @@ volato errors samples <id> --strategy all --json
 volato releases list --json               # latest + previous captured releases
 volato releases compare [head] --json     # new/aggravated/fixed groups
 volato errors resolve <id> --note "..."  # mark resolved (append-only history)
-volato errors reopen <id>
-volato errors ignore <id>
+volato errors reopen <id> --note "..."
+volato errors ignore <id> --note "..."
 volato skills install                     # install business + integration skills
 volato init --project <id> --yes          # connect repository + install skills
 volato errors init --yes --send-test-event

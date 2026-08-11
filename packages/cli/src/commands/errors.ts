@@ -6,7 +6,7 @@
  * status to stderr); `--json` swaps in the structured payload from
  * the envelope's `data` field for scripts.
  */
-import { getJson, postJson } from "../lib/api-client.js";
+import { CliError, getJson, postJson } from "../lib/api-client.js";
 import { exitCodeForStatus } from "../lib/exit.js";
 import {
   printApiError,
@@ -124,9 +124,15 @@ export async function runErrorsResolve(opts: {
   json?: boolean;
 }): Promise<void> {
   const mode: OutputMode = opts.json ? "json" : "human";
+  const note = opts.note?.trim();
+  if (!note) {
+    throw new CliError(
+      "A factual --note is required for resolve, reopen, and ignore actions.",
+    );
+  }
   const resp = await postJson(`/v1/errors/${encodeURIComponent(opts.id)}/resolve`, {
     action: opts.action,
-    note: opts.note,
+    note,
   });
   if (!resp.ok) {
     printApiError(resp);

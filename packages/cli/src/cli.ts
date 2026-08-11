@@ -13,9 +13,9 @@
  *   volato errors list                — list error groups
  *   volato errors show [id]           — fix context (omit id → most recent)
  *   volato errors samples <id>        — bounded representative events
- *   volato errors resolve <id>        — mark resolved (append a note)
- *   volato errors reopen  <id>        — reopen (note preserved on history)
- *   volato errors ignore  <id>        — mark ignored
+ *   volato errors resolve <id>        — mark resolved with a required note
+ *   volato errors reopen  <id>        — reopen with a required note
+ *   volato errors ignore  <id>        — mark ignored with a required note
  *   volato releases list              — latest captured releases
  *   volato releases compare [head]    — compare a release to its predecessor
  *   volato projects origins set       — replace a browser-origin allowlist
@@ -427,9 +427,9 @@ errors
   .command("resolve")
   .argument("<id>", "error group id")
   .description("Mark an error group as resolved")
-  .option("-n, --note <text>", "audit note (e.g. 'fixed in PR #123')")
+  .requiredOption("-n, --note <text>", "audit note (e.g. 'fixed in PR #123')")
   .option("--json", "emit the structured payload instead of markdown")
-  .action(async (id: string, opts: { note?: string; json?: boolean }) => {
+  .action(async (id: string, opts: { note: string; json?: boolean }) => {
     await runErrorsResolve({ id, action: "resolved", ...opts });
   });
 
@@ -437,9 +437,9 @@ errors
   .command("reopen")
   .argument("<id>", "error group id")
   .description("Reopen a previously-resolved group (prior notes preserved)")
-  .option("-n, --note <text>", "why it came back")
+  .requiredOption("-n, --note <text>", "why it came back")
   .option("--json", "emit the structured payload instead of markdown")
-  .action(async (id: string, opts: { note?: string; json?: boolean }) => {
+  .action(async (id: string, opts: { note: string; json?: boolean }) => {
     await runErrorsResolve({ id, action: "reopened", ...opts });
   });
 
@@ -447,9 +447,9 @@ errors
   .command("ignore")
   .argument("<id>", "error group id")
   .description("Mark an error group as ignored (noise)")
-  .option("-n, --note <text>", "why it's noise")
+  .requiredOption("-n, --note <text>", "why it's noise")
   .option("--json", "emit the structured payload instead of markdown")
-  .action(async (id: string, opts: { note?: string; json?: boolean }) => {
+  .action(async (id: string, opts: { note: string; json?: boolean }) => {
     await runErrorsResolve({ id, action: "ignored", ...opts });
   });
 

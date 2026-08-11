@@ -118,9 +118,9 @@ headers, query values, arbitrary tags, and user identity.
 
 ## Triaging
 
-    volato errors resolve <id> [--note "fixed in PR #123"] [--json]
-    volato errors reopen  <id> [--note "regression — needs more work"] [--json]
-    volato errors ignore  <id> [--note "flaky third-party API"] [--json]
+    volato errors resolve <id> --note "fixed in PR #123" [--json]
+    volato errors reopen  <id> --note "regression — needs more work" [--json]
+    volato errors ignore  <id> --note "flaky third-party API" [--json]
 
 The note is persisted on the resolution history (append-only —
 reopen does NOT erase prior notes; the full history surfaces in
