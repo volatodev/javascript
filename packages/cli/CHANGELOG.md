@@ -1,5 +1,14 @@
 # @volatodev/cli
 
+## 0.1.0-beta.13
+
+### Patch Changes
+
+- 43cd14a: Report unsupported backend and HTTP surfaces explicitly while preserving
+  independent Vite + React browser coverage.
+- 2693b3d: Require a factual audit note when resolving, reopening, or ignoring an error
+  group.
+
 ## 0.1.0-beta.12
 
 ### Patch Changes
