@@ -22,6 +22,7 @@
     "quiet-agents-connect",
     "quiet-skills-update",
     "secure-pmf-signals",
+    "standalone-server-maps",
     "static-releases-align",
     "tidy-origins-listen",
     "two-domains-initialize"

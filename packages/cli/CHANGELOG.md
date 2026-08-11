@@ -1,5 +1,11 @@
 # @volatodev/cli
 
+## 0.1.0-beta.15
+
+### Patch Changes
+
+- dbd1587: Retain private Next.js server source maps until standalone output has been assembled while continuing to remove public browser maps after upload.
+
 ## 0.1.0-beta.14
 
 ### Patch Changes
