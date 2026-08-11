@@ -103,6 +103,13 @@ const sleep = (ms: number): Promise<void> =>
 
 type UploadOutcome = "uploaded" | "updated" | "skipped" | "failed";
 
+// Next creates several webpack compilers for one production build. Their
+// output roots overlap, so each afterEmit hook can discover maps already seen
+// by another compiler. Share in-flight and successful work across plugin
+// instances to keep one build to one request per map. Failed uploads are
+// evicted so a later compiler still gets one bounded recovery attempt.
+const buildUploadOutcomes = new Map<string, Promise<UploadOutcome>>();
+
 /**
  * Upload one `.js.map` to `POST /api/sourcemaps`.
  *
@@ -214,6 +221,33 @@ async function uploadOne(args: {
     );
     return "failed";
   }
+}
+
+function uploadOncePerBuild(args: {
+  mapPath: string;
+  jsRelative: string;
+  release: string;
+  endpoint: string;
+  token: string;
+  fetchImpl: typeof fetch;
+  warn: (msg: string) => void;
+}): Promise<UploadOutcome> {
+  const uploadKey = `${args.endpoint}\0${args.release}\0${args.mapPath}`;
+  const existing = buildUploadOutcomes.get(uploadKey);
+  if (existing) return existing;
+
+  const outcome = uploadOne(args).then(
+    (result) => {
+      if (result === "failed") buildUploadOutcomes.delete(uploadKey);
+      return result;
+    },
+    (error: unknown) => {
+      buildUploadOutcomes.delete(uploadKey);
+      throw error;
+    },
+  );
+  buildUploadOutcomes.set(uploadKey, outcome);
+  return outcome;
 }
 
 async function withConcurrency<T, R>(
@@ -331,7 +365,7 @@ export class __VolatoSourceMapsPlugin {
               .split(sep)
               .join("/")
               .replace(/\.map$/, "");
-            const outcome = await uploadOne({
+            const outcome = await uploadOncePerBuild({
               mapPath,
               jsRelative,
               release,

@@ -426,6 +426,31 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     expect(existsSync(mapPath)).toBe(true);
   });
 
+  it("uploads an overlapping map once across Next webpack compilers", async () => {
+    const { root } = makeBuildDir();
+    const fetchImpl = vi.fn(async () => {
+      await Promise.resolve();
+      return new Response(null, { status: 201 });
+    }) as unknown as typeof fetch;
+
+    const first = new __VolatoSourceMapsPlugin(
+      { hideSourceMaps: false },
+      { fetchImpl, cwd: root },
+    );
+    const second = new __VolatoSourceMapsPlugin(
+      { hideSourceMaps: false },
+      { fetchImpl, cwd: root },
+    );
+    const firstCompiler = makeFakeCompiler(root);
+    const secondCompiler = makeFakeCompiler(root);
+    first.apply(firstCompiler.compiler);
+    second.apply(secondCompiler.compiler);
+
+    await Promise.all([firstCompiler.trigger(), secondCompiler.trigger()]);
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("does not upload stale maps left by next dev", async () => {
     const { root } = makeBuildDir();
     const devChunks = join(root, "dev", "server", "chunks");

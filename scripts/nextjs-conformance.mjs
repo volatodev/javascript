@@ -243,8 +243,15 @@ const state = {
   testEvents: [],
   rejectTestEvents: false,
   sourcemaps: 0,
+  sourcemapKeys: [],
   analyticsConfigs: [],
 };
+
+function multipartField(body, name) {
+  return body.match(
+    new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r\\n]+)`),
+  )?.[1];
+}
 
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -342,10 +349,26 @@ const server = createServer((req, res) => {
       res.end();
       return;
     }
-    state.sourcemaps += 1;
-    req.resume();
-    res.writeHead(201, { "content-type": "application/json" });
-    res.end(JSON.stringify({ stored: true }));
+    const chunks = [];
+    req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    req.on("end", () => {
+      const body = Buffer.concat(chunks).toString("utf8");
+      const release = multipartField(body, "release");
+      const filenameHash = multipartField(body, "filename_hash");
+      if (!release || !filenameHash) {
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "invalid_multipart" }));
+        return;
+      }
+      const key = `${release}:${filenameHash}`;
+      const duplicate = state.sourcemapKeys.includes(key);
+      state.sourcemaps += 1;
+      state.sourcemapKeys.push(key);
+      res.writeHead(duplicate ? 200 : 201, {
+        "content-type": "application/json",
+      });
+      res.end(JSON.stringify({ stored: true }));
+    });
     return;
   }
   res.writeHead(404);
@@ -551,10 +574,16 @@ try {
     });
 
     const beforeMaps = state.sourcemaps;
+    const beforeMapKeys = state.sourcemapKeys.length;
     await run("pnpm", ["build"], { cwd: fixture });
     assert(
       state.sourcemaps > beforeMaps,
       `${entry.label} build uploaded no sourcemaps.`,
+    );
+    const uploadedKeys = state.sourcemapKeys.slice(beforeMapKeys);
+    assert(
+      new Set(uploadedKeys).size === uploadedKeys.length,
+      `${entry.label} build uploaded duplicate sourcemaps across webpack compilers.`,
     );
     assert(
       existsSync(join(fixture, ".next", "standalone")),
