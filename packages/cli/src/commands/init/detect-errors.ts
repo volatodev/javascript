@@ -35,6 +35,21 @@ export class ErrorsStackDetectionError extends Error {
 
 type PackageJson = Record<string, unknown>;
 
+const UNSUPPORTED_BACKEND_MANIFESTS = [
+  {
+    label: "Python",
+    files: ["pyproject.toml", "requirements.txt", "Pipfile"],
+  },
+  { label: "Go", files: ["go.mod"] },
+  { label: "PHP", files: ["composer.json"] },
+] as const;
+
+const UNSUPPORTED_HTTP_FRAMEWORKS = [
+  ["fastify", "Fastify"],
+  ["hono", "Hono"],
+  ["@nestjs/core", "NestJS"],
+] as const;
+
 function readPackageJson(cwd: string): PackageJson {
   const path = join(cwd, "package.json");
   if (!existsSync(path)) {
@@ -68,6 +83,13 @@ function dependencies(pkg: PackageJson): Record<string, string> {
 
 function firstExisting(cwd: string, paths: string[]): string | null {
   return paths.map((path) => join(cwd, path)).find(existsSync) ?? null;
+}
+
+function unsupportedBackendLabels(cwd: string): string[] {
+  const roots = [cwd, join(cwd, "backend"), join(cwd, "server"), join(cwd, "api")];
+  return UNSUPPORTED_BACKEND_MANIFESTS.filter(({ files }) =>
+    roots.some((root) => files.some((file) => existsSync(join(root, file)))),
+  ).map(({ label }) => label);
 }
 
 function languageOf(path: string): SourceLanguage {
@@ -182,19 +204,39 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
 
   const viteReact = hasVite && hasReact ? viteShape(cwd) : undefined;
   const node = nodeShape(cwd, deps, hasVite);
+  const unsupportedBackends = unsupportedBackendLabels(cwd);
+  const unsupportedHttpFrameworks = UNSUPPORTED_HTTP_FRAMEWORKS.filter(
+    ([dependency]) => typeof deps[dependency] === "string",
+  );
   if (!viteReact && !node) {
+    const unsupported = [
+      ...unsupportedBackends.map((label) => `${label} backend`),
+      ...unsupportedHttpFrameworks.map(([, label]) => `${label} HTTP`),
+    ];
+    if (unsupported.length > 0) {
+      throw new ErrorsStackDetectionError(
+        `${unsupported.join(" and ")} capture is not supported in this release, and no supported application target was found. No files were modified.`,
+      );
+    }
     throw new ErrorsStackDetectionError(
       "No supported Errors stack was detected. Supported targets are Next.js 15/16 App Router, Vite + React in the browser, and Node.js (with Express as the supported HTTP adapter).",
     );
   }
 
   const notices: string[] = [];
-  for (const framework of ["fastify", "hono", "@nestjs/core"] as const) {
-    if (deps[framework] && node) {
-      notices.push(
-        `${framework} HTTP context is not supported; only generic Node process and manual capture will be installed.`,
-      );
-    }
+  for (const label of unsupportedBackends) {
+    notices.push(
+      node
+        ? `${label} backend capture is not supported; that backend was not modified.`
+        : `${label} backend capture is not supported; only Vite + React browser capture will be installed.`,
+    );
+  }
+  for (const [, label] of unsupportedHttpFrameworks) {
+    notices.push(
+      node
+        ? `${label} HTTP context is not supported; only generic Node process and manual capture will be installed.`
+        : `${label} HTTP context is not supported and no conventional Node server entry was found; the server was not modified.`,
+    );
   }
   return { cwd, viteReact, node, notices };
 }

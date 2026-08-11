@@ -84,6 +84,57 @@ describe("detectErrorsStack", () => {
     );
   });
 
+  it.each([
+    ["Python", join("backend", "pyproject.toml")],
+    ["Go", join("backend", "go.mod")],
+    ["PHP", join("backend", "composer.json")],
+  ])(
+    "keeps Vite browser coverage explicit when a %s backend is unsupported",
+    (backend, manifest) => {
+      writePackage(cwd, {
+        react: "^19.1.1",
+        "react-dom": "^19.1.1",
+        vite: "^7.1.1",
+      });
+      mkdirSync(join(cwd, "src"));
+      mkdirSync(join(cwd, "backend"));
+      writeFileSync(join(cwd, "src", "main.tsx"), "render(<App />);\n");
+      writeFileSync(join(cwd, "vite.config.ts"), "export default {};\n");
+      writeFileSync(join(cwd, manifest), "fixture\n");
+
+      const result = detectErrorsStack(cwd);
+
+      expect(result.viteReact).toBeDefined();
+      expect(result.node).toBeUndefined();
+      expect(result.notices).toContainEqual(
+        expect.stringMatching(
+          new RegExp(`${backend} backend.*not supported.*browser`, "i"),
+        ),
+      );
+    },
+  );
+
+  it("announces an unsupported Node HTTP framework even without a conventional server entry", () => {
+    writePackage(cwd, {
+      fastify: "^5.6.0",
+      react: "^19.1.1",
+      "react-dom": "^19.1.1",
+      vite: "^7.1.1",
+    });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(join(cwd, "src", "main.tsx"), "render(<App />);\n");
+    writeFileSync(join(cwd, "src", "api.ts"), "startFastify();\n");
+    writeFileSync(join(cwd, "vite.config.ts"), "export default {};\n");
+
+    const result = detectErrorsStack(cwd);
+
+    expect(result.viteReact).toBeDefined();
+    expect(result.node).toBeUndefined();
+    expect(result.notices).toContainEqual(
+      expect.stringMatching(/fastify.*not supported.*server.*not modified/i),
+    );
+  });
+
   it("requires an explicit application root for an ambiguous monorepo", () => {
     writePackage(cwd, {}, { workspaces: ["apps/*"] });
     for (const name of ["web-a", "web-b"]) {

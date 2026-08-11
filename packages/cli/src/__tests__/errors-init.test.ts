@@ -102,4 +102,45 @@ describe("volato errors init", () => {
       'Now ask your agent: “Fix the latest production error.”',
     );
   });
+
+  it("finishes supported Vite capture while announcing an unsupported Python backend", async () => {
+    rmSync(join(cwd, "app"), { recursive: true, force: true });
+    rmSync(join(cwd, "next.config.ts"), { force: true });
+    writeFileSync(
+      join(cwd, "package.json"),
+      JSON.stringify({
+        name: "fixture",
+        scripts: { build: "vite build" },
+        dependencies: {
+          react: "19.1.1",
+          "react-dom": "19.1.1",
+          vite: "7.1.1",
+        },
+      }),
+    );
+    mkdirSync(join(cwd, "src"), { recursive: true });
+    mkdirSync(join(cwd, "backend"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "main.tsx"),
+      'import { createRoot } from "react-dom/client";\nimport App from "./App";\ncreateRoot(document.getElementById("root")!).render(<App />);\n',
+    );
+    writeFileSync(
+      join(cwd, "vite.config.ts"),
+      'import { defineConfig } from "vite";\nexport default defineConfig({});\n',
+    );
+    writeFileSync(join(cwd, "backend", "pyproject.toml"), "[project]\n");
+
+    await runErrorsInit({ cwd, nonInteractive: true });
+
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toMatch(
+      /Python backend capture is not supported.*browser capture will be installed/i,
+    );
+    expect(output).toContain("Volato Errors is ready.");
+    expect(reportIntegrationInstalled).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "errors-vite-react",
+    );
+    expect(generateNextjsIntegration).not.toHaveBeenCalled();
+  });
 });
