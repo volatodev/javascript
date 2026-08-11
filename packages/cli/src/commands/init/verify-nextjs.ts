@@ -29,6 +29,14 @@ type VerificationResponse = {
 
 type VerificationChild = ChildProcessByStdio<null, Readable, Readable>;
 
+export function verificationFailureMessage(
+  detail: string,
+  logs: string,
+): string {
+  const trimmed = logs.trim();
+  return trimmed ? `${detail}\n${trimmed}` : detail;
+}
+
 function localModule(fromFile: string, target: string): string {
   let path = relative(dirname(fromFile), target).replaceAll("\\", "/");
   if (!path.startsWith(".")) path = `./${path}`;
@@ -143,7 +151,10 @@ async function waitForVerification(
       if (body.marker === marker) {
         if (!response.ok || !body.accepted) {
           throw new Error(
-            body.detail ?? `verification returned ${response.status}`,
+            verificationFailureMessage(
+              body.detail ?? `verification returned ${response.status}`,
+              output(),
+            ),
           );
         }
         if (!body.stack) {
