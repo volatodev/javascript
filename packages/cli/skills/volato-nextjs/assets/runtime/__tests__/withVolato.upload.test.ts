@@ -459,6 +459,25 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     expect(existsSync(mapPath)).toBe(false);
   });
 
+  it("keeps uploaded server maps for Next standalone assembly", async () => {
+    const root = mkdtempSync(join(tmpdir(), "volato-build-"));
+    const serverRoute = join(root, "server", "app", "api", "crash");
+    mkdirSync(serverRoute, { recursive: true });
+    const mapPath = join(serverRoute, "route.js.map");
+    writeFileSync(mapPath, SAMPLE_MAP);
+    const fetchImpl = vi.fn(async () =>
+      new Response(null, { status: 201 }),
+    ) as unknown as typeof fetch;
+
+    const plugin = new __VolatoSourceMapsPlugin({}, { fetchImpl, cwd: root });
+    const { compiler, trigger } = makeFakeCompiler(root);
+    plugin.apply(compiler);
+    await trigger();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(existsSync(mapPath)).toBe(true);
+  });
+
   it("keeps the .map on disk if the upload failed", async () => {
     const { root, mapPath } = makeBuildDir();
     const fetchImpl = vi.fn(async () => new Response("nope", { status: 401 })) as unknown as typeof fetch;

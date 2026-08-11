@@ -5,8 +5,10 @@
  *      can be symbolicated.
  *   2. Inject a webpack plugin that, after build, uploads every `.js.map`
  *      under the build output to the project's ingest endpoint.
- *   3. Optionally delete the `.map` files from the served output so they
- *      don't ship to end users (`hideSourceMaps: true`).
+ *   3. Optionally delete browser `.map` files from the publicly served output
+ *      so they don't ship to end users (`hideSourceMaps: true`). Server maps
+ *      stay private in the build because Next still needs them while creating
+ *      `output: "standalone"`.
  *
  * Server-side only: this module imports `node:fs` / `node:path` and is
  * meant to live in `next.config.{js,ts}`. Never import it from
@@ -37,8 +39,9 @@ export type WithVolatoOptions = {
   /** Git commit containing this build. Auto-detected when `.git` is present. */
   commitSha?: string;
   /**
-   * Delete `.map` files from the build output after a successful
-   * upload so they aren't served to end users. Default `true`.
+   * Delete browser `.map` files from `.next/static` after a successful upload
+   * so they aren't served to end users. Server maps are retained for Next's
+   * standalone assembly and are not publicly served. Default `true`.
    */
   hideSourceMaps?: boolean;
   /**
@@ -88,6 +91,11 @@ function* walkJsMapFiles(root: string): Iterable<string> {
       yield full;
     }
   }
+}
+
+function isPublicBrowserMap(outputRoot: string, mapPath: string): boolean {
+  const outputRelative = relative(outputRoot, mapPath).split(sep).join("/");
+  return outputRelative.startsWith("static/");
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -332,7 +340,11 @@ export class __VolatoSourceMapsPlugin {
               fetchImpl,
               warn,
             });
-            if (hide && (outcome === "uploaded" || outcome === "updated")) {
+            if (
+              hide &&
+              isPublicBrowserMap(outputRoot, mapPath) &&
+              (outcome === "uploaded" || outcome === "updated")
+            ) {
               try {
                 await unlink(mapPath);
               } catch {

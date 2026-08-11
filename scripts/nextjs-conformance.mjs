@@ -97,6 +97,15 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function filesWithSuffix(root, suffix) {
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) return filesWithSuffix(path, suffix);
+    return path.endsWith(suffix) ? [path] : [];
+  });
+}
+
 function run(command, args, options = {}) {
   return new Promise((resolveRun, rejectRun) => {
     const child = spawn(command, args, {
@@ -166,7 +175,10 @@ function writeFixture(root, entry, projectId) {
 }
 `,
   );
-  writeFileSync(join(root, "next.config.ts"), "export default {};\n");
+  writeFileSync(
+    join(root, "next.config.ts"),
+    'export default { output: "standalone" };\n',
+  );
   writeFileSync(
     join(root, ".gitignore"),
     "node_modules\n.next\n.env*.local\n",
@@ -543,6 +555,20 @@ try {
     assert(
       state.sourcemaps > beforeMaps,
       `${entry.label} build uploaded no sourcemaps.`,
+    );
+    assert(
+      existsSync(join(fixture, ".next", "standalone")),
+      `${entry.label} build did not assemble standalone output.`,
+    );
+    assert(
+      filesWithSuffix(join(fixture, ".next", "static"), ".js.map")
+        .length === 0,
+      `${entry.label} build left browser sourcemaps in public static output.`,
+    );
+    assert(
+      filesWithSuffix(join(fixture, ".next", "server"), ".js.map").length >
+        0,
+      `${entry.label} build removed private server sourcemaps before standalone assembly.`,
     );
     process.stdout.write(
       `✓ ${entry.label} ${entry.next}: authenticated init + production build\n`,
