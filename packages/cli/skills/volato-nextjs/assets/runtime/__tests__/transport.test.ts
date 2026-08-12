@@ -275,7 +275,7 @@ describe("sendEnvelope — server-side warning headers", () => {
     await sendEnvelope(URL_, {}, "x", { sleep: fastSleep });
     await sendEnvelope(URL_, {}, "x", { sleep: fastSleep });
     const usageWarns = warnSpy.mock.calls.filter((c) =>
-      String(c[0]).includes("quota soft-warn"),
+      String(c[0]).includes("reached 80%"),
     );
     expect(usageWarns.length).toBe(1);
     warnSpy.mockRestore();

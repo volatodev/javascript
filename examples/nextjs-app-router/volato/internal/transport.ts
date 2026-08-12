@@ -106,7 +106,7 @@ function noteServerHeaders(res: Response): void {
     warnedUsage = true;
     if (typeof console !== "undefined" && console.warn) {
       console.warn(
-        "[Volato] Project quota soft-warn (≥100% of plan). Consider upgrading.",
+        "[Volato] Workspace usage reached 80% of the monthly plan allowance. Consider upgrading.",
       );
     }
   }
