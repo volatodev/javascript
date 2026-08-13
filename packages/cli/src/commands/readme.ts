@@ -87,6 +87,11 @@ for "fix the last error" — one call, everything an agent needs.
 After verified setup, ask the coding agent: "Fix the latest production error."
 The \`volato-errors\` skill selects the read path, inspects local source and Git,
 patches and tests the cause, and keeps resolution separate from investigation.
+When the read-only Volato MCP connection is available, the skill uses its six
+bounded read tools; otherwise it uses these CLI commands with \`--json\`. It
+does not repeat the same evidence read through both channels. Installation,
+local source work, tests, Git, and explicit status mutations remain CLI/shell
+operations.
 
 For a broad post-deploy regression, compare the latest and previous captured
 releases, rank new/aggravated groups, then request only bounded representative

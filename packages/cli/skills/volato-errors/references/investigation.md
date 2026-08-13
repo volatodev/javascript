@@ -1,11 +1,28 @@
 # Investigation paths
 
-Use these CLI calls as bounded primitives. They print agent-ready Markdown by
-default and stable structured data with `--json`.
+Use one bounded read channel per investigation. Prefer authenticated Volato MCP
+when its tools are available. Otherwise use the CLI calls below; they print
+agent-ready Markdown by default and stable structured data with `--json`.
+
+The read operations map exactly:
+
+| Evidence | MCP tool | CLI fallback |
+|---|---|---|
+| Projects | `list_projects` | `volato projects list --json` |
+| One group/latest | `get_error_context` | `volato errors show --json` |
+| Search groups | `search_error_groups` | `volato errors list --json` |
+| Event samples | `get_error_samples` | `volato errors samples <id> --json` |
+| Releases | `list_releases` | `volato releases list --json` |
+| Release comparison | `compare_releases` | `volato releases compare --json` |
+
+Pass the same project, environment, filters, limit, and returned cursor through
+either channel. Do not duplicate a successful MCP read with its CLI fallback.
 
 ## One group or the latest production error
 
-1. Read the linked project id from `.volato/manifest.json`, then run
+1. Read the linked project id from `.volato/manifest.json`. With MCP, call
+   `get_error_context` with that `projectId` for the most recent unresolved
+   production group, or with `id` for an explicit group. With the CLI, run
    `volato errors show --project-id <project-id> --json` for the most recent
    unresolved production group in this repository. Use
    `volato errors show <group-id> --json` for an explicit group. Omit
@@ -30,6 +47,10 @@ volato releases list --project-id <project-id> --environment production --json
 volato releases compare [<head-release>] --project-id <project-id> --json
 volato errors list --release <head-release> --sort growth --status all --project-id <project-id> --json
 ```
+
+With MCP, perform the same sequence through `list_releases`,
+`compare_releases`, and `search_error_groups`; request `get_error_samples` only
+when group aggregation is insufficient.
 
 `releases compare` defaults to the latest and immediately previous captured
 releases. Its `new` and `aggravated` classifications prioritize candidates;
@@ -69,6 +90,11 @@ and fit with the requested route or release. Treat comparison as candidate
 selection, not proof that the latest commit caused the error.
 
 ## Exit behavior
+
+For MCP, an authorization or scope error means the connection must be renewed.
+If the CLI is already authenticated, switching to its structured JSON reads is
+a valid recovery path and must replace—not duplicate—the failed MCP read. For
+CLI, use these stable exit codes:
 
 - `0`: consume the bounded result.
 - `3`: authentication or inactive subscription; ask for the minimum human

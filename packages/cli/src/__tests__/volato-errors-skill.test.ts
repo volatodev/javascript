@@ -49,6 +49,16 @@ describe("volato-errors skill contract", () => {
   });
 
   it("uses stable release, ranking, and privacy-filtered sample primitives", () => {
+    for (const tool of [
+      "list_projects",
+      "get_error_context",
+      "search_error_groups",
+      "get_error_samples",
+      "list_releases",
+      "compare_releases",
+    ]) {
+      expect(investigation).toContain(tool);
+    }
     expect(investigation).toContain(
       "volato errors show --project-id <project-id> --json",
     );
@@ -60,5 +70,14 @@ describe("volato-errors skill contract", () => {
     expect(investigation).toContain("bodies, cookies, headers, query values");
     expect(investigation).toContain("ephemeral local `jq`");
     expect(investigation).toContain("do not register a persistent tool");
+  });
+
+  it("prefers MCP reads, falls back once to CLI JSON, and keeps mutations out of MCP", () => {
+    expect(skill).toMatch(/use the authenticated Volato MCP tools when they are available/);
+    expect(skill).toMatch(/otherwise confirm `volato --version` and `volato whoami`/);
+    expect(skill).toMatch(/Do not call MCP and CLI for the same evidence/);
+    expect(skill).toMatch(/Status mutations remain explicit CLI commands/);
+    expect(skill).toMatch(/MCP V1 cannot perform them/);
+    expect(investigation).toMatch(/replace—not duplicate—the failed MCP read/);
   });
 });
