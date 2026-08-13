@@ -5,7 +5,7 @@
  * bearer per machine — Day 1 we don't have multi-profile (the
  * workspace-scoped token already covers every project the user can
  * read, so a profile would only matter for users with several
- * workspaces; that's a Pro problem).
+ * workspaces; that's a later workspace-switching problem).
  *
  * The format is a single newline-terminated line: `token\n`. Plain
  * text on purpose — the only thing we'd "encrypt" against is a
