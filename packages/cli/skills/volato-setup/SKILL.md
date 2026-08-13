@@ -1,6 +1,6 @@
 ---
 name: volato-setup
-description: Connect a repository to Volato, inspect its project link, and select an Errors or Analytics integration skill. Use when an agent is asked to initialize Volato, when volato-errors delegates missing capture setup, or when a generated integration must be repaired or verified.
+description: Connect a repository to Volato, inspect its project link, and select an Errors integration skill. Use when an agent is asked to initialize Volato, when volato-errors delegates missing capture setup, or when a generated integration must be repaired or verified.
 ---
 
 # Set up Volato
@@ -20,9 +20,8 @@ data path. Do not invent capture code from scratch.
    `volato-vite-react`. For a deployed Node runtime, follow `volato-node`;
    Express is the only supported HTTP adapter. One repository may apply both
    Vite + React and Node. Run `volato errors init` once to generate the selected
-   Errors adapters. For product analytics, follow `volato-product`, define
-   `.volato/analytics.json`, and run `volato analytics init`. Stop with a clear
-   unsupported or partial-coverage result when no adapter applies.
+   Errors adapters. Stop with a clear unsupported or partial-coverage result
+   when no adapter applies.
 4. Review every file change reported by the selected integration before
    continuing.
 5. Inspect deployment config and public application/auth URL variables. When

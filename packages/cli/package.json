@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=18"
   },
-  "description": "Volato CLI — operational skills and observability for AI agents.",
+  "description": "Volato Errors CLI — production evidence for coding agents.",
   "license": "MIT",
   "author": "Wrenchy SASU",
   "homepage": "https://github.com/volatodev/javascript#readme",

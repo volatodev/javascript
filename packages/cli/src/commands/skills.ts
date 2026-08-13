@@ -10,15 +10,16 @@ import {
 import { dirname, join, resolve } from "node:path";
 import pc from "picocolors";
 import prompts from "prompts";
+import { isExperimentalProductEnabled } from "../lib/experiments.js";
 
-const BUNDLED_SKILLS = [
+const PUBLIC_SKILLS = [
   "volato-setup",
   "volato-errors",
   "volato-nextjs",
   "volato-vite-react",
   "volato-node",
-  "volato-product",
 ] as const;
+const EXPERIMENTAL_PRODUCT_SKILL = "volato-product" as const;
 const RETIRED_SKILLS = ["monitor-product-usage"] as const;
 
 export type SkillInstallStatus =
@@ -40,6 +41,7 @@ export type InstallSkillsOptions = {
   sourceRoot?: string;
   force?: boolean;
   nonInteractive?: boolean;
+  experimentalProduct?: boolean;
 };
 
 function bundledSkillsRoot(): string {
@@ -88,6 +90,10 @@ export function installSkills(
   );
 
   const outcomes: SkillInstallOutcome[] = [];
+  const bundledSkills = options.experimentalProduct ??
+      isExperimentalProductEnabled()
+    ? [...PUBLIC_SKILLS, EXPERIMENTAL_PRODUCT_SKILL]
+    : PUBLIC_SKILLS;
   for (const skill of RETIRED_SKILLS) {
     const target = join(targetRoot, skill);
     if (!existsSync(target)) continue;
@@ -99,7 +105,7 @@ export function installSkills(
     outcomes.push({ skill, status: "removed", target });
   }
 
-  for (const skill of BUNDLED_SKILLS) {
+  for (const skill of bundledSkills) {
     const source = join(sourceRoot, skill);
     const target = join(targetRoot, skill);
     const targetExists = existsSync(target);

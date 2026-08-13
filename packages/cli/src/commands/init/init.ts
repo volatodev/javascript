@@ -43,7 +43,7 @@ async function resolveProjectId(options: InitOptions): Promise<string> {
 /**
  * Link the current repository to one Volato project. This bootstrap is
  * intentionally framework- and domain-neutral: generated source belongs to
- * `volato errors init` and `volato analytics init`.
+ * `volato errors init`.
  */
 export async function runInit(options: InitOptions): Promise<void> {
   const projectId = await resolveProjectId(options);
@@ -73,7 +73,6 @@ export async function runInit(options: InitOptions): Promise<void> {
     `\n${pc.green("✓")} Connected to ${pc.bold(setup.projectName)} ${pc.dim(`(${setup.projectId})`)}.\n` +
       `  ${pc.dim("manifest")} ${manifestPath(options.cwd)}\n\n` +
       `${pc.bold("Next steps")}\n` +
-      `  ${pc.dim("Errors")}    volato errors init\n` +
-      `  ${pc.dim("Analytics")} volato analytics init\n`,
+      `  ${pc.dim("Errors")} volato errors init\n`,
   );
 }

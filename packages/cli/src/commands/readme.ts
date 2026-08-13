@@ -10,9 +10,9 @@
 
 const README = `# volato — Volato CLI
 
-Volato provides operational skills and observability for AI agents. The CLI is
-the primary surface for agents to install workflows, instrument outcomes, and
-read, triage, and resolve errors from any terminal.
+Volato Errors gives coding agents the production evidence needed to investigate
+and fix real errors. The CLI installs capture, reads bounded evidence, and
+performs explicit lifecycle mutations from any terminal.
 
 ## Setup
 
@@ -34,8 +34,7 @@ Headless / CI — skip \`login\` and set the token in the environment:
     volato errors init --yes
 
 \`volato init\` verifies access, installs \`volato-setup\`, \`volato-errors\`,
-\`volato-nextjs\`, \`volato-vite-react\`, \`volato-node\` and
-\`volato-product\`, then links the repository through
+\`volato-nextjs\`, \`volato-vite-react\` and \`volato-node\`, then links the repository through
 \`.volato/manifest.json\`. It does not detect a framework, write credentials or
 instrument the app.
 
@@ -47,11 +46,9 @@ dependency is added. Re-running is idempotent and refuses to overwrite locally
 edited generated files. \`--send-test-event\` is the built-in Next.js verifier;
 the Vite and Node skills define their production-build conformance scenarios.
 
-The installed product domains are production Errors and Product Analytics.
-\`volato-errors\` owns the investigation job while the framework skills own
-capture integration. Their authoritative application and platform transitions emit the
-bounded events used by Volato; the CLI does not expose a free-form tracking
-command.
+Errors is the only public product. \`volato-errors\` owns the investigation job
+while the framework skills own capture integration. The CLI does not expose a
+free-form tracking command.
 
 ## Project configuration
 
@@ -64,26 +61,6 @@ The command canonicalises each URL to its \`scheme://host[:port]\` origin and
 removes duplicates. \`--clear\` intentionally accepts browser events from
 anywhere. Server-side Next.js and Node events are not filtered by this setting.
 This is misuse reduction for a browser-safe DSN, not an authentication boundary.
-
-## Product Analytics
-
-The \`volato-product\` skill creates a versioned
-\`.volato/analytics.json\` contract. Validate it, install the generated tracker,
-then read the outcome-led report:
-
-    volato analytics validate [--file <path>] [--json]
-    volato analytics init [--file <path>] [--yes]
-    volato analytics sync [--file <path>] [--json]
-    volato analytics report [--file <path>] [--json]
-    volato analytics snapshot save [--file <path>] [--json]
-
-\`validate\` makes no network request. \`init\` publishes the approved contract,
-generates a typed server tracker and records the \`analytics-nextjs\`
-integration beside \`errors-nextjs\`. \`sync\` updates the active project
-contract.
-\`report\` returns activation, repeat-use, and retention evidence as agent-ready
-markdown by default. \`snapshot save\` validates and saves only an explicitly
-approved interpretation; reporting never saves one automatically.
 
 ## Reading errors
 
@@ -144,8 +121,8 @@ contracts.
 ## Exit codes
 
     0   success
-    1   generic / local / Analytics error
-    3   auth — token missing or invalid (401), or subscription inactive (402)
+    1   generic / local error
+    3   auth — token missing or invalid (401)
     4   not found — no such error group or project (404)
     5   rate limited (429) — back off and retry
 
@@ -162,9 +139,8 @@ on 5, stop on 4.
 
 ## Where things break
 
-If you see "subscription_inactive (402)", your workspace's sub
-lapsed. The token is still valid; reactivate at
-https://app.volato.dev/billing and the CLI resumes immediately.
+If a project is paused after a Starter-to-Free downgrade, select the active
+Free project or upgrade capacity from https://app.volato.dev/settings/billing.
 
 Transient failures (network errors, 502/503/504) are retried
 automatically — up to 2 quick backoffs — and every request times out

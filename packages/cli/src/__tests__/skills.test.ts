@@ -30,7 +30,7 @@ beforeEach(() => {
   addSkill("volato-nextjs", "next");
   addSkill("volato-vite-react", "vite-react");
   addSkill("volato-node", "node");
-  addSkill("volato-product", "analytics");
+  addSkill("volato-product", "experimental-product");
 });
 
 afterEach(() => {
@@ -47,7 +47,6 @@ describe("installSkills", () => {
       { skill: "volato-nextjs", status: "created" },
       { skill: "volato-vite-react", status: "created" },
       { skill: "volato-node", status: "created" },
-      { skill: "volato-product", status: "created" },
     ]);
     expect(
       readFileSync(
@@ -68,8 +67,20 @@ describe("installSkills", () => {
       "unchanged",
       "unchanged",
       "unchanged",
-      "unchanged",
     ]);
+  });
+
+  it("installs Product only with the explicit experimental switch", () => {
+    const outcomes = installSkills({
+      cwd,
+      sourceRoot,
+      experimentalProduct: true,
+    });
+
+    expect(outcomes.at(-1)).toMatchObject({
+      skill: "volato-product",
+      status: "created",
+    });
   });
 
   it("does not overwrite a locally modified skill without force", () => {

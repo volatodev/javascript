@@ -499,12 +499,12 @@ describe("volato analytics snapshot save", () => {
   });
 });
 
-describe("volato product analytics discovery", () => {
-  it("lists snapshot save in the agent-facing command reference", () => {
+describe("volato public discovery", () => {
+  it("keeps Product commands out of the agent-facing command reference", () => {
     runReadme();
 
     expect(process.stdout.write).toHaveBeenCalledWith(
-      expect.stringContaining("volato analytics snapshot save"),
+      expect.not.stringContaining("volato analytics"),
     );
   });
 });

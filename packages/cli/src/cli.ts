@@ -19,11 +19,8 @@
  *   volato releases list              — latest captured releases
  *   volato releases compare [head]    — compare a release to its predecessor
  *   volato projects origins set       — replace a browser-origin allowlist
- *   volato analytics init             — install generated Next.js analytics
- *   volato analytics validate         — validate .volato/analytics.json locally
- *   volato analytics sync             — publish the outcome event catalog
- *   volato analytics report           — read activation and retention evidence
- *   volato analytics snapshot save    — save an approved analytics snapshot
+ * Experimental Product commands are registered only when
+ * `VOLATO_EXPERIMENTAL_PRODUCT=1`; they are absent from ordinary discovery.
  *
  * Every command accepts --json for the structured payload instead of
  * the default markdown. The markdown is agent-ready (the same string
@@ -56,6 +53,7 @@ import {
 } from "./commands/analytics.js";
 import { CliError } from "./lib/api-client.js";
 import { printLocalError } from "./lib/output.js";
+import { isExperimentalProductEnabled } from "./lib/experiments.js";
 
 // Replaced at build time by tsup's `define` (see tsup.config.ts). The
 // fallback keeps `tsc`/tests honest when the bundle isn't built.
@@ -68,7 +66,7 @@ const program = new Command();
 program
   .name("volato")
   .description(
-    "Volato CLI — operational skills and observability for AI agents. Run `volato readme` for the full surface.",
+    "Volato Errors — production evidence for coding agents. Run `volato readme` for the full surface.",
   )
   .version(CLI_VERSION, "-v, --version", "print the volato CLI version");
 
@@ -180,6 +178,7 @@ projectOrigins
     },
   );
 
+if (isExperimentalProductEnabled()) {
 const analytics = program
   .command("analytics")
   .description("Install and query outcome-led product analytics");
@@ -270,6 +269,7 @@ analyticsSnapshot
       await runUsageSnapshotSave({ cwd: process.cwd(), ...opts });
     },
   );
+}
 
 const errors = program
   .command("errors")
