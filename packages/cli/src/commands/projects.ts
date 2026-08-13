@@ -5,8 +5,10 @@
  * safe to re-run. The API remains authoritative; local validation only keeps
  * obvious mistakes from consuming a network round-trip.
  */
+import type { ListProjectsInput } from "@volatodev/read-client";
 import { CliError, postJson } from "../lib/api-client.js";
 import { exitCodeForStatus } from "../lib/exit.js";
+import { readApi } from "../lib/read-client.js";
 import {
   printApiError,
   printSuccess,
@@ -16,6 +18,22 @@ import {
 const MAX_ALLOWED_ORIGINS = 20;
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export async function runProjectsList(opts: {
+  limit?: number;
+  cursor?: string;
+  json?: boolean;
+}): Promise<void> {
+  const input = { limit: opts.limit, cursor: opts.cursor } as ListProjectsInput;
+  const response = await readApi((client) => client.listProjects(input));
+  if (!response.ok) {
+    printApiError(response);
+    process.exit(exitCodeForStatus(response.status));
+    return;
+  }
+  const mode: OutputMode = opts.json ? "json" : "human";
+  printSuccess(response, mode);
+}
 
 export function normaliseProjectOrigins(inputs: string[]): string[] {
   if (inputs.length > MAX_ALLOWED_ORIGINS) {

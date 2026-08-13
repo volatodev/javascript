@@ -18,6 +18,7 @@
  *   volato errors ignore  <id>        — mark ignored with a required note
  *   volato releases list              — latest captured releases
  *   volato releases compare [head]    — compare a release to its predecessor
+ *   volato projects list              — list readable projects
  *   volato projects origins set       — replace a browser-origin allowlist
  * Experimental Product commands are registered only when
  * `VOLATO_EXPERIMENTAL_PRODUCT=1`; they are absent from ordinary discovery.
@@ -44,7 +45,10 @@ import {
 } from "./commands/releases.js";
 import { runReadme } from "./commands/readme.js";
 import { runSkillsInstall } from "./commands/skills.js";
-import { runProjectOriginsSet } from "./commands/projects.js";
+import {
+  runProjectOriginsSet,
+  runProjectsList,
+} from "./commands/projects.js";
 import {
   runUsageSnapshotSave,
   runUsageReport,
@@ -153,6 +157,22 @@ program
 const projects = program
   .command("projects")
   .description("Configure projects through the authenticated CLI");
+
+projects
+  .command("list")
+  .description("List active projects readable by the current workspace")
+  .option(
+    "-l, --limit <n>",
+    "max projects to return (1-100, default 50)",
+    (v) => Number.parseInt(v, 10),
+  )
+  .option("--cursor <cursor>", "continue from a previous nextCursor")
+  .option("--json", "emit the structured payload instead of markdown")
+  .action(
+    async (opts: { limit?: number; cursor?: string; json?: boolean }) => {
+      await runProjectsList(opts);
+    },
+  );
 
 const projectOrigins = projects
   .command("origins")
@@ -341,6 +361,7 @@ errors
     "max groups to return (1-100, default 50)",
     (v) => Number.parseInt(v, 10),
   )
+  .option("--cursor <cursor>", "continue from a previous nextCursor")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
     async (opts: {
@@ -361,6 +382,7 @@ errors
       sort?: string;
       projectId?: string;
       limit?: number;
+      cursor?: string;
       json?: boolean;
     }) => {
       await runErrorsList(opts);
@@ -468,6 +490,7 @@ releases
     "max releases to return (1-100, default 20)",
     (v) => Number.parseInt(v, 10),
   )
+  .option("--cursor <cursor>", "continue from a previous nextCursor")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
     async (opts: {
@@ -475,6 +498,7 @@ releases
       environment?: string;
       runtime?: string;
       limit?: number;
+      cursor?: string;
       json?: boolean;
     }) => {
       await runReleasesList(opts);
@@ -494,6 +518,7 @@ releases
     "max changed groups to return (1-100, default 20)",
     (v) => Number.parseInt(v, 10),
   )
+  .option("--cursor <cursor>", "continue from a previous nextCursor")
   .option("--json", "emit the structured payload instead of markdown")
   .action(
     async (
@@ -504,6 +529,7 @@ releases
         environment?: string;
         runtime?: string;
         limit?: number;
+        cursor?: string;
         json?: boolean;
       },
     ) => {

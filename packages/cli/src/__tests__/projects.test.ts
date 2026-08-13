@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const postJson = vi.fn();
 const printSuccess = vi.fn();
 const printApiError = vi.fn();
+const listProjects = vi.fn();
 
 vi.mock("../lib/api-client.js", async (importOriginal) => {
   const original =
@@ -19,9 +20,13 @@ vi.mock("../lib/output.js", () => ({
   printApiError: (response: unknown) => printApiError(response),
 }));
 
-const { normaliseProjectOrigins, runProjectOriginsSet } = await import(
-  "../commands/projects.js"
-);
+vi.mock("../lib/read-client.js", () => ({
+  readApi: (operation: (client: unknown) => Promise<unknown>) =>
+    operation({ listProjects }),
+}));
+
+const { normaliseProjectOrigins, runProjectOriginsSet, runProjectsList } =
+  await import("../commands/projects.js");
 
 const projectId = "11111111-1111-4111-8111-111111111111";
 
@@ -29,6 +34,21 @@ beforeEach(() => {
   postJson.mockReset();
   printSuccess.mockReset();
   printApiError.mockReset();
+  listProjects.mockReset().mockResolvedValue({
+    ok: true,
+    status: 200,
+    markdown: "No active projects.",
+    data: { kind: "ok", projects: [], nextCursor: null },
+  });
+});
+
+describe("runProjectsList", () => {
+  it("forwards pagination to the typed read client", async () => {
+    await runProjectsList({ limit: 10, cursor: "20", json: true });
+
+    expect(listProjects).toHaveBeenCalledWith({ limit: 10, cursor: "20" });
+    expect(printSuccess).toHaveBeenCalledWith(expect.anything(), "json");
+  });
 });
 
 describe("normaliseProjectOrigins", () => {

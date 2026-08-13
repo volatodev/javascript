@@ -6,7 +6,13 @@
  * status to stderr); `--json` swaps in the structured payload from
  * the envelope's `data` field for scripts.
  */
-import { CliError, getJson, postJson } from "../lib/api-client.js";
+import type {
+  GetErrorContextInput,
+  GetErrorSamplesInput,
+  SearchErrorGroupsInput,
+} from "@volatodev/read-client";
+import { CliError, postJson } from "../lib/api-client.js";
+import { readApi } from "../lib/read-client.js";
 import { exitCodeForStatus } from "../lib/exit.js";
 import {
   printApiError,
@@ -32,10 +38,11 @@ export async function runErrorsList(opts: {
   sort?: string;
   projectId?: string;
   limit?: number;
+  cursor?: string;
   json?: boolean;
 }): Promise<void> {
   const mode: OutputMode = opts.json ? "json" : "human";
-  const resp = await getJson("/v1/errors", {
+  const input = {
     status: opts.status,
     release: opts.release,
     baselineRelease: opts.baselineRelease,
@@ -53,7 +60,9 @@ export async function runErrorsList(opts: {
     sort: opts.sort,
     projectId: opts.projectId,
     limit: opts.limit,
-  });
+    cursor: opts.cursor,
+  } as SearchErrorGroupsInput;
+  const resp = await readApi((client) => client.searchErrorGroups(input));
   if (!resp.ok) {
     printApiError(resp);
     process.exit(exitCodeForStatus(resp.status));
@@ -74,18 +83,17 @@ export async function runErrorSamples(opts: {
   json?: boolean;
 }): Promise<void> {
   const mode: OutputMode = opts.json ? "json" : "human";
-  const resp = await getJson(
-    `/v1/errors/${encodeURIComponent(opts.id)}/events`,
-    {
-      projectId: opts.projectId,
-      environment: opts.environment ?? "production",
-      release: opts.release,
-      runtime: opts.runtime,
-      route: opts.route,
-      strategy: opts.strategy,
-      limit: opts.limit,
-    },
-  );
+  const input = {
+    id: opts.id,
+    projectId: opts.projectId,
+    environment: opts.environment ?? "production",
+    release: opts.release,
+    runtime: opts.runtime,
+    route: opts.route,
+    strategy: opts.strategy,
+    limit: opts.limit,
+  } as GetErrorSamplesInput;
+  const resp = await readApi((client) => client.getErrorSamples(input));
   if (!resp.ok) {
     printApiError(resp);
     process.exit(exitCodeForStatus(resp.status));
@@ -104,11 +112,12 @@ export async function runErrorsShow(opts: {
   // `id` is optional: omitting it returns the most recent unresolved
   // group across the workspace (or scoped to `projectId` if set).
   // That's the painkiller path for "fix the last error".
-  const resp = await getJson("/v1/errors/context", {
+  const input = {
     id: opts.id,
     projectId: opts.projectId,
     environment: opts.environment ?? "production",
-  });
+  } as GetErrorContextInput;
+  const resp = await readApi((client) => client.getErrorContext(input));
   if (!resp.ok) {
     printApiError(resp);
     process.exit(exitCodeForStatus(resp.status));

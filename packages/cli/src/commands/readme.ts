@@ -54,6 +54,7 @@ free-form tracking command.
 
 Replace the complete browser-origin allowlist after setup:
 
+    volato projects list [--limit <n>] [--cursor <cursor>] [--json]
     volato projects origins set <project_id> https://app.example.com https://example.com
     volato projects origins set <project_id> --clear
 
@@ -65,15 +66,15 @@ This is misuse reduction for a browser-safe DSN, not an authentication boundary.
 ## Reading errors
 
     volato errors init [--yes] [--send-test-event]
-    volato errors list [--status <s>] [--release <r>] [--runtime <runtime>] [--route <route>] [--min-events <n>] [--min-users <n>] [--sort recent|new|users|events|growth] [--project-id <id>] [--limit <n>] [--json]
+    volato errors list [--status <s>] [--release <r>] [--runtime <runtime>] [--route <route>] [--min-events <n>] [--min-users <n>] [--sort recent|new|users|events|growth] [--project-id <id>] [--limit <n>] [--cursor <cursor>] [--json]
 
 Status filter: unresolved (default), resolved, ignored, all.
 
     volato errors show [<id>] [--project-id <id>] [--environment <env>] [--json]
     volato errors samples <id> [--release <r>] [--runtime <runtime>] [--route <route>] [--strategy all|recent|representative|variations] [--limit <n>] [--json]
 
-    volato releases list [--project-id <id>] [--runtime <runtime>] [--limit <n>] [--json]
-    volato releases compare [<head>] [--base <release>] [--project-id <id>] [--runtime <runtime>] [--limit <n>] [--json]
+    volato releases list [--project-id <id>] [--runtime <runtime>] [--limit <n>] [--cursor <cursor>] [--json]
+    volato releases compare [<head>] [--base <release>] [--project-id <id>] [--runtime <runtime>] [--limit <n>] [--cursor <cursor>] [--json]
 
 Returns the one-call fix context for an error group: stack,
 breadcrumbs, commit transition, source pointer, affected users,
@@ -117,6 +118,9 @@ that status mutation explicit.
 Every command prints agent-ready markdown by default. Pass --json
 to get the structured payload instead. Both forms are stable
 contracts.
+
+Paginated reads return \`nextCursor\` in JSON. Pass that value unchanged to
+\`--cursor\` to continue; cursors are scoped to the same filters and ordering.
 
 ## Exit codes
 

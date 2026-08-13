@@ -47,6 +47,7 @@
     "prepublishOnly": "pnpm clean && pnpm build && pnpm test"
   },
   "devDependencies": {
+    "@volatodev/read-client": "workspace:*",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^24.0.0",
     "@types/prompts": "^2.4.9",

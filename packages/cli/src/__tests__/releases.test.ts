@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getJson = vi.fn();
 const printSuccess = vi.fn();
+const listReleases = vi.fn();
+const compareReleases = vi.fn();
 
-vi.mock("../lib/api-client.js", () => ({
-  getJson: (path: string, query: unknown) => getJson(path, query),
+vi.mock("../lib/read-client.js", () => ({
+  readApi: (operation: (client: unknown) => Promise<unknown>) =>
+    operation({ listReleases, compareReleases }),
 }));
 
 vi.mock("../lib/output.js", () => ({
@@ -18,24 +20,31 @@ const { runReleasesCompare, runReleasesList } = await import(
 );
 
 beforeEach(() => {
-  getJson.mockReset().mockResolvedValue({
+  const response = {
     ok: true,
     status: 200,
     markdown: "ok",
     data: {},
-  });
+  };
+  listReleases.mockReset().mockResolvedValue(response);
+  compareReleases.mockReset().mockResolvedValue(response);
   printSuccess.mockReset();
 });
 
 describe("release commands", () => {
   it("lists releases in production by default", async () => {
-    await runReleasesList({ projectId: "project-1", runtime: "node" });
+    await runReleasesList({
+      projectId: "project-1",
+      runtime: "node",
+      cursor: "20",
+    });
 
-    expect(getJson).toHaveBeenCalledWith("/v1/releases", {
+    expect(listReleases).toHaveBeenCalledWith({
       projectId: "project-1",
       environment: "production",
       runtime: "node",
       limit: undefined,
+      cursor: "20",
     });
     expect(printSuccess).toHaveBeenCalledWith(expect.anything(), "human");
   });
@@ -48,16 +57,18 @@ describe("release commands", () => {
       environment: "staging",
       runtime: "browser",
       limit: 12,
+      cursor: "12",
       json: true,
     });
 
-    expect(getJson).toHaveBeenCalledWith("/v1/releases/compare", {
+    expect(compareReleases).toHaveBeenCalledWith({
       head: "head",
       base: "base",
       projectId: "project-1",
       environment: "staging",
       runtime: "browser",
       limit: 12,
+      cursor: "12",
     });
     expect(printSuccess).toHaveBeenCalledWith(expect.anything(), "json");
   });

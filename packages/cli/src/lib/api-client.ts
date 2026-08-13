@@ -53,12 +53,12 @@ function parseRetryAfter(raw: string | null): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-function resolveApiBase(): string {
+export function resolveApiBase(): string {
   const raw = process.env.VOLATO_API_URL ?? DEFAULT_API_URL;
   return raw.replace(/\/+$/, "");
 }
 
-async function loadToken(): Promise<string> {
+export async function loadToken(): Promise<string> {
   // An explicit environment credential wins so CI can override a stale token
   // left on a persistent runner. Interactive use falls back to the local file.
   const token = process.env.VOLATO_TOKEN?.trim() || (await readToken());

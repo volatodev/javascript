@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getJson = vi.fn();
 const postJson = vi.fn();
 const printSuccess = vi.fn();
+const searchErrorGroups = vi.fn();
+const getErrorContext = vi.fn();
+const getErrorSamples = vi.fn();
 
 vi.mock("../lib/api-client.js", () => ({
   CliError: class CliError extends Error {},
-  getJson: (path: string, query: unknown) => getJson(path, query),
   postJson: (path: string, body: unknown) => postJson(path, body),
+}));
+
+vi.mock("../lib/read-client.js", () => ({
+  readApi: (operation: (client: unknown) => Promise<unknown>) =>
+    operation({ searchErrorGroups, getErrorContext, getErrorSamples }),
 }));
 
 vi.mock("../lib/output.js", () => ({
@@ -20,12 +26,15 @@ const { runErrorSamples, runErrorsList, runErrorsResolve, runErrorsShow } =
   await import("../commands/errors.js");
 
 beforeEach(() => {
-  getJson.mockReset().mockResolvedValue({
+  const response = {
     ok: true,
     status: 200,
     markdown: "No error groups found.",
     data: null,
-  });
+  };
+  searchErrorGroups.mockReset().mockResolvedValue(response);
+  getErrorContext.mockReset().mockResolvedValue(response);
+  getErrorSamples.mockReset().mockResolvedValue(response);
   printSuccess.mockReset();
   postJson.mockReset().mockResolvedValue({
     ok: true,
@@ -67,14 +76,10 @@ describe("errors environment scope", () => {
     await runErrorsList({});
     await runErrorsShow({});
 
-    expect(getJson).toHaveBeenNthCalledWith(
-      1,
-      "/v1/errors",
+    expect(searchErrorGroups).toHaveBeenCalledWith(
       expect.objectContaining({ environment: "production" }),
     );
-    expect(getJson).toHaveBeenNthCalledWith(
-      2,
-      "/v1/errors/context",
+    expect(getErrorContext).toHaveBeenCalledWith(
       expect.objectContaining({ environment: "production" }),
     );
   });
@@ -83,14 +88,10 @@ describe("errors environment scope", () => {
     await runErrorsList({ environment: "development" });
     await runErrorsShow({ environment: "development" });
 
-    expect(getJson).toHaveBeenNthCalledWith(
-      1,
-      "/v1/errors",
+    expect(searchErrorGroups).toHaveBeenCalledWith(
       expect.objectContaining({ environment: "development" }),
     );
-    expect(getJson).toHaveBeenNthCalledWith(
-      2,
-      "/v1/errors/context",
+    expect(getErrorContext).toHaveBeenCalledWith(
       expect.objectContaining({ environment: "development" }),
     );
   });
@@ -112,10 +113,11 @@ describe("errors environment scope", () => {
       sort: "growth",
       projectId: "project-1",
       limit: 10,
+      cursor: "20",
       json: true,
     });
 
-    expect(getJson).toHaveBeenCalledWith("/v1/errors", {
+    expect(searchErrorGroups).toHaveBeenCalledWith({
       status: "all",
       release: "head",
       baselineRelease: "base",
@@ -133,6 +135,7 @@ describe("errors environment scope", () => {
       query: undefined,
       projectId: "project-1",
       limit: 10,
+      cursor: "20",
     });
     expect(printSuccess).toHaveBeenCalledWith(expect.anything(), "json");
   });
@@ -150,18 +153,16 @@ describe("errors environment scope", () => {
       json: true,
     });
 
-    expect(getJson).toHaveBeenCalledWith(
-      "/v1/errors/group%2Fid/events",
-      {
-        projectId: "project-1",
-        environment: "staging",
-        release: "head",
-        runtime: "browser",
-        route: "/checkout",
-        strategy: "variations",
-        limit: 3,
-      },
-    );
+    expect(getErrorSamples).toHaveBeenCalledWith({
+      id: "group/id",
+      projectId: "project-1",
+      environment: "staging",
+      release: "head",
+      runtime: "browser",
+      route: "/checkout",
+      strategy: "variations",
+      limit: 3,
+    });
     expect(printSuccess).toHaveBeenCalledWith(expect.anything(), "json");
   });
 });
