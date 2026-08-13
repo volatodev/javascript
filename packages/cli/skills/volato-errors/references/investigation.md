@@ -97,8 +97,8 @@ a valid recovery path and must replace—not duplicate—the failed MCP read. Fo
 CLI, use these stable exit codes:
 
 - `0`: consume the bounded result.
-- `3`: authentication or inactive subscription; ask for the minimum human
-  authorization needed, then resume.
+- `3`: authentication failure; ask for the minimum human authorization needed,
+  then resume.
 - `4`: inaccessible or missing resource; verify workspace/project scope.
 - `5`: rate limited; honor the retry window.
 - `1`: local, usage, or transport failure; diagnose it before continuing.
