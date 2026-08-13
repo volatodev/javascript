@@ -78,6 +78,10 @@ function runCli(args, options) {
 }
 const AUTH_TOKEN = "conformance-agent-token";
 const INGEST_TOKEN = "conformance-ingest-token";
+// This conformance deliberately exercises the retained Product integration in
+// addition to public Errors. Product must be opted into explicitly, exactly as
+// an internal experimental workspace would do.
+const EXPERIMENTAL_PRODUCT_ENV = { VOLATO_EXPERIMENTAL_PRODUCT: "1" };
 const FULL_MATRIX = [
   { label: "Next.js 15", next: "15.5.22", react: "19.2.8" },
   { label: "Next.js 16", next: "16.2.12", react: "19.2.8" },
@@ -402,6 +406,7 @@ try {
       {
         cwd: fixture,
         env: {
+          ...EXPERIMENTAL_PRODUCT_ENV,
           VOLATO_API_URL: apiOrigin,
           VOLATO_TOKEN: AUTH_TOKEN,
         },
@@ -413,6 +418,7 @@ try {
       {
         cwd: fixture,
         env: {
+          ...EXPERIMENTAL_PRODUCT_ENV,
           VOLATO_API_URL: apiOrigin,
           VOLATO_TOKEN: AUTH_TOKEN,
         },
@@ -424,6 +430,7 @@ try {
       {
         cwd: fixture,
         env: {
+          ...EXPERIMENTAL_PRODUCT_ENV,
           VOLATO_API_URL: apiOrigin,
           VOLATO_TOKEN: AUTH_TOKEN,
         },
