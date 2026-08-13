@@ -23,10 +23,16 @@ function run(command, args, options = {}) {
     encoding: "utf8",
     env: {
       ...process.env,
+      ...options.env,
       NO_COLOR: "1",
       npm_config_cache: join(scratch, "npm-cache"),
     },
   });
+  if (result.error) {
+    throw new Error(
+      `${command} ${args.join(" ")} could not start: ${result.error.message}`,
+    );
+  }
   if (result.status !== 0) {
     throw new Error(
       `${command} ${args.join(" ")} failed\n${result.stdout}\n${result.stderr}`,
@@ -117,12 +123,20 @@ try {
     "packed CLI is missing the neutral repository bootstrap",
   );
   assert(
-    bundledCli.includes("volato analytics validate"),
-    "packed CLI is missing the product Analytics command surface",
-  );
-  assert(
     bundledCli.includes("volato errors init"),
     "packed CLI is missing the Errors installation surface",
+  );
+  const publicHelp = run(process.execPath, [cli, "--help"]);
+  assert(
+    !publicHelp.includes("analytics"),
+    "packed CLI exposes Product in ordinary discovery",
+  );
+  const experimentalHelp = run(process.execPath, [cli, "--help"], {
+    env: { VOLATO_EXPERIMENTAL_PRODUCT: "1" },
+  });
+  assert(
+    experimentalHelp.includes("analytics"),
+    "packed CLI is missing the explicitly enabled Product command surface",
   );
 
   const fixture = join(scratch, "fixture");
@@ -173,17 +187,32 @@ try {
     ".agents/skills/volato-nextjs/SKILL.md",
     ".agents/skills/volato-vite-react/SKILL.md",
     ".agents/skills/volato-node/SKILL.md",
-    ".agents/skills/volato-product/SKILL.md",
-    ".agents/skills/volato-product/assets/analytics-tracker.ts",
   ]) {
     assert(existsSync(join(fixture, required)), `packed CLI did not create ${required}`);
   }
+  assert(
+    !existsSync(join(fixture, ".agents", "skills", "volato-product")),
+    "packed CLI installed Product without the experimental switch",
+  );
   assert(
     !existsSync(
       join(fixture, ".agents", "skills", "monitor-product-usage"),
     ),
     "packed CLI did not remove the retired product-usage skill",
   );
+  run(process.execPath, [cli, "skills", "install", "--force"], {
+    cwd: fixture,
+    env: { VOLATO_EXPERIMENTAL_PRODUCT: "1" },
+  });
+  for (const required of [
+    ".agents/skills/volato-product/SKILL.md",
+    ".agents/skills/volato-product/assets/analytics-tracker.ts",
+  ]) {
+    assert(
+      existsSync(join(fixture, required)),
+      `packed CLI did not create explicitly enabled ${required}`,
+    );
+  }
   const installedUsageTracker = readFileSync(
     join(fixture, ".agents/skills/volato-product/assets/analytics-tracker.ts"),
     "utf8",
