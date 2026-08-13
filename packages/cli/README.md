@@ -4,8 +4,8 @@ The agent-facing CLI for [Volato](https://volato.dev) — operational skills and
 observability for AI agents.
 
 Install it once. Your AI coding agent shells out to `volato` from any terminal
-to install workflows, instrument product outcomes, and resolve production
-errors with source-aware context.
+to install the Errors workflow and resolve production errors with source-aware
+context.
 
 ## Install
 
@@ -38,14 +38,9 @@ volato errors ignore <id> --note "..."
 volato skills install                     # install business + integration skills
 volato init --project <id> --yes          # connect repository + install skills
 volato errors init --yes --send-test-event
-volato analytics init --yes               # publish plan + generate typed tracker
 volato projects origins set <id> https://app.example.com
 volato projects origins set <id> --clear
-volato analytics validate                 # validate .volato/analytics.json locally
-volato analytics sync                     # publish the outcome event catalog
-volato analytics report                   # read activation and retention evidence
-volato analytics snapshot save            # save an approved interpretation
-volato readme                             # print every command (point your agent here)
+volato readme                             # print the public command contract
 ```
 
 Upgrading from the former product-usage skill may report an installed-skill
@@ -56,23 +51,15 @@ Every command prints agent-ready markdown by default. Pass `--json` for the stru
 
 Authenticated `volato init --project` verifies the project, installs the setup
 skills and records a neutral project link in `.volato/manifest.json`. It does
-not touch application source or runtime credentials. `volato errors init` and
-`volato analytics init` then retrieve credentials without printing them and
-own separate generated-file entries in the manifest. Neither adds a Volato
-runtime package.
+not touch application source or runtime credentials. `volato errors init` then
+retrieves credentials without printing them and owns the generated-file
+entries in the manifest. It adds no Volato runtime package.
 
 The project-origins command replaces the complete browser-origin allowlist.
 It canonicalises URLs, removes duplicates, and is safe for an agent to rerun.
 `--clear` accepts browser events from any origin. This setting reduces casual
 DSN misuse; it is not an authentication boundary and does not filter
 server-side events.
-
-The product analytics commands use the versioned `.volato/analytics.json`
-contract. `validate`
-performs the same structural checks as the API without making a request,
-`sync` publishes the complete event catalog, and `report` reads outcome-led
-activation, repeat-use, and retention evidence. `snapshot save` validates
-`.volato/analytics-snapshot.json` and saves it only after explicit approval.
 
 ## For agents
 
