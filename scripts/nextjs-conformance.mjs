@@ -78,10 +78,6 @@ function runCli(args, options) {
 }
 const AUTH_TOKEN = "conformance-agent-token";
 const INGEST_TOKEN = "conformance-ingest-token";
-// This conformance deliberately exercises the retained Product integration in
-// addition to public Errors. Product must be opted into explicitly, exactly as
-// an internal experimental workspace would do.
-const EXPERIMENTAL_PRODUCT_ENV = { VOLATO_EXPERIMENTAL_PRODUCT: "1" };
 const FULL_MATRIX = [
   { label: "Next.js 15", next: "15.5.22", react: "19.2.8" },
   { label: "Next.js 16", next: "16.2.12", react: "19.2.8" },
@@ -140,7 +136,7 @@ function run(command, args, options = {}) {
   });
 }
 
-function writeFixture(root, entry, projectId) {
+function writeFixture(root, entry) {
   mkdirSync(join(root, "app"), { recursive: true });
   writeFileSync(
     join(root, "package.json"),
@@ -187,60 +183,6 @@ function writeFixture(root, entry, projectId) {
     join(root, ".gitignore"),
     "node_modules\n.next\n.env*.local\n",
   );
-  mkdirSync(join(root, ".volato"), { recursive: true });
-  writeFileSync(
-    join(root, ".volato", "analytics.json"),
-    `${JSON.stringify(
-      {
-        schemaVersion: 1,
-        projectId,
-        product: {
-          summary: "A conformance application connected to Volato.",
-          targetActor: "Developers validating the Volato adapter.",
-        },
-        job: {
-          statement: "Validate independent product instrumentation.",
-          outcome: "The application records an authoritative outcome.",
-        },
-        events: [
-          {
-            name: "account_registered",
-            description: "A developer enters the eligible cohort.",
-            properties: {},
-            dedupe: "actor",
-          },
-          {
-            name: "integration_connected",
-            description: "The repository connects its Volato integration.",
-            properties: {},
-            dedupe: "actor",
-          },
-          {
-            name: "outcome_completed",
-            description: "The developer reaches the product outcome.",
-            properties: {},
-            dedupe: "key",
-          },
-        ],
-        milestones: [
-          {
-            event: "account_registered",
-            question: "Did an eligible developer enter the cohort?",
-          },
-          {
-            event: "integration_connected",
-            question: "Did the repository connect to Volato?",
-          },
-          {
-            event: "outcome_completed",
-            question: "Did the developer reach the product outcome?",
-          },
-        ],
-      },
-      null,
-      2,
-    )}\n`,
-  );
 }
 
 const state = {
@@ -248,7 +190,6 @@ const state = {
   rejectTestEvents: false,
   sourcemaps: 0,
   sourcemapKeys: [],
-  analyticsConfigs: [],
 };
 
 function multipartField(body, name) {
@@ -301,32 +242,6 @@ const server = createServer((req, res) => {
         data: { projectId: linkedMatch[1], linked: true, tracked: true },
       }),
     );
-    return;
-  }
-  const analyticsConfigMatch = url.pathname.match(
-    /^\/v1\/projects\/([0-9a-f-]+)\/skills\/monitor-product-usage\/config$/,
-  );
-  if (req.method === "POST" && analyticsConfigMatch) {
-    if (req.headers.authorization !== `Bearer ${AUTH_TOKEN}`) {
-      res.writeHead(401, { "content-type": "application/json" });
-      res.end(JSON.stringify({ error: "invalid_token" }));
-      return;
-    }
-    let body = "";
-    req.setEncoding("utf8");
-    req.on("data", (chunk) => {
-      body += chunk;
-    });
-    req.on("end", () => {
-      state.analyticsConfigs.push(JSON.parse(body));
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(
-        JSON.stringify({
-          markdown: "# Analytics contract synced",
-          data: { projectId: analyticsConfigMatch[1] },
-        }),
-      );
-    });
     return;
   }
   if (req.method === "POST" && url.pathname === "/api/ingest") {
@@ -393,7 +308,7 @@ try {
   for (const [index, entry] of MATRIX.entries()) {
     const fixture = join(scratch, `next-${entry.next}`);
     const projectId = `00000000-0000-4000-8000-00000000000${index + 1}`;
-    writeFixture(fixture, entry, projectId);
+    writeFixture(fixture, entry);
 
     await run("pnpm", ["install", "--ignore-scripts"], { cwd: fixture });
     const bootstrap = await runCli(
@@ -406,7 +321,6 @@ try {
       {
         cwd: fixture,
         env: {
-          ...EXPERIMENTAL_PRODUCT_ENV,
           VOLATO_API_URL: apiOrigin,
           VOLATO_TOKEN: AUTH_TOKEN,
         },
@@ -418,25 +332,11 @@ try {
       {
         cwd: fixture,
         env: {
-          ...EXPERIMENTAL_PRODUCT_ENV,
           VOLATO_API_URL: apiOrigin,
           VOLATO_TOKEN: AUTH_TOKEN,
         },
       },
     );
-    const beforeAnalyticsConfigs = state.analyticsConfigs.length;
-    const analyticsInit = await runCli(
-      ["analytics", "init", "--yes"],
-      {
-        cwd: fixture,
-        env: {
-          ...EXPERIMENTAL_PRODUCT_ENV,
-          VOLATO_API_URL: apiOrigin,
-          VOLATO_TOKEN: AUTH_TOKEN,
-        },
-      },
-    );
-
     assert(
       state.testEvents.length === beforeEvents + 1,
       `${entry.label} setup did not send its test event.\n${init.stdout}\n${init.stderr}`,
@@ -446,10 +346,6 @@ try {
       testEvent.message ===
         "Volato integration test — generated Next.js runtime",
       `${entry.label} setup bypassed the generated integration.`,
-    );
-    assert(
-      state.analyticsConfigs.length === beforeAnalyticsConfigs + 1,
-      `${entry.label} Analytics setup did not publish its data plan.\n${analyticsInit.stdout}\n${analyticsInit.stderr}`,
     );
     assert(
       typeof testEvent.stack === "string" &&
@@ -476,15 +372,12 @@ try {
       ".agents/skills/volato-setup/SKILL.md",
       ".agents/skills/volato-errors/SKILL.md",
       ".agents/skills/volato-nextjs/SKILL.md",
-      ".agents/skills/volato-product/SKILL.md",
       ".volato/manifest.json",
       ".env.local",
       ".gitignore",
       "app/error.tsx",
       "instrumentation.ts",
       "volato/server.ts",
-      "volato/analytics/tracker.ts",
-      "volato/analytics/index.ts",
     ]) {
       assert(
         existsSync(join(fixture, required)),
@@ -509,26 +402,14 @@ try {
       ),
       `${entry.label} setup did not protect local credentials.`,
     );
-    const usageTracker = readFileSync(
-      join(fixture, ".agents/skills/volato-product/assets/analytics-tracker.ts"),
-      "utf8",
-    );
-    assert(
-      usageTracker.includes("process.env.NEXT_PUBLIC_VOLATO_DSN") &&
-        usageTracker.includes("process.env.VOLATO_INGEST_TOKEN") &&
-        usageTracker.includes("Authorization: `Bearer ${ingestToken}`") &&
-        usageTracker.includes("AbortSignal.timeout(DELIVERY_TIMEOUT_MS)"),
-      `${entry.label} setup installed an unauthenticated or unbounded product usage tracker.`,
-    );
     const manifest = JSON.parse(
       readFileSync(join(fixture, ".volato", "manifest.json"), "utf8"),
     );
     assert(
       manifest.schemaVersion === 2 &&
         manifest.project.id === projectId &&
-        manifest.integrations["errors-nextjs"] &&
-        manifest.integrations["analytics-nextjs"],
-      `${entry.label} setup did not preserve both integration entries.`,
+        manifest.integrations["errors-nextjs"],
+      `${entry.label} setup did not preserve the Errors integration entry.`,
     );
 
     if (index === 0) {

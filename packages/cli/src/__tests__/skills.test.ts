@@ -30,7 +30,6 @@ beforeEach(() => {
   addSkill("volato-nextjs", "next");
   addSkill("volato-vite-react", "vite-react");
   addSkill("volato-node", "node");
-  addSkill("volato-product", "experimental-product");
 });
 
 afterEach(() => {
@@ -70,19 +69,6 @@ describe("installSkills", () => {
     ]);
   });
 
-  it("installs Product only with the explicit experimental switch", () => {
-    const outcomes = installSkills({
-      cwd,
-      sourceRoot,
-      experimentalProduct: true,
-    });
-
-    expect(outcomes.at(-1)).toMatchObject({
-      skill: "volato-product",
-      status: "created",
-    });
-  });
-
   it("does not overwrite a locally modified skill without force", () => {
     installSkills({ cwd, sourceRoot });
     const installed = join(
@@ -104,30 +90,28 @@ describe("installSkills", () => {
     expect(readFileSync(installed, "utf8")).toBe("generic");
   });
 
-  it("removes the retired monitor-product-usage skill only with force", () => {
-    const retired = join(
-      cwd,
-      ".agents",
-      "skills",
-      "monitor-product-usage",
-    );
-    mkdirSync(retired, { recursive: true });
-    writeFileSync(join(retired, "SKILL.md"), "local legacy skill");
+  it.each(["monitor-product-usage", "volato-product"])(
+    "removes the retired %s skill only with force",
+    (skill) => {
+      const retired = join(cwd, ".agents", "skills", skill);
+      mkdirSync(retired, { recursive: true });
+      writeFileSync(join(retired, "SKILL.md"), "local legacy skill");
 
-    expect(installSkills({ cwd, sourceRoot })[0]).toEqual({
-      skill: "monitor-product-usage",
-      status: "conflict",
-      target: retired,
-    });
-    expect(existsSync(retired)).toBe(true);
+      expect(installSkills({ cwd, sourceRoot })[0]).toEqual({
+        skill,
+        status: "conflict",
+        target: retired,
+      });
+      expect(existsSync(retired)).toBe(true);
 
-    expect(installSkills({ cwd, sourceRoot, force: true })[0]).toEqual({
-      skill: "monitor-product-usage",
-      status: "removed",
-      target: retired,
-    });
-    expect(existsSync(retired)).toBe(false);
-  });
+      expect(installSkills({ cwd, sourceRoot, force: true })[0]).toEqual({
+        skill,
+        status: "removed",
+        target: retired,
+      });
+      expect(existsSync(retired)).toBe(false);
+    },
+  );
 
   it("offers to update installed skills when bundled files differ", async () => {
     installSkills({ cwd, sourceRoot });

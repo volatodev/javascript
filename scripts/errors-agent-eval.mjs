@@ -129,7 +129,6 @@ test("falls back when the production payload has no user", () => {
     "volato-setup",
     "volato-errors",
     "volato-nextjs",
-    "volato-product",
   ]) {
     const source = join(skillRoot, name);
     if (existsSync(source)) {

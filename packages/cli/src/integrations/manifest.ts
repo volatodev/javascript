@@ -6,13 +6,12 @@ export const MANIFEST_SCHEMA_VERSION = 2;
 export const ERRORS_NEXTJS_INTEGRATION = "errors-nextjs" as const;
 export const ERRORS_VITE_REACT_INTEGRATION = "errors-vite-react" as const;
 export const ERRORS_NODE_INTEGRATION = "errors-node" as const;
-export const ANALYTICS_NEXTJS_INTEGRATION = "analytics-nextjs" as const;
+const RETIRED_INTEGRATION_IDS = new Set(["analytics-nextjs"]);
 
 export type IntegrationId =
   | typeof ERRORS_NEXTJS_INTEGRATION
   | typeof ERRORS_VITE_REACT_INTEGRATION
-  | typeof ERRORS_NODE_INTEGRATION
-  | typeof ANALYTICS_NEXTJS_INTEGRATION;
+  | typeof ERRORS_NODE_INTEGRATION;
 
 export type GeneratedIntegration = {
   protocolVersion: 1;
@@ -96,11 +95,11 @@ function parseManifest(value: unknown, path: string): IntegrationManifest {
   }
   const integrations: IntegrationManifest["integrations"] = {};
   for (const [id, integration] of Object.entries(manifest.integrations)) {
+    if (RETIRED_INTEGRATION_IDS.has(id)) continue;
     if (
       id !== ERRORS_NEXTJS_INTEGRATION &&
       id !== ERRORS_VITE_REACT_INTEGRATION &&
-      id !== ERRORS_NODE_INTEGRATION &&
-      id !== ANALYTICS_NEXTJS_INTEGRATION
+      id !== ERRORS_NODE_INTEGRATION
     ) {
       throw new Error(`Unsupported Volato integration ${JSON.stringify(id)}: ${path}`);
     }

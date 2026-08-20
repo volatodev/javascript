@@ -20,9 +20,6 @@
  *   volato releases compare [head]    — compare a release to its predecessor
  *   volato projects list              — list readable projects
  *   volato projects origins set       — replace a browser-origin allowlist
- * Experimental Product commands are registered only when
- * `VOLATO_EXPERIMENTAL_PRODUCT=1`; they are absent from ordinary discovery.
- *
  * Every command accepts --json for the structured payload instead of
  * the default markdown. The markdown is agent-ready (the same string
  * the REST API serves under `markdown`); agents shell to `volato` and
@@ -31,7 +28,6 @@
 import { Command } from "commander";
 import { runInit } from "./commands/init/init.js";
 import { runErrorsInit } from "./commands/init/errors.js";
-import { runAnalyticsInit } from "./commands/init/analytics.js";
 import { runLogin, runLogout, runWhoami } from "./commands/login.js";
 import {
   runErrorSamples,
@@ -49,15 +45,8 @@ import {
   runProjectOriginsSet,
   runProjectsList,
 } from "./commands/projects.js";
-import {
-  runUsageSnapshotSave,
-  runUsageReport,
-  runUsageSync,
-  runUsageValidate,
-} from "./commands/analytics.js";
 import { CliError } from "./lib/api-client.js";
 import { printLocalError } from "./lib/output.js";
-import { isExperimentalProductEnabled } from "./lib/experiments.js";
 
 // Replaced at build time by tsup's `define` (see tsup.config.ts). The
 // fallback keeps `tsc`/tests honest when the bundle isn't built.
@@ -197,99 +186,6 @@ projectOrigins
       await runProjectOriginsSet({ projectId, origins, ...opts });
     },
   );
-
-if (isExperimentalProductEnabled()) {
-const analytics = program
-  .command("analytics")
-  .description("Install and query outcome-led product analytics");
-
-analytics
-  .command("init")
-  .description("Install generated Next.js Analytics from an approved contract")
-  .option(
-    "-f, --file <path>",
-    "project-relative Analytics config path",
-    ".volato/analytics.json",
-  )
-  .option("--yes", "apply safe setup defaults without prompts")
-  .action(async (opts: { file: string; yes?: boolean }) => {
-    try {
-      await runAnalyticsInit({
-        cwd: process.cwd(),
-        file: opts.file,
-        nonInteractive: opts.yes,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      printLocalError(message);
-      process.exit(err instanceof CliError ? err.exitCode : 1);
-    }
-  });
-
-analytics
-  .command("validate")
-  .description("Validate .volato/analytics.json locally")
-  .option(
-    "-f, --file <path>",
-    "project-relative product Analytics config path",
-    ".volato/analytics.json",
-  )
-  .option("--json", "emit the structured payload instead of markdown")
-  .action(
-    (opts: { file: string; json?: boolean }) => {
-      runUsageValidate({ cwd: process.cwd(), ...opts });
-    },
-  );
-
-analytics
-  .command("sync")
-  .description("Validate and publish the product Analytics event catalog")
-  .option(
-    "-f, --file <path>",
-    "project-relative product Analytics config path",
-    ".volato/analytics.json",
-  )
-  .option("--json", "emit the structured payload instead of markdown")
-  .action(
-    async (opts: { file: string; json?: boolean }) => {
-      await runUsageSync({ cwd: process.cwd(), ...opts });
-    },
-  );
-
-analytics
-  .command("report")
-  .description("Read activation, repeat-use, and retention evidence")
-  .option(
-    "-f, --file <path>",
-    "project-relative product Analytics config path",
-    ".volato/analytics.json",
-  )
-  .option("--json", "emit the structured payload instead of markdown")
-  .action(
-    async (opts: { file: string; json?: boolean }) => {
-      await runUsageReport({ cwd: process.cwd(), ...opts });
-    },
-  );
-
-const analyticsSnapshot = analytics
-  .command("snapshot")
-  .description("Save explicitly approved product Analytics snapshots");
-
-analyticsSnapshot
-  .command("save")
-  .description("Validate and save an approved behavioral snapshot")
-  .option(
-    "-f, --file <path>",
-    "project-relative product Analytics snapshot path",
-    ".volato/analytics-snapshot.json",
-  )
-  .option("--json", "emit the structured payload instead of markdown")
-  .action(
-    async (opts: { file: string; json?: boolean }) => {
-      await runUsageSnapshotSave({ cwd: process.cwd(), ...opts });
-    },
-  );
-}
 
 const errors = program
   .command("errors")

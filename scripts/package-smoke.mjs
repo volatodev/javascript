@@ -92,10 +92,6 @@ try {
     "skills/volato-node/assets/runtime/node.js",
     "skills/volato-node/assets/runtime/express.ts",
     "skills/volato-node/assets/runtime/upload-sourcemaps.mjs",
-    "skills/volato-product/SKILL.md",
-    "skills/volato-product/agents/openai.yaml",
-    "skills/volato-product/references/analytics-contract.md",
-    "skills/volato-product/assets/analytics-tracker.ts",
   ]) {
     assert(paths.has(required), `packed CLI is missing ${required}`);
   }
@@ -129,14 +125,11 @@ try {
   const publicHelp = run(process.execPath, [cli, "--help"]);
   assert(
     !publicHelp.includes("analytics"),
-    "packed CLI exposes Product in ordinary discovery",
+    "packed CLI exposes the retired Product command surface",
   );
-  const experimentalHelp = run(process.execPath, [cli, "--help"], {
-    env: { VOLATO_EXPERIMENTAL_PRODUCT: "1" },
-  });
   assert(
-    experimentalHelp.includes("analytics"),
-    "packed CLI is missing the explicitly enabled Product command surface",
+    ![...paths].some((path) => path.startsWith("skills/volato-product/")),
+    "packed CLI still contains the retired Product skill",
   );
 
   const fixture = join(scratch, "fixture");
@@ -163,20 +156,11 @@ try {
   );
   writeFileSync(join(fixture, "next.config.ts"), "export default {};\n");
   writeFileSync(join(fixture, ".gitignore"), ".env*.local\n");
-  mkdirSync(
-    join(fixture, ".agents", "skills", "monitor-product-usage"),
-    { recursive: true },
-  );
-  writeFileSync(
-    join(
-      fixture,
-      ".agents",
-      "skills",
-      "monitor-product-usage",
-      "SKILL.md",
-    ),
-    "legacy skill\n",
-  );
+  for (const retired of ["monitor-product-usage", "volato-product"]) {
+    const retiredRoot = join(fixture, ".agents", "skills", retired);
+    mkdirSync(retiredRoot, { recursive: true });
+    writeFileSync(join(retiredRoot, "SKILL.md"), "legacy skill\n");
+  }
 
   run(process.execPath, [cli, "skills", "install", "--force"], {
     cwd: fixture,
@@ -190,40 +174,12 @@ try {
   ]) {
     assert(existsSync(join(fixture, required)), `packed CLI did not create ${required}`);
   }
-  assert(
-    !existsSync(join(fixture, ".agents", "skills", "volato-product")),
-    "packed CLI installed Product without the experimental switch",
-  );
-  assert(
-    !existsSync(
-      join(fixture, ".agents", "skills", "monitor-product-usage"),
-    ),
-    "packed CLI did not remove the retired product-usage skill",
-  );
-  run(process.execPath, [cli, "skills", "install", "--force"], {
-    cwd: fixture,
-    env: { VOLATO_EXPERIMENTAL_PRODUCT: "1" },
-  });
-  for (const required of [
-    ".agents/skills/volato-product/SKILL.md",
-    ".agents/skills/volato-product/assets/analytics-tracker.ts",
-  ]) {
+  for (const retired of ["monitor-product-usage", "volato-product"]) {
     assert(
-      existsSync(join(fixture, required)),
-      `packed CLI did not create explicitly enabled ${required}`,
+      !existsSync(join(fixture, ".agents", "skills", retired)),
+      `packed CLI did not remove retired skill ${retired}`,
     );
   }
-  const installedUsageTracker = readFileSync(
-    join(fixture, ".agents/skills/volato-product/assets/analytics-tracker.ts"),
-    "utf8",
-  );
-  assert(
-    installedUsageTracker.includes("process.env.NEXT_PUBLIC_VOLATO_DSN") &&
-      installedUsageTracker.includes("process.env.VOLATO_INGEST_TOKEN") &&
-      installedUsageTracker.includes("Authorization: `Bearer ${ingestToken}`") &&
-      installedUsageTracker.includes("AbortSignal.timeout(DELIVERY_TIMEOUT_MS)"),
-    "packed product Analytics tracker is missing server authorization or bounded delivery",
-  );
   const fixturePackage = JSON.parse(
     readFileSync(join(fixture, "package.json"), "utf8"),
   );

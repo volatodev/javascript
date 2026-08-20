@@ -82,11 +82,7 @@ export async function markProjectLinked(projectId: string): Promise<{
  */
 export async function reportIntegrationInstalled(
   projectId: string,
-  adapter:
-    | "errors-nextjs"
-    | "errors-vite-react"
-    | "errors-node"
-    | "analytics-nextjs",
+  adapter: "errors-nextjs" | "errors-vite-react" | "errors-node",
 ): Promise<void> {
   try {
     await postJson(

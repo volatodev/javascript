@@ -43,9 +43,10 @@ volato projects origins set <id> --clear
 volato readme                             # print the public command contract
 ```
 
-Upgrading from the former product-usage skill may report an installed-skill
+Upgrading from a former product-usage skill may report an installed-skill
 conflict. Review it, then run `volato skills install --force` to replace the
-bundled files and remove the retired `monitor-product-usage` directory.
+bundled files and remove the retired `monitor-product-usage` and
+`volato-product` directories.
 
 Every command prints agent-ready markdown by default. Pass `--json` for the structured payload, scriptable exit codes for the rest (`3` auth, `4` not-found, `5` rate-limited).
 

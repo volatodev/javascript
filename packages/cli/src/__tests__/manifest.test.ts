@@ -9,7 +9,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  ANALYTICS_NEXTJS_INTEGRATION,
   createGeneratedIntegration,
   ERRORS_NEXTJS_INTEGRATION,
   linkProject,
@@ -48,38 +47,48 @@ describe("integration manifest", () => {
     expect(readManifest(cwd)).toEqual(linkedManifest());
   });
 
-  it("composes stable project-relative hashes for two integrations", () => {
+  it("composes stable project-relative hashes for an Errors integration", () => {
     linkedManifest();
     const runtimeDir = join(cwd, "src", "volato");
     mkdirSync(runtimeDir, { recursive: true });
     const errors = join(runtimeDir, "errors.ts");
-    const analytics = join(runtimeDir, "analytics.ts");
     writeFileSync(errors, "export const errors = true;\n");
-    writeFileSync(analytics, "export const analytics = true;\n");
 
     const errorsIntegration = createGeneratedIntegration(cwd, {
       recipe: "errors-nextjs-app-router",
       recipeVersion: "1.0.0",
       files: [errors],
     });
-    const analyticsIntegration = createGeneratedIntegration(cwd, {
-      recipe: "analytics-nextjs-app-router",
-      recipeVersion: "1.0.0",
-      files: [analytics],
-    });
     writeIntegration(cwd, ERRORS_NEXTJS_INTEGRATION, errorsIntegration);
-    writeIntegration(
-      cwd,
-      ANALYTICS_NEXTJS_INTEGRATION,
-      analyticsIntegration,
-    );
 
     expect(readManifest(cwd)?.integrations).toEqual({
       [ERRORS_NEXTJS_INTEGRATION]: errorsIntegration,
-      [ANALYTICS_NEXTJS_INTEGRATION]: analyticsIntegration,
     });
     expect(modifiedGeneratedFiles(cwd, errorsIntegration)).toEqual([]);
-    expect(modifiedGeneratedFiles(cwd, analyticsIntegration)).toEqual([]);
+  });
+
+  it("drops the retired Product integration from an existing manifest", () => {
+    mkdirSync(join(cwd, ".volato"));
+    writeFileSync(
+      join(cwd, ".volato", "manifest.json"),
+      `${JSON.stringify({
+        schemaVersion: 2,
+        project: {
+          id: "11111111-1111-4111-8111-111111111111",
+          name: "Checkout",
+        },
+        integrations: {
+          "analytics-nextjs": {
+            protocolVersion: 1,
+            recipe: "analytics-nextjs-app-router",
+            recipeVersion: "1.0.0",
+            generatedFiles: { "volato/analytics/index.ts": "legacy-hash" },
+          },
+        },
+      })}\n`,
+    );
+
+    expect(readManifest(cwd)?.integrations).toEqual({});
   });
 
   it("detects edited and deleted generated files per integration", () => {
