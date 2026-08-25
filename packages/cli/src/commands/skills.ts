@@ -57,9 +57,15 @@ function listFiles(root: string, prefix = ""): string[] {
     .sort();
 }
 
+function listInstallableFiles(root: string): string[] {
+  return listFiles(root).filter(
+    (file) => !file.split(/[\\/]/).includes("__tests__"),
+  );
+}
+
 function directoriesMatch(source: string, target: string): boolean {
   if (!existsSync(target)) return false;
-  const sourceFiles = listFiles(source);
+  const sourceFiles = listInstallableFiles(source);
   const targetFiles = listFiles(target);
   if (sourceFiles.join("\n") !== targetFiles.join("\n")) return false;
   return sourceFiles.every(
@@ -70,7 +76,7 @@ function directoriesMatch(source: string, target: string): boolean {
 }
 
 function copyDirectory(source: string, target: string): void {
-  for (const file of listFiles(source)) {
+  for (const file of listInstallableFiles(source)) {
     const output = join(target, file);
     mkdirSync(dirname(output), { recursive: true });
     writeFileSync(output, readFileSync(join(source, file)));

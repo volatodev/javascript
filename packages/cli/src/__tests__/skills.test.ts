@@ -55,6 +55,43 @@ describe("installSkills", () => {
     ).toBe("next");
   });
 
+  it("does not install bundled runtime tests into the target repository", () => {
+    const runtime = join(
+      sourceRoot,
+      "volato-nextjs",
+      "assets",
+      "runtime",
+    );
+    mkdirSync(join(runtime, "__tests__"), { recursive: true });
+    writeFileSync(join(runtime, "client.tsx"), "export {};\n");
+    writeFileSync(
+      join(runtime, "__tests__", "client.test.ts"),
+      'import "esbuild";\n',
+    );
+
+    installSkills({ cwd, sourceRoot });
+
+    const installedRuntime = join(
+      cwd,
+      ".agents",
+      "skills",
+      "volato-nextjs",
+      "assets",
+      "runtime",
+    );
+    expect(existsSync(join(installedRuntime, "client.tsx"))).toBe(true);
+    expect(existsSync(join(installedRuntime, "__tests__"))).toBe(false);
+    expect(
+      installSkills({ cwd, sourceRoot }).map((outcome) => outcome.status),
+    ).toEqual([
+      "unchanged",
+      "unchanged",
+      "unchanged",
+      "unchanged",
+      "unchanged",
+    ]);
+  });
+
   it("is idempotent", () => {
     installSkills({ cwd, sourceRoot });
 
