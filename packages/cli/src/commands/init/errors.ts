@@ -310,7 +310,7 @@ function printPortableNextSteps(
   if (complete) {
     process.stdout.write(
       `${pc.green("✓")} ${pc.bold("Volato Errors is ready.")} ${pc.dim(
-        "Now ask your agent: “Fix the latest production error.”",
+        "Deploy these changes; the dashboard will surface the first production error when it arrives.",
       )}\n`,
     );
   } else {
@@ -381,7 +381,7 @@ function printNextSteps(
   if (complete) {
     process.stdout.write(
       `${pc.green("✓")} ${pc.bold("Volato Errors is ready.")} ${pc.dim(
-        "Now ask your agent: “Fix the latest production error.”",
+        "Deploy these changes; the dashboard will surface the first production error when it arrives.",
       )}\n`,
     );
   } else {

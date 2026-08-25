@@ -64,10 +64,11 @@ server-side events.
 
 ## For agents
 
-Ask your agent: `Fix the latest production error.` The `volato-errors` skill
-queries Volato, inspects source and Git, patches the cause and runs the
-available checks without requiring a copied email or dashboard step. A local
-patch does not automatically resolve the production group.
+After deploying a verified setup, wait until Volato reports a production
+error, then ask your agent: `Fix the latest production error.` The
+`volato-errors` skill queries Volato, inspects source and Git, patches the cause
+and runs the available checks without requiring a copied email or dashboard
+step. A local patch does not automatically resolve the production group.
 
 For broad regressions, the agent can compare captured releases, rank groups by
 new appearance, impact or raw event growth, and request a privacy-filtered,

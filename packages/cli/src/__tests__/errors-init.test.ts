@@ -99,8 +99,9 @@ describe("volato errors init", () => {
     const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
     expect(output).toContain("Volato Errors is ready.");
     expect(output).toContain(
-      'Now ask your agent: “Fix the latest production error.”',
+      "Deploy these changes; the dashboard will surface the first production error when it arrives.",
     );
+    expect(output).not.toContain("Fix the latest production error.");
   });
 
   it("finishes supported Vite capture while announcing an unsupported Python backend", async () => {

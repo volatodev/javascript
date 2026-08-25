@@ -84,8 +84,9 @@ Omit the id to get the most recent unresolved group across the
 workspace (or scoped to --project-id). This is the painkiller path
 for "fix the last error" — one call, everything an agent needs.
 
-After verified setup, ask the coding agent: "Fix the latest production error."
-The \`volato-errors\` skill selects the read path, inspects local source and Git,
+After verified setup, deploy the generated changes. When Volato reports a real
+production error, ask the coding agent: "Fix the latest production error." The
+\`volato-errors\` skill selects the read path, inspects local source and Git,
 patches and tests the cause, and keeps resolution separate from investigation.
 When the read-only Volato MCP connection is available, the skill uses its six
 bounded read tools; otherwise it uses these CLI commands with \`--json\`. It

@@ -42,7 +42,8 @@ sourcemaps during production builds.
 
 ## Agent loop
 
-After verified setup, ask the agent:
+After verified setup, deploy the generated changes. When Volato reports a real
+production error, ask the agent:
 
 ```text
 Fix the latest production error.

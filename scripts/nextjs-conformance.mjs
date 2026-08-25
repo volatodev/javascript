@@ -386,9 +386,9 @@ try {
     }
     assert(
       init.stdout.includes(
-        "Volato Errors is ready. Now ask your agent: “Fix the latest production error.”",
+        "Volato Errors is ready. Deploy these changes; the dashboard will surface the first production error when it arrives.",
       ),
-      `${entry.label} setup did not hand off to the natural-language Errors job.`,
+      `${entry.label} setup did not hand off to deployment.`,
     );
     const envLocal = readFileSync(join(fixture, ".env.local"), "utf8");
     assert(
