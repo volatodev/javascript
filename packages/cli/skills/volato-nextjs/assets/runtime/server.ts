@@ -337,7 +337,8 @@ export async function reportActionError(
   });
 }
 
-function pathnameOf(req: Request): string | undefined {
+function pathnameOf(req: Request | undefined): string | undefined {
+  if (!req) return undefined;
   try {
     return new URL(req.url).pathname;
   } catch {
@@ -349,7 +350,7 @@ function pathnameOf(req: Request): string | undefined {
  * Wrap a streamed Response so any error raised by the underlying body
  * AFTER the handler has returned is forwarded to Volato.
  */
-function wrapResponseStream(res: Response, req: Request): Response {
+function wrapResponseStream(res: Response, req: Request | undefined): Response {
   if (!res.body) return res;
   const passthrough = new TransformStream<Uint8Array, Uint8Array>();
   const route = pathnameOf(req);
@@ -358,7 +359,7 @@ function wrapResponseStream(res: Response, req: Request): Response {
     void captureException(err, {
       runtime: "route_handler",
       route,
-      headers: req.headers,
+      headers: req?.headers,
       capturedVia: "wrap_route",
       request: req,
     });
@@ -380,22 +381,22 @@ function wrapResponseStream(res: Response, req: Request): Response {
  * don't leak into other concurrent requests.
  */
 export function wrapRoute<
-  T extends (req: Request, ctx?: any) => Promise<Response> | Response,
+  T extends (...args: any[]) => Promise<Response> | Response,
 >(handler: T): T {
   const wrapped = async function (
     this: unknown,
-    req: Request,
-    ctx?: unknown,
+    ...args: Parameters<T>
   ): Promise<Response> {
+    const req = args[0] as Request | undefined;
     return runWithScope(getCurrentScope().clone(), async () => {
       try {
-        const res = await handler.call(this, req, ctx);
+        const res = await handler.apply(this, args);
         return wrapResponseStream(res, req);
       } catch (err) {
         await captureException(err, {
           runtime: "route_handler",
           route: pathnameOf(req),
-          headers: req.headers,
+          headers: req?.headers,
           capturedVia: "wrap_route",
           request: req,
         });

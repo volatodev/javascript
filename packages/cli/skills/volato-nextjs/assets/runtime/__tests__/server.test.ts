@@ -408,6 +408,22 @@ describe("wrapRoute", () => {
     expect(body.headers).not.toHaveProperty("cookie");
     expect(body.headers).not.toHaveProperty("authorization");
   });
+
+  it("preserves the original error when a zero-argument handler is called directly", async () => {
+    const original = new Error("redirect control flow");
+    const wrapped = wrapRoute(async () => {
+      throw original;
+    });
+
+    await expect(wrapped()).rejects.toBe(original);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as { route: string | null; headers: Record<string, string> };
+    expect(body.route).toBeNull();
+    expect(body.headers).toEqual({});
+  });
 });
 
 describe("wrapRoute — streamed Response error capture", () => {
