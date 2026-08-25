@@ -3,18 +3,19 @@
   "tag": "beta",
   "initialVersions": {
     "@volatodev/example-nextjs-app-router": "0.0.0",
-    "@volatodev/cli": "0.1.0-beta.0"
+    "@volatodev/cli": "0.1.0-beta.0",
+    "@volatodev/read-client": "0.0.0"
   },
   "changesets": [
     "actor-timelines-ship",
     "agent-errors-close-loop",
-    "branch-signals-compare",
     "bright-bugs-travel",
     "calm-builds-align",
     "clean-build-maps",
     "clear-canaries-explain",
     "dedupe-next-sourcemaps",
     "errors-agents-investigate",
+    "errors-beta-boundary",
     "errors-search-primitives",
     "focused-catalog-activates",
     "honest-server-coverage",
@@ -23,7 +24,6 @@
     "patient-routes-verify",
     "quiet-agents-connect",
     "quiet-skills-update",
-    "secure-pmf-signals",
     "standalone-server-maps",
     "static-releases-align",
     "tidy-origins-listen",

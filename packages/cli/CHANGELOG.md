@@ -1,5 +1,12 @@
 # @volatodev/cli
 
+## 0.1.0-beta.18
+
+### Patch Changes
+
+- Ship the Errors-only public-beta contract, prefer authenticated MCP reads with
+  CLI fallback, and surface monthly quota thresholds in generated capture.
+
 ## 0.1.0-beta.17
 
 ### Patch Changes
