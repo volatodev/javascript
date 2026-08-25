@@ -9,7 +9,7 @@
  *   - End-to-end through `withVolato()` to pin the glue.
  */
 
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -24,6 +24,7 @@ import {
 import {
   __buildEnvWithIdentityForTests,
   __detectGitShaForTests,
+  __detectRepositoryPrefixForTests,
   __VolatoSourceMapsPlugin,
   withVolato,
 } from "../withVolato";
@@ -58,6 +59,18 @@ describe("__detectGitShaForTests", () => {
     expect(
       __detectGitShaForTests("/nonexistent/path/that/cannot/be"),
     ).toBeUndefined();
+  });
+});
+
+describe("__detectRepositoryPrefixForTests", () => {
+  it("finds an application path below a workspace root without Git metadata", () => {
+    const root = makeEmptyDir();
+    const app = join(root, "apps", "web");
+    mkdirSync(app, { recursive: true });
+    writeFileSync(join(root, "pnpm-workspace.yaml"), 'packages:\n  - "apps/*"\n');
+
+    expect(__detectRepositoryPrefixForTests(app)).toBe("apps/web");
+    expect(__detectRepositoryPrefixForTests(root)).toBeUndefined();
   });
 });
 

@@ -78,6 +78,7 @@ describe("__uploadOneForTests — happy path", () => {
       mapPath,
       jsRelative: ".next/static/chunks/page-abc12345.js",
       release: "sha-deadbeef",
+      repositoryPrefix: "apps/web",
       endpoint: "https://api.volato.dev",
       token: "the-token",
       fetchImpl,
@@ -106,6 +107,7 @@ describe("__uploadOneForTests — happy path", () => {
     const parsed = JSON.parse(mapText);
     // The privacy load-bearer: sourcesContent must be gone.
     expect(parsed).not.toHaveProperty("sourcesContent");
+    expect(parsed.x_volato_repository_prefix).toBe("apps/web");
     expect(parsed.sources).toEqual(["webpack:///./app/page.tsx"]);
     expect(parsed.mappings).toBe("AAAA;AACA;");
   });

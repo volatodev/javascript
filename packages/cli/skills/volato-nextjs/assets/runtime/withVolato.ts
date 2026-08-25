@@ -16,9 +16,9 @@
  */
 
 import { execSync } from "node:child_process";
-import { readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { readFile, unlink } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { dsnToIngestUrl, parseDSN, projectFramePath } from "./protocol";
 import { detectRelease } from "./internal/release";
 
@@ -68,6 +68,7 @@ const UPLOAD_CONCURRENCY = 8;
 // indicate a misconfiguration the user must see, so they're surfaced
 // immediately without retry.
 const RETRY_DELAYS_MS = [200, 800, 3200] as const;
+const REPOSITORY_PREFIX_FIELD = "x_volato_repository_prefix";
 
 function* walkJsMapFiles(root: string): Iterable<string> {
   let entries: string[];
@@ -131,6 +132,7 @@ export async function __uploadOneForTests(args: {
   mapPath: string;
   jsRelative: string;
   release: string;
+  repositoryPrefix?: string;
   endpoint: string;
   token: string;
   fetchImpl: typeof fetch;
@@ -143,6 +145,7 @@ async function uploadOne(args: {
   mapPath: string;
   jsRelative: string;
   release: string;
+  repositoryPrefix?: string;
   endpoint: string;
   token: string;
   fetchImpl: typeof fetch;
@@ -161,6 +164,11 @@ async function uploadOne(args: {
     const raw = await readFile(args.mapPath, "utf8");
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     delete parsed.sourcesContent;
+    delete parsed[REPOSITORY_PREFIX_FIELD];
+    const repositoryPrefix = normalizeRepositoryPrefix(args.repositoryPrefix);
+    if (repositoryPrefix) {
+      parsed[REPOSITORY_PREFIX_FIELD] = repositoryPrefix;
+    }
     sanitised = JSON.stringify(parsed);
   } catch {
     args.warn(`Skipping ${args.jsRelative} — sourcemap is not valid JSON.`);
@@ -227,6 +235,7 @@ function uploadOncePerBuild(args: {
   mapPath: string;
   jsRelative: string;
   release: string;
+  repositoryPrefix?: string;
   endpoint: string;
   token: string;
   fetchImpl: typeof fetch;
@@ -280,6 +289,7 @@ async function withConcurrency<T, R>(
 export type __VolatoSourceMapsPluginInternals = {
   fetchImpl?: typeof fetch;
   cwd?: string;
+  repositoryPrefix?: string;
   skipUploadBecauseDirty?: boolean;
 };
 
@@ -351,6 +361,8 @@ export class __VolatoSourceMapsPlugin {
         if (!outputRoot) return;
 
         const cwd = this.internals.cwd ?? process.cwd();
+        const repositoryPrefix =
+          this.internals.repositoryPrefix ?? detectRepositoryPrefix(cwd);
         const fetchImpl = this.internals.fetchImpl ?? fetch;
         const hide = this.opts.hideSourceMaps ?? true;
 
@@ -392,6 +404,7 @@ export class __VolatoSourceMapsPlugin {
               mapPath,
               jsRelative,
               release,
+              repositoryPrefix,
               endpoint: endpoint!,
               token,
               fetchImpl,
@@ -491,9 +504,65 @@ function gitWorktreeIsClean(cwd?: string): boolean {
   }
 }
 
+function normalizeRepositoryPrefix(
+  value: string | undefined,
+): string | undefined {
+  if (!value) return undefined;
+  const normalized = value
+    .trim()
+    .replaceAll("\\", "/")
+    .replace(/^\.\//, "")
+    .replace(/\/+$/, "");
+  const segments = normalized.split("/");
+  if (
+    !normalized ||
+    isAbsolute(normalized) ||
+    /^[a-zA-Z]:\//.test(normalized) ||
+    segments.some(
+      (segment) => segment === "" || segment === "." || segment === "..",
+    )
+  ) {
+    return undefined;
+  }
+  return normalized;
+}
+
+function workspaceRoot(cwd: string): string | undefined {
+  let current = resolve(cwd);
+  while (true) {
+    if (existsSync(join(current, "pnpm-workspace.yaml"))) return current;
+    const parent = dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+}
+
+function detectRepositoryPrefix(cwd = process.cwd()): string | undefined {
+  let root: string | undefined;
+  try {
+    root = execSync("git rev-parse --show-toplevel", {
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 1000,
+      encoding: "utf8",
+      cwd,
+    }).trim();
+  } catch {
+    root = workspaceRoot(cwd);
+  }
+  if (!root) return undefined;
+  return normalizeRepositoryPrefix(relative(root, resolve(cwd)));
+}
+
 /** Test-only — exposes `detectGitSha` for direct assertion. */
 export function __detectGitShaForTests(cwd?: string): string | undefined {
   return detectGitSha(cwd);
+}
+
+/** Test-only — exposes repository-prefix detection for monorepo builds. */
+export function __detectRepositoryPrefixForTests(
+  cwd?: string,
+): string | undefined {
+  return detectRepositoryPrefix(cwd);
 }
 
 /** Test-only — exposes the build-identity env merge for direct assertion. */
