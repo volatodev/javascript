@@ -3,8 +3,9 @@
  *
  *   1. Force-enable production browser and server source maps so real stacks
  *      can be symbolicated.
- *   2. Inject a webpack plugin that, after build, uploads every `.js.map`
- *      under the build output to the project's ingest endpoint.
+ *   2. Upload every `.js.map` under the build output through Webpack's
+ *      `afterEmit` hook on Next.js 15, or Next.js 16's native
+ *      `compiler.runAfterProductionCompile` lifecycle hook.
  *   3. Optionally delete browser `.map` files from the publicly served output
  *      so they don't ship to end users (`hideSourceMaps: true`). Server maps
  *      stay private in the build because Next still needs them while creating
@@ -23,6 +24,13 @@ import { dsnToIngestUrl, parseDSN, projectFramePath } from "./protocol";
 import { detectRelease } from "./internal/release";
 
 export type WithVolatoOptions = {
+  /**
+   * Next.js major detected by the Volato installer. Next.js 16 uses the
+   * bundler-neutral production compiler hook; earlier versions keep the
+   * Webpack adapter. Defaults to 15 for recipes generated before this option
+   * existed.
+   */
+  nextMajor?: number;
   /**
    * DSN used to derive the ingest origin. Defaults to
    * `process.env.NEXT_PUBLIC_VOLATO_DSN`. The DSN is **not** used as
@@ -201,7 +209,9 @@ async function uploadOne(args: {
         continue;
       }
       args.warn(
-        `Upload of ${args.jsRelative} failed after ${attempt + 1} attempts (network): ${
+        `Upload of ${args.jsRelative} failed after ${
+          attempt + 1
+        } attempts (network): ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
@@ -273,9 +283,8 @@ async function withConcurrency<T, R>(
       out[i] = await worker(items[i]!);
     }
   }
-  const lanes = Array.from(
-    { length: Math.min(limit, items.length) },
-    () => pull(),
+  const lanes = Array.from({ length: Math.min(limit, items.length) }, () =>
+    pull(),
   );
   await Promise.all(lanes);
   return out;
@@ -302,139 +311,152 @@ export class __VolatoSourceMapsPlugin {
   apply(compiler: {
     options: { output?: { path?: string } };
     hooks: {
-      afterEmit: { tapPromise: (name: string, cb: () => Promise<void>) => void };
+      afterEmit: {
+        tapPromise: (name: string, cb: () => Promise<void>) => void;
+      };
     };
   }): void {
-    compiler.hooks.afterEmit.tapPromise(
-      "VolatoSourceMapsPlugin",
-      async () => {
-        const warn = (msg: string): void => {
-          if (typeof console !== "undefined") console.warn(`[Volato] ${msg}`);
-        };
+    compiler.hooks.afterEmit.tapPromise("VolatoSourceMapsPlugin", async () => {
+      const outputRoot = compiler.options.output?.path;
+      if (!outputRoot) return;
+      await this.uploadFromOutput(outputRoot);
+    });
+  }
 
-        let endpoint: string | undefined;
-        if (this.opts.uploadUrl) {
-          try {
-            endpoint = new URL(this.opts.uploadUrl).origin;
-          } catch {
-            warn(
-              `uploadUrl "${this.opts.uploadUrl}" is not a valid URL — sourcemaps will not be uploaded.`,
-            );
-            return;
-          }
-        } else {
-          const dsn = this.opts.dsn ?? process.env.NEXT_PUBLIC_VOLATO_DSN;
-          if (!dsn) {
-            warn(
-              "no DSN configured (NEXT_PUBLIC_VOLATO_DSN) — sourcemaps will not be uploaded.",
-            );
-            return;
-          }
-          try {
-            parseDSN(dsn);
-            endpoint = dsnToIngestUrl(dsn).replace(/\/api\/ingest$/, "");
-          } catch {
-            warn(
-              "NEXT_PUBLIC_VOLATO_DSN is not a valid DSN — sourcemaps will not be uploaded.",
-            );
-            return;
-          }
-        }
+  /** Shared by Webpack's `afterEmit` and Next.js 16's native build hook. */
+  async uploadFromOutput(outputRoot: string): Promise<void> {
+    const warn = (msg: string): void => {
+      if (typeof console !== "undefined") console.warn(`[Volato] ${msg}`);
+    };
 
-        const token = process.env.VOLATO_INGEST_TOKEN;
-        if (!token) {
-          // Already warned at withVolato() load-time; staying silent
-          // here avoids doubling the noise on every build.
-          return;
-        }
+    let endpoint: string | undefined;
+    if (this.opts.uploadUrl) {
+      try {
+        endpoint = new URL(this.opts.uploadUrl).origin;
+      } catch {
+        warn(
+          `uploadUrl "${this.opts.uploadUrl}" is not a valid URL — sourcemaps will not be uploaded.`,
+        );
+        return;
+      }
+    } else {
+      const dsn = this.opts.dsn ?? process.env.NEXT_PUBLIC_VOLATO_DSN;
+      if (!dsn) {
+        warn(
+          "no DSN configured (NEXT_PUBLIC_VOLATO_DSN) — sourcemaps will not be uploaded.",
+        );
+        return;
+      }
+      try {
+        parseDSN(dsn);
+        endpoint = dsnToIngestUrl(dsn).replace(/\/api\/ingest$/, "");
+      } catch {
+        warn(
+          "NEXT_PUBLIC_VOLATO_DSN is not a valid DSN — sourcemaps will not be uploaded.",
+        );
+        return;
+      }
+    }
 
-        const release = this.opts.release ?? detectRelease();
-        if (!release) {
-          warn(
-            "no build commit could be detected — sourcemaps will not be uploaded. " +
-              "Ensure the build receives the checkout commit SHA.",
-          );
-          return;
-        }
+    const token = process.env.VOLATO_INGEST_TOKEN;
+    if (!token) {
+      // Already warned at withVolato() load-time; staying silent
+      // here avoids doubling the noise on every build.
+      return;
+    }
 
-        const outputRoot = compiler.options.output?.path;
-        if (!outputRoot) return;
+    const release = this.opts.release ?? detectRelease();
+    if (!release) {
+      warn(
+        "no build commit could be detected — sourcemaps will not be uploaded. " +
+          "Ensure the build receives the checkout commit SHA.",
+      );
+      return;
+    }
 
-        const cwd = this.internals.cwd ?? process.cwd();
-        const repositoryPrefix =
-          this.internals.repositoryPrefix ?? detectRepositoryPrefix(cwd);
-        const fetchImpl = this.internals.fetchImpl ?? fetch;
-        const hide = this.opts.hideSourceMaps ?? true;
+    const cwd = this.internals.cwd ?? process.cwd();
+    const repositoryPrefix =
+      this.internals.repositoryPrefix ?? detectRepositoryPrefix(cwd);
+    const fetchImpl = this.internals.fetchImpl ?? fetch;
+    const hide = this.opts.hideSourceMaps ?? true;
 
-        const maps: string[] = [];
-        for (const mapPath of walkJsMapFiles(outputRoot)) maps.push(mapPath);
-        if (maps.length === 0) return;
+    const maps: string[] = [];
+    for (const mapPath of walkJsMapFiles(outputRoot)) maps.push(mapPath);
+    if (maps.length === 0) return;
 
-        if (this.internals.skipUploadBecauseDirty) {
-          if (hide) {
-            await Promise.all(
-              maps
-                .filter((mapPath) => isPublicBrowserMap(outputRoot, mapPath))
-                .map(async (mapPath) => {
-                  try {
-                    await unlink(mapPath);
-                  } catch {
-                    // best-effort
-                  }
-                }),
-            );
-          }
-          warn(
-            "sourcemaps were not uploaded because the release was inferred from Git " +
-              "but the worktree has uncommitted changes. Commit the build inputs or " +
-              "set VOLATO_RELEASE explicitly for this build.",
-          );
-          return;
-        }
-
-        const outcomes = await withConcurrency(
-          maps,
-          UPLOAD_CONCURRENCY,
-          async (mapPath) => {
-            const jsRelative = relative(cwd, mapPath)
-              .split(sep)
-              .join("/")
-              .replace(/\.map$/, "");
-            const outcome = await uploadOncePerBuild({
-              mapPath,
-              jsRelative,
-              release,
-              repositoryPrefix,
-              endpoint: endpoint!,
-              token,
-              fetchImpl,
-              warn,
-            });
-            if (
-              hide &&
-              isPublicBrowserMap(outputRoot, mapPath) &&
-              (outcome === "uploaded" || outcome === "updated")
-            ) {
+    if (this.internals.skipUploadBecauseDirty) {
+      if (hide) {
+        await Promise.all(
+          maps
+            .filter((mapPath) => isPublicBrowserMap(outputRoot, mapPath))
+            .map(async (mapPath) => {
               try {
                 await unlink(mapPath);
               } catch {
                 // best-effort
               }
-            }
-            return outcome;
-          },
+            }),
         );
+      }
+      warn(
+        "sourcemaps were not uploaded because the release was inferred from Git " +
+          "but the worktree has uncommitted changes. Commit the build inputs or " +
+          "set VOLATO_RELEASE explicitly for this build.",
+      );
+      return;
+    }
 
-        const failed = outcomes.filter((o) => o === "failed").length;
-        if (failed > 0) {
-          warn(
-            `${failed}/${outcomes.length} sourcemap(s) failed to upload — the agent will see minified frames for those releases until a re-deploy lands the maps.`,
-          );
+    const outcomes = await withConcurrency(
+      maps,
+      UPLOAD_CONCURRENCY,
+      async (mapPath) => {
+        const jsRelative = relative(cwd, mapPath)
+          .split(sep)
+          .join("/")
+          .replace(/\.map$/, "");
+        const outcome = await uploadOncePerBuild({
+          mapPath,
+          jsRelative,
+          release,
+          repositoryPrefix,
+          endpoint: endpoint!,
+          token,
+          fetchImpl,
+          warn,
+        });
+        if (
+          hide &&
+          isPublicBrowserMap(outputRoot, mapPath) &&
+          (outcome === "uploaded" || outcome === "updated")
+        ) {
+          try {
+            await unlink(mapPath);
+          } catch {
+            // best-effort
+          }
         }
+        return outcome;
       },
     );
+
+    const failed = outcomes.filter((o) => o === "failed").length;
+    if (failed > 0) {
+      warn(
+        `${failed}/${outcomes.length} sourcemap(s) failed to upload — the agent will see minified frames for those releases until a re-deploy lands the maps.`,
+      );
+    }
   }
 }
+
+type NextCompilerMetadata = {
+  projectDir: string;
+  distDir: string;
+};
+
+type NextCompilerConfig = {
+  runAfterProductionCompile?: (metadata: NextCompilerMetadata) => Promise<void>;
+  [k: string]: unknown;
+};
 
 type NextConfigLike = {
   productionBrowserSourceMaps?: boolean;
@@ -442,6 +464,7 @@ type NextConfigLike = {
   // has no string index signature. Keep this broad enough for the official
   // `NextConfig` type while still guaranteeing it is safe to spread.
   experimental?: object;
+  compiler?: NextCompilerConfig;
   // Params widened to `any` because Next.js's own webpack callback type
   // (WebpackConfiguration, WebpackConfigContext) -> WebpackConfiguration
   // is invariant under TS strict mode — `unknown` params would reject
@@ -594,7 +617,9 @@ function buildEnvWithIdentity(
   commitSha: string | undefined,
 ): Record<string, string> {
   const userEnv: Record<string, string> =
-    existingEnv && typeof existingEnv === "object" && !Array.isArray(existingEnv)
+    existingEnv &&
+    typeof existingEnv === "object" &&
+    !Array.isArray(existingEnv)
       ? { ...(existingEnv as Record<string, string>) }
       : {};
 
@@ -625,7 +650,8 @@ function buildEnvWithIdentity(
  * Returns undefined when none of the three yields a value.
  */
 function explicitRelease(options: WithVolatoOptions): string | undefined {
-  const configured = options.release?.trim() || process.env.VOLATO_RELEASE?.trim();
+  const configured =
+    options.release?.trim() || process.env.VOLATO_RELEASE?.trim();
   return configured || undefined;
 }
 
@@ -695,6 +721,38 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
         "(chunks/page-abc.js:1:23456) instead of original paths (app/page.tsx:42). " +
         "Configure the token in your CI environment to enable source resolution.",
     );
+  }
+
+  if ((options.nextMajor ?? 15) >= 16) {
+    const userAfterProductionCompile =
+      nextConfig.compiler?.runAfterProductionCompile;
+    return {
+      ...nextConfig,
+      productionBrowserSourceMaps: true,
+      experimental: {
+        ...nextConfig.experimental,
+        serverSourceMaps: true,
+      },
+      env: buildEnvWithIdentity(nextConfig.env, release, commitSha),
+      compiler: {
+        ...nextConfig.compiler,
+        async runAfterProductionCompile(metadata: NextCompilerMetadata) {
+          await userAfterProductionCompile?.(metadata);
+          const outputRoot = isAbsolute(metadata.distDir)
+            ? metadata.distDir
+            : resolve(metadata.projectDir, metadata.distDir);
+          const uploader = new __VolatoSourceMapsPlugin(resolvedOptions, {
+            cwd: metadata.projectDir,
+            skipUploadBecauseDirty,
+          });
+
+          // At this official hook Next 16 has emitted server maps. Turbopack
+          // materializes browser maps during later post-compilation work; the
+          // generated postbuild.cjs handles that final public set.
+          await uploader.uploadFromOutput(outputRoot);
+        },
+      },
+    } as T;
   }
 
   const userWebpack = nextConfig.webpack;

@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   buildMiddlewareSnippet,
+  buildProxySnippet,
   patchNextBuildScript,
   patchEnvLocal,
   patchErrorBoundary,
@@ -62,9 +63,7 @@ describe("patchEnvLocal", () => {
 
     expect(out.status).toBe("skipped");
     const contents = readFileSync(join(cwd, ".env.local"), "utf8");
-    expect(
-      contents.match(/^NEXT_PUBLIC_VOLATO_DSN=/gm)?.length,
-    ).toBe(1);
+    expect(contents.match(/^NEXT_PUBLIC_VOLATO_DSN=/gm)?.length).toBe(1);
   });
 
   it("refreshes existing credentials during authenticated project setup", () => {
@@ -91,9 +90,7 @@ describe("patchEnvLocal", () => {
     expect(contents).toContain("VOLATO_INGEST_TOKEN=fresh-token");
     expect(contents).not.toContain("stale@volato.dev");
     expect(contents).not.toContain("stale-token");
-    expect(
-      contents.match(/^NEXT_PUBLIC_VOLATO_DSN=/gm)?.length,
-    ).toBe(1);
+    expect(contents.match(/^NEXT_PUBLIC_VOLATO_DSN=/gm)?.length).toBe(1);
     expect(contents.match(/^VOLATO_INGEST_TOKEN=/gm)?.length).toBe(1);
   });
 
@@ -111,7 +108,7 @@ describe("patchEnvLocal", () => {
 });
 
 describe("patchNextBuildScript", () => {
-  it("keeps Volato's sourcemap plugin active on Next.js 16 builds", () => {
+  it("keeps Turbopack and appends the final browser-map postbuild", () => {
     writeFileSync(
       join(cwd, "package.json"),
       `${JSON.stringify(
@@ -127,10 +124,11 @@ describe("patchNextBuildScript", () => {
     const out = patchNextBuildScript(cwd, 16);
 
     expect(out.status).toBe("updated");
-    const pkg = JSON.parse(
-      readFileSync(join(cwd, "package.json"), "utf8"),
-    ) as { scripts: { build: string } };
-    expect(pkg.scripts.build).toBe("next build --webpack");
+    const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8")) as {
+      scripts: { build: string };
+    };
+    expect(pkg.scripts.build).toBe("next build && node ./volato/postbuild.cjs");
+    expect(pkg.scripts.build).not.toContain("--webpack");
   });
 });
 
@@ -227,8 +225,7 @@ export default function RootLayout({
 
   it("skips a layout that already references Volato", () => {
     const path = writeLayout(
-      'import { VolatoBootstrap } from "../volato/client";\n' +
-        STARTER_LAYOUT,
+      'import { VolatoBootstrap } from "../volato/client";\n' + STARTER_LAYOUT,
     );
 
     const out = patchLayout(path);
@@ -276,6 +273,17 @@ describe("buildMiddlewareSnippet", () => {
     expect(snippet).toContain("process.env.NEXT_PUBLIC_VOLATO_COMMIT_SHA");
     expect(snippet).toContain("environment: process.env.NODE_ENV");
     expect(snippet).not.toMatch(/process\.env\.VOLATO_DSN(?!_)/);
+  });
+});
+
+describe("buildProxySnippet", () => {
+  it("uses the Node-runtime proxy wrapper without Edge-only configuration", () => {
+    const snippet = buildProxySnippet();
+
+    expect(snippet).toContain('import { wrapProxy } from "./volato/server"');
+    expect(snippet).toContain("export const proxy = wrapProxy(");
+    expect(snippet).not.toContain("process.env");
+    expect(snippet).not.toContain("wrapMiddleware");
   });
 });
 
@@ -422,15 +430,18 @@ describe("patchErrorBoundary", () => {
     const path = join(cwd, "app", "error.tsx");
     patchErrorBoundary(path, "../volato/error-boundary");
 
-    expect(
-      patchErrorBoundary(path, "../volato/error-boundary").status,
-    ).toBe("skipped");
+    expect(patchErrorBoundary(path, "../volato/error-boundary").status).toBe(
+      "skipped",
+    );
   });
 
   it("leaves an existing application boundary for manual composition", () => {
     const path = join(cwd, "app", "error.tsx");
     mkdirSync(join(cwd, "app"), { recursive: true });
-    writeFileSync(path, '"use client";\nexport default function Error() { return null; }\n');
+    writeFileSync(
+      path,
+      '"use client";\nexport default function Error() { return null; }\n',
+    );
 
     const out = patchErrorBoundary(path, "../volato/error-boundary");
 

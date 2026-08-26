@@ -4,9 +4,8 @@
  * focused, idempotent function:
  *
  *   - `patchEnvLocal`            append the two DSN env vars
- *   - `patchNextBuildScript`     keep Next.js 16 on Webpack while
- *                                Volato's sourcemap upload hook
- *                                depends on the webpack compiler API
+ *   - `patchNextBuildScript`     preserve the application's selected bundler;
+ *                                Next.js 16 uses Volato's native compiler hook
  *   - `patchInstrumentation`     create `instrumentation.ts`
  *   - `patchLayout`              insert `<VolatoBootstrap>` next
  *                                to `{children}` in the root
@@ -163,22 +162,21 @@ export function patchEnvValues(
 }
 
 /**
- * Next.js 16 switched `next build` to Turbopack by default. Volato's current
- * sourcemap uploader is a webpack plugin, so silently accepting Turbopack
- * would produce a green build with no maps. Add the explicit `--webpack`
- * selector to the project's build script until the uploader has a native
- * Turbopack build adapter.
+ * Preserve the application's build command. Next.js 15 reaches the sourcemap
+ * uploader through Webpack's `afterEmit`; Next.js 16 reaches the same uploader
+ * through `compiler.runAfterProductionCompile`, which is bundler-neutral.
  */
 export function patchNextBuildScript(
   cwd: string,
   nextMajor: number,
+  postbuildPath = "./volato/postbuild.cjs",
 ): PatchOutcome {
   const path = `${cwd}/package.json`;
   if (nextMajor < 16) {
     return {
       path,
       status: "skipped",
-      detail: "Next.js 15 already builds with Webpack",
+      detail: "Next.js 15 emits final maps during Webpack compilation",
     };
   }
 
@@ -201,39 +199,30 @@ export function patchNextBuildScript(
     return {
       path,
       status: "manual",
-      detail: 'add "--webpack" to the Next.js 16 build command',
+      detail: `run \`node ${postbuildPath}\` after the production Next.js build`,
     };
   }
-  if (/(?:^|\s)--webpack(?:\s|$)/.test(build)) {
+  if (build.includes(postbuildPath)) {
     return {
       path,
       status: "skipped",
-      detail: "Next.js 16 build already selects Webpack",
+      detail: "Next.js 16 browser-map postbuild already runs",
     };
   }
-  if (/(?:^|\s)--turbo(?:pack)?(?:\s|$)/.test(build)) {
+  if (!/^next\s+build(?:\s+[^;&|]+)?$/.test(build.trim())) {
     return {
       path,
       status: "manual",
-      detail:
-        "build explicitly selects Turbopack — choose Webpack to keep Volato sourcemap uploads",
-    };
-  }
-  const matches = build.match(/\bnext\s+build\b/g) ?? [];
-  if (matches.length !== 1) {
-    return {
-      path,
-      status: "manual",
-      detail: 'add "--webpack" to the Next.js 16 build command',
+      detail: `custom build command — run \`node ${postbuildPath}\` only after Next.js completes`,
     };
   }
 
-  scripts!.build = build.replace(/\bnext\s+build\b/, "next build --webpack");
+  scripts!.build = `${build.trim()} && node ${postbuildPath}`;
   writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
   return {
     path,
     status: "updated",
-    detail: "Next.js 16 build pinned to Webpack for sourcemap uploads",
+    detail: "kept the selected bundler and added the final browser-map upload",
   };
 }
 
@@ -338,7 +327,7 @@ export function patchLayout(
   // Sibling, not wrapper — keeps the patch compatible with server
   // layouts (the default for app/layout.tsx in Next 15).
   const insertion =
-    '<VolatoBootstrap dsn={process.env.NEXT_PUBLIC_VOLATO_DSN!} />\n        {children}';
+    "<VolatoBootstrap dsn={process.env.NEXT_PUBLIC_VOLATO_DSN!} />\n        {children}";
 
   const withInsertion = original.replace("{children}", insertion);
   const withImports = insertAfterLastImport(withInsertion, importBlock);
@@ -392,6 +381,19 @@ export default wrapMiddleware(async (req) => {
 }
 
 /**
+ * Build the manual composition snippet for Next.js 16's Node-runtime
+ * `proxy.ts`. Unlike Edge middleware, the generated server module can read
+ * the injected DSN directly and await delivery before re-throwing.
+ */
+export function buildProxySnippet(modulePath = "./volato/server"): string {
+  return `import { wrapProxy } from "${modulePath}";
+
+export const proxy = wrapProxy(async (request) => {
+  // your existing proxy logic
+});`;
+}
+
+/**
  * Wrap the user's `next.config.{ts,js,mjs,cjs}` export with `withVolato()`.
  * Idempotent — bails with `skipped` if `withVolato` is already imported.
  *
@@ -409,6 +411,7 @@ export default wrapMiddleware(async (req) => {
 export function patchNextConfig(
   path: string | null,
   modulePath = "./volato/withVolato",
+  nextMajor?: number,
 ): PatchOutcome {
   if (!path) {
     return {
@@ -437,12 +440,14 @@ export function patchNextConfig(
       path,
       status: "manual",
       detail:
-        'no parseable `export default` — wrap your export manually with `withVolato(...)`',
+        "no parseable `export default` — wrap your export manually with `withVolato(...)`",
     };
   }
 
   const importLine = `import { withVolato } from "${modulePath}";\n`;
-  const wrappedSlice = `export default withVolato(${located.expression.trim()})`;
+  const versionOptions =
+    nextMajor === undefined ? "" : `, { nextMajor: ${nextMajor} }`;
+  const wrappedSlice = `export default withVolato(${located.expression.trim()}${versionOptions})`;
   const replaced =
     original.slice(0, located.startIndex) +
     wrappedSlice +

@@ -24,6 +24,7 @@ import {
 } from "./detect-errors.js";
 import {
   buildMiddlewareSnippet,
+  buildProxySnippet,
   type PatchOutcome,
   type PatchStatus,
 } from "./patch";
@@ -193,7 +194,12 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
     }
   }
 
-  if (manualOutcomes.length === 0 && stack.nextjs && nextjsRuntimeRoot && nextjsAppDir) {
+  if (
+    manualOutcomes.length === 0 &&
+    stack.nextjs &&
+    nextjsRuntimeRoot &&
+    nextjsAppDir
+  ) {
     await maybeSendTestEvent(
       {
         cwd,
@@ -212,16 +218,24 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
   if (stack.nextjs && nextjsRuntimeRoot) {
     printNextSteps(
       stack.nextjs.middlewarePath,
+      stack.nextjs.proxyPath,
       nextjsRuntimeRoot,
       cwd,
       manualOutcomes.length === 0,
     );
   } else {
-    printPortableNextSteps(cwd, Boolean(stack.viteReact), Boolean(stack.node), manualOutcomes.length === 0);
+    printPortableNextSteps(
+      cwd,
+      Boolean(stack.viteReact),
+      Boolean(stack.node),
+      manualOutcomes.length === 0,
+    );
   }
   if (manualOutcomes.length > 0) {
     throw new Error(
-      `Integration setup is incomplete: ${manualOutcomes.length} file${manualOutcomes.length === 1 ? "" : "s"} require manual composition.`,
+      `Integration setup is incomplete: ${manualOutcomes.length} file${
+        manualOutcomes.length === 1 ? "" : "s"
+      } require manual composition.`,
     );
   }
 }
@@ -261,13 +275,17 @@ async function maybeSendTestEvent(
   try {
     await verifyGeneratedNextjsIntegration(verification);
     process.stdout.write(
-      `  ${pc.green("✓")} Generated Next.js integration captured a test error with a stack.\n\n`,
+      `  ${pc.green(
+        "✓",
+      )} Generated Next.js integration captured a test error with a stack.\n\n`,
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     process.stdout.write(
       `  ${pc.red("✗")} Could not send test event: ${pc.dim(msg)}\n` +
-        `    ${pc.dim("Your project files were still patched — fix the local Next.js / ingest error and retry.")}\n\n`,
+        `    ${pc.dim(
+          "Your project files were still patched — fix the local Next.js / ingest error and retry.",
+        )}\n\n`,
     );
     if (sendExplicitly) {
       throw err instanceof Error ? err : new Error(msg);
@@ -289,23 +307,33 @@ function printPortableNextSteps(
 ): void {
   process.stdout.write(`${pc.bold("Next steps")}\n`);
   process.stdout.write(
-    `  ${pc.dim("1.")} Review the generated integration and run the repository's production build.\n`,
+    `  ${pc.dim(
+      "1.",
+    )} Review the generated integration and run the repository's production build.\n`,
   );
   let step = 2;
   if (hasBrowser) {
     process.stdout.write(
-      `  ${pc.dim(`${step}.`)} Exercise one window error, one unhandled rejection, and one React render error.\n`,
+      `  ${pc.dim(
+        `${step}.`,
+      )} Exercise one window error, one unhandled rejection, and one React render error.\n`,
     );
     step += 1;
   }
   if (hasNode) {
     process.stdout.write(
-      `  ${pc.dim(`${step}.`)} Set ${pc.cyan("VOLATO_RELEASE")} to the deployed Git SHA and exercise a controlled Node/Express error.\n`,
+      `  ${pc.dim(`${step}.`)} Set ${pc.cyan(
+        "VOLATO_RELEASE",
+      )} to the deployed Git SHA and exercise a controlled Node/Express error.\n`,
     );
     step += 1;
   }
   process.stdout.write(
-    `  ${pc.dim(`${step}.`)} In CI, keep ${pc.cyan("VOLATO_INGEST_TOKEN")} server-only and verify the uploaded maps contain no ${pc.cyan("sourcesContent")}.\n\n`,
+    `  ${pc.dim(`${step}.`)} In CI, keep ${pc.cyan(
+      "VOLATO_INGEST_TOKEN",
+    )} server-only and verify the uploaded maps contain no ${pc.cyan(
+      "sourcesContent",
+    )}.\n\n`,
   );
   if (complete) {
     process.stdout.write(
@@ -316,7 +344,9 @@ function printPortableNextSteps(
   } else {
     process.stdout.write(
       `${pc.yellow("!")} Setup incomplete. ${pc.dim(
-        `Complete every manual file action above, then rerun \`volato errors init\` from ${relpath(cwd, cwd) || "the application root"}.`,
+        `Complete every manual file action above, then rerun \`volato errors init\` from ${
+          relpath(cwd, cwd) || "the application root"
+        }.`,
       )}\n`,
     );
   }
@@ -324,6 +354,7 @@ function printPortableNextSteps(
 
 function printNextSteps(
   middlewarePath: string | null,
+  proxyPath: string | null,
   runtimeRoot: string,
   cwd: string,
   complete: boolean,
@@ -333,7 +364,19 @@ function printNextSteps(
     `  ${pc.dim("1.")} Restart your dev server so the new env vars load.\n`,
   );
 
-  if (middlewarePath) {
+  if (proxyPath) {
+    const rel = relpath(cwd, proxyPath);
+    process.stdout.write(
+      `  ${pc.dim("2.")} Wrap your proxy (${pc.cyan(rel)}):\n\n`,
+    );
+    const snippet = buildProxySnippet(
+      localModule(proxyPath, join(runtimeRoot, "server")),
+    )
+      .split("\n")
+      .map((line) => `       ${line}`)
+      .join("\n");
+    process.stdout.write(`${pc.dim(snippet)}\n\n`);
+  } else if (middlewarePath) {
     const rel = relpath(cwd, middlewarePath);
     process.stdout.write(
       `  ${pc.dim("2.")} Wrap your middleware (${pc.cyan(rel)}):\n\n`,
@@ -356,7 +399,9 @@ function printNextSteps(
   process.stdout.write(
     `  ${pc.dim("3.")} For Route Handlers, wrap each export with ${pc.cyan(
       "wrapRoute",
-    )} from your generated ${pc.cyan(`${relpath(cwd, runtimeRoot)}/server`)} module.\n`,
+    )} from your generated ${pc.cyan(
+      `${relpath(cwd, runtimeRoot)}/server`,
+    )} module.\n`,
   );
   process.stdout.write(
     `  ${pc.dim("4.")} For Server Actions returning ${pc.cyan(

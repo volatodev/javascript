@@ -20,10 +20,7 @@ import {
 } from "../integrations/manifest";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const sourceRoot = resolve(
-  here,
-  "../../skills/volato-nextjs/assets/runtime",
-);
+const sourceRoot = resolve(here, "../../skills/volato-nextjs/assets/runtime");
 
 let cwd: string;
 
@@ -86,9 +83,9 @@ describe("Next.js generated integration", () => {
 
     expect(result.generatedFiles.length).toBeGreaterThan(10);
     expect(existsSync(join(cwd, "src", "volato", "client.tsx"))).toBe(true);
-    expect(readFileSync(join(cwd, "src", "app", "error.tsx"), "utf8")).toContain(
-      'from "../volato/error-boundary"',
-    );
+    expect(
+      readFileSync(join(cwd, "src", "app", "error.tsx"), "utf8"),
+    ).toContain('from "../volato/error-boundary"');
     expect(readFileSync(project.layoutPath, "utf8")).toContain(
       'from "../volato/client"',
     );
@@ -133,7 +130,7 @@ describe("Next.js generated integration", () => {
     ).not.toThrow();
   });
 
-  it("keeps the sourcemap uploader active on Next.js 16 production builds", () => {
+  it("keeps Next.js 16 on Turbopack and runs the final map pass", () => {
     writeFileSync(
       join(cwd, "package.json"),
       `${JSON.stringify(
@@ -158,10 +155,17 @@ describe("Next.js generated integration", () => {
       sourceRoot,
     });
 
-    const pkg = JSON.parse(
-      readFileSync(join(cwd, "package.json"), "utf8"),
-    ) as { scripts: { build: string } };
-    expect(pkg.scripts.build).toBe("next build --webpack");
+    const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8")) as {
+      scripts: { build: string };
+    };
+    expect(pkg.scripts.build).toBe(
+      "next build && node ./src/volato/postbuild.cjs",
+    );
+    expect(pkg.scripts.build).not.toContain("--webpack");
+    expect(existsSync(join(cwd, "src", "volato", "postbuild.cjs"))).toBe(true);
+    expect(readFileSync(join(cwd, "next.config.ts"), "utf8")).toContain(
+      "nextMajor: 16",
+    );
   });
 
   it("refuses to overwrite a locally edited generated runtime", () => {

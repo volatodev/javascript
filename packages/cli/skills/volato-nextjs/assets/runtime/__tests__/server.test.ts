@@ -17,6 +17,7 @@ import {
   reportActionError,
   setExtra,
   wrapAction,
+  wrapProxy,
   wrapRoute,
 } from "../server";
 
@@ -121,9 +122,7 @@ describe("captureException (server / RSC)", () => {
       "https://app.test/invite/[FILTERED]?email=[FILTERED]",
     );
     expect(body.request.pathname).toBe("/reset/[FILTERED]");
-    expect(body.request.url).toBe(
-      "https://app.test/reset/[FILTERED]?view=1",
-    );
+    expect(body.request.url).toBe("https://app.test/reset/[FILTERED]?view=1");
   });
 
   it("keeps the original application error when scope data is cyclic", async () => {
@@ -423,6 +422,49 @@ describe("wrapRoute", () => {
     ) as { route: string | null; headers: Record<string, string> };
     expect(body.route).toBeNull();
     expect(body.headers).toEqual({});
+  });
+});
+
+describe("wrapProxy", () => {
+  let fetchMock: Mock;
+
+  beforeEach(() => {
+    fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("NEXT_PUBLIC_VOLATO_DSN", DSN);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("captures a thrown Next.js 16 proxy error before re-throwing it", async () => {
+    const original = new Error("proxy kaboom");
+    const wrapped = wrapProxy(async (_request: Request) => {
+      throw original;
+    });
+    const request = new Request("https://app.test/private?token=secret", {
+      headers: { cookie: "session=secret", "user-agent": "vitest/1" },
+    });
+
+    await expect(wrapped(request)).rejects.toBe(original);
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      runtime: "middleware",
+      capturedVia: "wrap_middleware",
+      route: "/private",
+      request: {
+        method: "GET",
+        url: "https://app.test/private?token=[FILTERED]",
+      },
+      headers: { "user-agent": "vitest/1" },
+    });
+    expect(body.headers).not.toHaveProperty("cookie");
   });
 });
 

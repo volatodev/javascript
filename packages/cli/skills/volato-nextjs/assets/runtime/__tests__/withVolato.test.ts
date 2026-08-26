@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { withVolato } from "../withVolato";
 
 // The build-time warning fires whenever VOLATO_INGEST_TOKEN is unset.
@@ -59,7 +68,9 @@ describe("withVolato", () => {
     const cfg = { plugins: [] as unknown[] };
     out.webpack!(cfg, { isServer: true });
     expect(cfg.plugins).toHaveLength(1);
-    expect(typeof (cfg.plugins[0] as { apply: unknown }).apply).toBe("function");
+    expect(typeof (cfg.plugins[0] as { apply: unknown }).apply).toBe(
+      "function",
+    );
   });
 
   it("does not upload transient development maps", () => {
@@ -74,6 +85,18 @@ describe("withVolato", () => {
     expect(out.productionBrowserSourceMaps).toBe(true);
     expect(out.experimental?.serverSourceMaps).toBe(true);
     expect(out.webpack).toBeUndefined();
+  });
+
+  it("uses the native Next.js 16 post-compile hook without adding a webpack config", () => {
+    const out = withVolato({}, { nextMajor: 16 });
+    const compiler = (
+      out as {
+        compiler?: { runAfterProductionCompile?: unknown };
+      }
+    ).compiler;
+
+    expect(out.webpack).toBeUndefined();
+    expect(typeof compiler?.runAfterProductionCompile).toBe("function");
   });
 });
 
@@ -99,7 +122,9 @@ describe("withVolato — VOLATO_INGEST_TOKEN warning", () => {
     withVolato({});
     expect(warnSpy).toHaveBeenCalledTimes(1);
     expect(warnSpy.mock.calls[0]?.[0]).toMatch(/VOLATO_INGEST_TOKEN/);
-    expect(warnSpy.mock.calls[0]?.[0]).toMatch(/sourcemaps will not be uploaded/);
+    expect(warnSpy.mock.calls[0]?.[0]).toMatch(
+      /sourcemaps will not be uploaded/,
+    );
   });
 
   it("does NOT warn when the token is present", () => {

@@ -22,6 +22,8 @@ export type ProjectShape = {
   layoutPath: string;
   instrumentationPath: string;
   middlewarePath: string | null;
+  /** Next.js 16 Node-runtime request boundary (`proxy.ts` / `.js`). */
+  proxyPath: string | null;
   /** Absolute path to the existing next.config.{ts,mjs,js,cjs}, or null. */
   nextConfigPath: string | null;
   /** Absolute path where the App Router render error boundary should live. */
@@ -141,6 +143,15 @@ export function detectProject(cwd: string): ProjectShape {
   const middlewarePath =
     middlewareCandidates.find((p) => existsSync(p)) ?? null;
 
+  const proxyCandidates = [
+    join(cwd, "proxy.ts"),
+    join(cwd, "proxy.js"),
+    join(cwd, "src", "proxy.ts"),
+    join(cwd, "src", "proxy.js"),
+  ];
+  const proxyPath =
+    nextMajor >= 16 ? proxyCandidates.find((p) => existsSync(p)) ?? null : null;
+
   const nextConfigCandidates = [
     join(cwd, "next.config.ts"),
     join(cwd, "next.config.mjs"),
@@ -150,11 +161,7 @@ export function detectProject(cwd: string): ProjectShape {
   const nextConfigPath =
     nextConfigCandidates.find((p) => existsSync(p)) ?? null;
 
-  const errorBoundaryPath = join(
-    cwd,
-    appDir,
-    `error.${layout.ext}`,
-  );
+  const errorBoundaryPath = join(cwd, appDir, `error.${layout.ext}`);
 
   return {
     cwd,
@@ -162,6 +169,7 @@ export function detectProject(cwd: string): ProjectShape {
     layoutPath: layout.path,
     instrumentationPath,
     middlewarePath,
+    proxyPath,
     nextConfigPath,
     errorBoundaryPath,
     nextMajor,

@@ -104,6 +104,25 @@ describe("volato errors init", () => {
     expect(output).not.toContain("Fix the latest production error.");
   });
 
+  it("prints the Node-runtime composition for a Next.js 16 proxy", async () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      JSON.stringify({
+        name: "fixture",
+        dependencies: { next: "16.2.12", react: "19.2.8" },
+      }),
+    );
+    writeFileSync(join(cwd, "proxy.ts"), "export function proxy() {}\n");
+
+    await runErrorsInit({ cwd, nonInteractive: true });
+
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toContain("Wrap your proxy (proxy.ts)");
+    expect(output).toContain("wrapProxy");
+    expect(output).toContain('from "./volato/server"');
+    expect(output).not.toContain("wrapMiddleware");
+  });
+
   it("finishes supported Vite capture while announcing an unsupported Python backend", async () => {
     rmSync(join(cwd, "app"), { recursive: true, force: true });
     rmSync(join(cwd, "next.config.ts"), { force: true });

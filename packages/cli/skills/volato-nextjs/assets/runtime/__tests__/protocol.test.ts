@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  dsnToIngestUrl,
-  parseDSN,
-  projectFramePath,
-} from "../protocol";
+import { dsnToIngestUrl, parseDSN, projectFramePath } from "../protocol";
 
 describe("generated protocol helpers", () => {
   it("parses a DSN without exposing userinfo in the ingest URL", () => {
@@ -29,18 +25,27 @@ describe("generated protocol helpers", () => {
       projectFramePath(
         "https://app.example.com/_next/static/chunks/page-abc12345.js",
       ),
-    ).toEqual(
-      projectFramePath(".next/static/chunks/page-abc12345.js"),
+    ).toEqual(projectFramePath(".next/static/chunks/page-abc12345.js"));
+  });
+
+  it("projects a Next.js 16 Turbopack browser chunk onto its uploaded map", () => {
+    const runtime = projectFramePath(
+      "https://app.example.com/_next/static/chunks/0cz1d0mv5g_q7.js",
     );
+    const build = projectFramePath(".next/static/chunks/0cz1d0mv5g_q7.js.map");
+
+    expect(runtime).toEqual(build);
+    expect(runtime).toMatchObject({
+      display_path: "static/chunks/0cz1d0mv5g_q7.js",
+      filename_hash: "0cz1d0mv5g_q7",
+    });
   });
 
   it("projects Next.js server runtime and build paths onto the same key", () => {
     const runtime = projectFramePath(
       "/var/task/.next/server/app/api/crash/route.js",
     );
-    const build = projectFramePath(
-      ".next/server/app/api/crash/route.js.map",
-    );
+    const build = projectFramePath(".next/server/app/api/crash/route.js.map");
 
     expect(runtime).toEqual(build);
     expect(runtime).toMatchObject({

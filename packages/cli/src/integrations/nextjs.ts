@@ -25,7 +25,7 @@ import {
   writeIntegration,
 } from "./manifest";
 
-export const NEXTJS_RECIPE_VERSION = "2.0.1";
+export const NEXTJS_RECIPE_VERSION = "2.1.0";
 
 export type GenerateNextjsOptions = {
   cwd: string;
@@ -43,14 +43,7 @@ export type GenerateNextjsResult = {
 };
 
 function bundledRuntimeRoot(): string {
-  return join(
-    __dirname,
-    "..",
-    "skills",
-    "volato-nextjs",
-    "assets",
-    "runtime",
-  );
+  return join(__dirname, "..", "skills", "volato-nextjs", "assets", "runtime");
 }
 
 function runtimeFiles(root: string, prefix = ""): string[] {
@@ -62,7 +55,7 @@ function runtimeFiles(root: string, prefix = ""): string[] {
         ? runtimeFiles(root, path)
         : [path];
     })
-    .filter((path) => /\.(?:ts|tsx)$/.test(path))
+    .filter((path) => /\.(?:ts|tsx|cjs)$/.test(path))
     .sort();
 }
 
@@ -104,7 +97,9 @@ export function generateNextjsIntegration(
     const modified = modifiedGeneratedFiles(options.cwd, previous);
     if (modified.length > 0) {
       throw new Error(
-        `Generated Volato files were edited or deleted: ${modified.join(", ")}. Review those changes before updating the integration.`,
+        `Generated Volato files were edited or deleted: ${modified.join(
+          ", ",
+        )}. Review those changes before updating the integration.`,
       );
     }
   }
@@ -148,8 +143,16 @@ export function generateNextjsIntegration(
             join(runtimeRoot, "withVolato"),
           )
         : "./volato/withVolato",
+      options.project.nextMajor,
     ),
-    patchNextBuildScript(options.cwd, options.project.nextMajor),
+    patchNextBuildScript(
+      options.cwd,
+      options.project.nextMajor,
+      modulePath(
+        join(options.cwd, "package.json"),
+        join(runtimeRoot, "postbuild.cjs"),
+      ),
+    ),
   ];
 
   const integration = createGeneratedIntegration(options.cwd, {

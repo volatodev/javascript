@@ -95,6 +95,18 @@ describe("detectProject", () => {
     expect(project.middlewarePath).toBe(join(cwd, "src", "middleware.ts"));
   });
 
+  it("locates a Next.js 16 `proxy.ts` at the application root", () => {
+    makePackageJson({ dependencies: { next: "16.2.12" } });
+    mkdirSync(join(cwd, "app"));
+    writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
+    writeFileSync(join(cwd, "proxy.ts"), "export function proxy() {};");
+
+    const project = detectProject(cwd);
+
+    expect(project.proxyPath).toBe(join(cwd, "proxy.ts"));
+    expect(project.middlewarePath).toBeNull();
+  });
+
   it("throws DetectionError when package.json is missing", () => {
     expect(() => detectProject(cwd)).toThrow(DetectionError);
   });
@@ -134,7 +146,9 @@ describe("detectProject", () => {
     mkdirSync(join(cwd, "app"));
     writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
 
-    expect(() => detectProject(cwd)).toThrow(/Cannot confirm the Next\.js version/);
+    expect(() => detectProject(cwd)).toThrow(
+      /Cannot confirm the Next\.js version/,
+    );
   });
 
   it("throws DetectionError when no App Router layout exists", () => {

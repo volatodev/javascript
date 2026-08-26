@@ -51,7 +51,14 @@ function installPackagedCli() {
 
   execFileSync(
     "npm",
-    ["install", "--no-audit", "--no-fund", "--cache", join(scratch, "npm"), spec],
+    [
+      "install",
+      "--no-audit",
+      "--no-fund",
+      "--cache",
+      join(scratch, "npm"),
+      spec,
+    ],
     { cwd: home, stdio: "pipe" },
   );
 
@@ -126,7 +133,9 @@ function run(command, args, options = {}) {
       if (status !== 0 && !options.allowFailure) {
         rejectRun(
           new Error(
-            `${command} ${args.join(" ")} failed (${status})\n${stdout}\n${stderr}`,
+            `${command} ${args.join(
+              " ",
+            )} failed (${status})\n${stdout}\n${stderr}`,
           ),
         );
         return;
@@ -179,10 +188,80 @@ function writeFixture(root, entry) {
     join(root, "next.config.ts"),
     'export default { output: "standalone" };\n',
   );
-  writeFileSync(
-    join(root, ".gitignore"),
-    "node_modules\n.next\n.env*.local\n",
+  writeFileSync(join(root, ".gitignore"), "node_modules\n.next\n.env*.local\n");
+  if (Number(entry.next.split(".")[0]) >= 16) {
+    writeFileSync(
+      join(root, "proxy.ts"),
+      `import { wrapProxy } from "./volato/server";
+
+export const proxy = wrapProxy(async (request: Request) => {
+  if (new URL(request.url).pathname === "/volato-proxy-crash") {
+    throw new Error("Volato Next.js 16 proxy conformance");
+  }
+});
+
+export const config = { matcher: "/volato-proxy-crash" };
+`,
+    );
+  }
+}
+
+async function reservePort() {
+  const probe = createServer();
+  await new Promise((resolveListen, rejectListen) => {
+    probe.once("error", rejectListen);
+    probe.listen(0, "127.0.0.1", resolveListen);
+  });
+  const address = probe.address();
+  assert(address && typeof address === "object", "Port probe did not bind.");
+  await new Promise((resolveClose) => probe.close(resolveClose));
+  return address.port;
+}
+
+async function startNextProduction(root) {
+  const port = await reservePort();
+  const child = spawn(
+    "pnpm",
+    ["exec", "next", "start", "-H", "127.0.0.1", "-p", String(port)],
+    {
+      cwd: root,
+      env: { ...process.env, NO_COLOR: "1" },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
   );
+  let logs = "";
+  child.stdout.on("data", (chunk) => {
+    logs += chunk;
+  });
+  child.stderr.on("data", (chunk) => {
+    logs += chunk;
+  });
+
+  const origin = `http://127.0.0.1:${port}`;
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) {
+      throw new Error(`Next.js production server exited early.\n${logs}`);
+    }
+    try {
+      const response = await fetch(origin);
+      if (response.ok) return { child, origin, logs: () => logs };
+    } catch {
+      // Server is still starting.
+    }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+  }
+  child.kill("SIGTERM");
+  throw new Error(`Next.js production server did not become ready.\n${logs}`);
+}
+
+async function stopNextProduction(child) {
+  if (child.exitCode !== null) return;
+  child.kill("SIGTERM");
+  await new Promise((resolveExit) => {
+    child.once("close", resolveExit);
+    setTimeout(resolveExit, 5_000);
+  });
 }
 
 const state = {
@@ -190,12 +269,11 @@ const state = {
   rejectTestEvents: false,
   sourcemaps: 0,
   sourcemapKeys: [],
+  sourcemapDisplayPaths: [],
 };
 
 function multipartField(body, name) {
-  return body.match(
-    new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r\\n]+)`),
-  )?.[1];
+  return body.match(new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r\\n]+)`))?.[1];
 }
 
 const server = createServer((req, res) => {
@@ -274,6 +352,7 @@ const server = createServer((req, res) => {
       const body = Buffer.concat(chunks).toString("utf8");
       const release = multipartField(body, "release");
       const filenameHash = multipartField(body, "filename_hash");
+      const displayPath = multipartField(body, "display_path");
       if (!release || !filenameHash) {
         res.writeHead(400, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: "invalid_multipart" }));
@@ -283,6 +362,7 @@ const server = createServer((req, res) => {
       const duplicate = state.sourcemapKeys.includes(key);
       state.sourcemaps += 1;
       state.sourcemapKeys.push(key);
+      if (displayPath) state.sourcemapDisplayPaths.push(displayPath);
       res.writeHead(duplicate ? 200 : 201, {
         "content-type": "application/json",
       });
@@ -311,21 +391,13 @@ try {
     writeFixture(fixture, entry);
 
     await run("pnpm", ["install", "--ignore-scripts"], { cwd: fixture });
-    const bootstrap = await runCli(
-      [
-        "init",
-        "--project",
-        projectId,
-        "--yes",
-      ],
-      {
-        cwd: fixture,
-        env: {
-          VOLATO_API_URL: apiOrigin,
-          VOLATO_TOKEN: AUTH_TOKEN,
-        },
+    const bootstrap = await runCli(["init", "--project", projectId, "--yes"], {
+      cwd: fixture,
+      env: {
+        VOLATO_API_URL: apiOrigin,
+        VOLATO_TOKEN: AUTH_TOKEN,
       },
-    );
+    });
     const beforeEvents = state.testEvents.length;
     const init = await runCli(
       ["errors", "init", "--yes", "--send-test-event"],
@@ -397,9 +469,7 @@ try {
       `${entry.label} setup did not write both credentials.`,
     );
     assert(
-      readFileSync(join(fixture, ".gitignore"), "utf8").includes(
-        ".env*.local",
-      ),
+      readFileSync(join(fixture, ".gitignore"), "utf8").includes(".env*.local"),
       `${entry.label} setup did not protect local credentials.`,
     );
     const manifest = JSON.parse(
@@ -415,12 +485,7 @@ try {
     if (index === 0) {
       state.rejectTestEvents = true;
       const rejected = await runCli(
-        [
-          "errors",
-          "init",
-          "--yes",
-          "--send-test-event",
-        ],
+        ["errors", "init", "--yes", "--send-test-event"],
         {
           cwd: fixture,
           env: {
@@ -477,21 +542,69 @@ try {
       existsSync(join(fixture, ".next", "standalone")),
       `${entry.label} build did not assemble standalone output.`,
     );
-    assert(
-      filesWithSuffix(join(fixture, ".next", "static"), ".js.map")
-        .length === 0,
-      `${entry.label} build left browser sourcemaps in public static output.`,
+    const publicMaps = filesWithSuffix(
+      join(fixture, ".next", "static"),
+      ".js.map",
     );
     assert(
-      filesWithSuffix(join(fixture, ".next", "server"), ".js.map").length >
-        0,
+      publicMaps.length === 0,
+      `${
+        entry.label
+      } build left browser sourcemaps in public static output:\n${publicMaps.join(
+        "\n",
+      )}\nUploaded paths:\n${state.sourcemapDisplayPaths.join("\n")}`,
+    );
+    assert(
+      filesWithSuffix(join(fixture, ".next", "server"), ".js.map").length > 0,
       `${entry.label} build removed private server sourcemaps before standalone assembly.`,
     );
+    if (entry.next.startsWith("16.")) {
+      const beforeProxyEvents = state.testEvents.length;
+      const production = await startNextProduction(fixture);
+      try {
+        const response = await fetch(
+          `${production.origin}/volato-proxy-crash?token=proxy-secret`,
+          {
+            headers: {
+              cookie: "session=proxy-secret",
+              "user-agent": "volato-nextjs-conformance",
+            },
+          },
+        );
+        assert(
+          !response.ok,
+          "Next.js 16 proxy fixture did not preserve failure semantics.",
+        );
+        assert(
+          state.testEvents.length === beforeProxyEvents + 1,
+          `Next.js 16 proxy did not emit exactly one event.\n${production.logs()}`,
+        );
+        const proxyEvent = state.testEvents.at(-1);
+        assert(
+          proxyEvent.message === "Volato Next.js 16 proxy conformance" &&
+            proxyEvent.runtime === "middleware" &&
+            proxyEvent.capturedVia === "wrap_middleware",
+          "Next.js 16 proxy event used an unexpected capture path.",
+        );
+        const serializedProxyEvent = JSON.stringify(proxyEvent);
+        assert(
+          !serializedProxyEvent.includes("proxy-secret") &&
+            !serializedProxyEvent.includes("session="),
+          "Next.js 16 proxy event leaked query or cookie values.",
+        );
+      } finally {
+        await stopNextProduction(production.child);
+      }
+    }
     process.stdout.write(
       `✓ ${entry.label} ${entry.next}: authenticated init + production build\n`,
     );
   }
 } finally {
   await new Promise((resolveClose) => server.close(resolveClose));
-  rmSync(scratch, { recursive: true, force: true });
+  if (process.env.VOLATO_KEEP_CONFORMANCE === "1") {
+    process.stderr.write(`Conformance scratch kept at ${scratch}\n`);
+  } else {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 }

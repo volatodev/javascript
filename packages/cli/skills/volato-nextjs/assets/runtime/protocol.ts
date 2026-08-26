@@ -75,6 +75,8 @@ export function dsnToIngestUrl(dsn: string | ParsedDSN): string {
 }
 
 const FILENAME_HASH_REGEX = /-([a-zA-Z0-9_-]{8,20})\.js(?:\.map)?(?:[?#]|$)/;
+const TURBOPACK_BROWSER_HASH_REGEX =
+  /(?:^|\/)([a-zA-Z0-9_-]{8,64})\.js(?:\.map)?(?:[?#]|$)/;
 const NEXT_SERVER_BUILD_PATH_REGEX = /^server\/.+\.[cm]?js(?:\.map)?$/;
 
 function nextServerBuildPath(path: string): string | null {
@@ -99,9 +101,7 @@ function stablePathHash(path: string): string {
     low = (low ^ (character.codePointAt(0) ?? 0)) >>> 0;
     const lowProduct = low * 0x1b3;
     high =
-      (high * 0x1b3 +
-        low * 0x100 +
-        Math.floor(lowProduct / 0x1_0000_0000)) >>>
+      (high * 0x1b3 + low * 0x100 + Math.floor(lowProduct / 0x1_0000_0000)) >>>
       0;
     low = lowProduct >>> 0;
   }
@@ -117,17 +117,21 @@ export function projectFramePath(
   const match = FILENAME_HASH_REGEX.exec(framePath);
   if (!match?.[1]) {
     const displayPath = nextServerBuildPath(framePath);
-    return displayPath
-      ? {
-          filename_hash: stablePathHash(displayPath),
-          display_path: displayPath,
-        }
-      : null;
+    if (displayPath) {
+      return {
+        filename_hash: stablePathHash(displayPath),
+        display_path: displayPath,
+      };
+    }
   }
+  const filenameHash =
+    match?.[1] ?? TURBOPACK_BROWSER_HASH_REGEX.exec(framePath)?.[1];
+  if (!filenameHash) return null;
   let displayPath = framePath.replace(/^https?:\/\/[^/]+/, "");
   displayPath = displayPath.replace(/[?#].*$/, "");
   displayPath = displayPath.replace(/^.*\/_next\//, "");
   displayPath = displayPath.replace(/^\.next\//, "");
   displayPath = displayPath.replace(/^\/+/, "");
-  return { filename_hash: match[1], display_path: displayPath };
+  displayPath = displayPath.replace(/\.map$/, "");
+  return { filename_hash: filenameHash, display_path: displayPath };
 }

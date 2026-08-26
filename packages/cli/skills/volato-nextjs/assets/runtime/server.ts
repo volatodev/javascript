@@ -25,11 +25,7 @@ import { applyBuildIdentityTo } from "./internal/release";
 import { runBeforeSend } from "./internal/before-send";
 import { shouldSend } from "./internal/dedupe";
 import { shouldKeep } from "./internal/filters";
-import {
-  scrubPath,
-  scrubSearchParams,
-  scrubUrl,
-} from "./internal/scrub-url";
+import { scrubPath, scrubSearchParams, scrubUrl } from "./internal/scrub-url";
 import { serializeEnvelope } from "./internal/serialize";
 import { sendEnvelope } from "./internal/transport";
 export { createTunnelHandler, type TunnelOptions } from "./tunnel";
@@ -69,10 +65,7 @@ function captureEnvironment(): string {
   );
 }
 
-const WHITELISTED_HEADERS = [
-  "user-agent",
-  "referer",
-] as const;
+const WHITELISTED_HEADERS = ["user-agent", "referer"] as const;
 
 export type ServerRuntime =
   | "rsc"
@@ -160,7 +153,8 @@ function whitelist(headers: Headers | undefined): Record<string, string> {
   if (!headers) return out;
   for (const name of WHITELISTED_HEADERS) {
     const value = headers.get(name);
-    if (value !== null) out[name] = name === "referer" ? scrubUrl(value) : value;
+    if (value !== null)
+      out[name] = name === "referer" ? scrubUrl(value) : value;
   }
   if (serverExtras.captureIp) {
     const forwardedFor = headers.get("x-forwarded-for");
@@ -217,7 +211,8 @@ function serialize(
   const chain = unwrapCauseChain(err);
   if (chain.length > 0) payload.linkedErrors = chain;
   const target = payload as unknown as Record<string, unknown>;
-  if (serverExtras.release && !target.release) target.release = serverExtras.release;
+  if (serverExtras.release && !target.release)
+    target.release = serverExtras.release;
   if (serverExtras.commitSha && !target.commitSha)
     target.commitSha = serverExtras.commitSha;
   if (serverExtras.environment && !target.environment)
@@ -401,6 +396,36 @@ export function wrapRoute<
           request: req,
         });
         throw err;
+      }
+    });
+  };
+  return wrapped as unknown as T;
+}
+
+/**
+ * Wrap a Next.js 16 `proxy.ts` handler in the Node runtime. Proxy keeps the
+ * existing wire taxonomy (`runtime=middleware`) so older ingest deployments
+ * can accept the event, while using the server transport to await delivery
+ * before the short request lifecycle ends.
+ */
+export function wrapProxy<T extends (...args: any[]) => any>(handler: T): T {
+  const wrapped = async function (
+    this: unknown,
+    ...args: Parameters<T>
+  ): Promise<Awaited<ReturnType<T>>> {
+    const request = args[0] as Request | undefined;
+    return runWithScope(getCurrentScope().clone(), async () => {
+      try {
+        return await handler.apply(this, args);
+      } catch (error) {
+        await captureException(error, {
+          runtime: "middleware",
+          route: pathnameOf(request),
+          headers: request?.headers,
+          capturedVia: "wrap_middleware",
+          request,
+        });
+        throw error;
       }
     });
   };

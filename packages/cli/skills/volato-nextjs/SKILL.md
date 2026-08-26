@@ -25,10 +25,12 @@ judgment only to hook that code into an existing application.
 7. Run the project build and the CLI verification.
 8. Exercise each capture surface used by the application.
 
-Next.js 16 uses Turbopack by default, while the current privacy-stripped
-sourcemap uploader uses the webpack compiler hook. The recipe therefore adds
-`--webpack` to the production build command on Next.js 16. Do not remove it
-until Volato ships a native Turbopack build adapter.
+Next.js 16 keeps Turbopack as its default bundler. The recipe uses
+`compiler.runAfterProductionCompile` for server maps and appends the generated
+dependency-free `postbuild.cjs` after a conventional `next build` command for
+the browser maps that Turbopack finalizes later. For a custom build script,
+compose `node <generated-runtime>/postbuild.cjs` strictly after the successful
+Next.js build; never run it concurrently or replace the selected bundler.
 
 Read [references/capabilities.md](references/capabilities.md) for the automatic
 build-identity gate and runtime matrix. The user does not create or publish a
@@ -43,6 +45,9 @@ it for both runtime events and sourcemap uploads.
   `process.env.NEXT_PUBLIC_VOLATO_DSN` and
   `process.env.NEXT_PUBLIC_VOLATO_RELEASE` to `wrapMiddleware`; Next inlines
   them while the generated Edge module remains free of `process.env`.
+- In a Next.js 16 host `proxy.ts`, compose `wrapProxy` from the generated
+  `server` module. Proxy runs in Node; do not route it through the Edge
+  middleware adapter.
 - Isolate concurrent server request scope.
 - Use Next's `onRequestError` hook for leaked RSC errors.
 - Use the generated React helper from `app/error.tsx`; do not wrap the root
