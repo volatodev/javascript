@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -18,8 +19,11 @@ const fixtureRoot = mkdtempSync(join(tmpdir(), "volato-errors-setup-agent-eval-"
 const commandLog = join(fixtureRoot, ".volato-eval-commands.jsonl");
 const requestLog = join(fixtureRoot, ".volato-eval-requests.jsonl");
 const serverPortFile = join(fixtureRoot, ".volato-eval-port");
-const skillRoot = join(repositoryRoot, "packages", "cli", "skills");
-const realCli = join(repositoryRoot, "packages", "cli", "dist", "cli.cjs");
+const cliInstallRoot = mkdtempSync(
+  join(tmpdir(), "volato-errors-setup-agent-cli-"),
+);
+let skillRoot = "";
+let realCli = "";
 const projectId = "44444444-4444-4444-8444-444444444444";
 
 function assert(condition, message) {
@@ -92,6 +96,50 @@ function runAgent(args, options = {}) {
       });
     });
   });
+}
+
+function installPackagedCli() {
+  const packageRoot = join(repositoryRoot, "packages", "cli");
+  const packRoot = join(cliInstallRoot, "pack");
+  mkdirSync(packRoot, { recursive: true });
+  writeFileSync(
+    join(cliInstallRoot, "package.json"),
+    `${JSON.stringify(
+      { name: "volato-setup-agent-cli-host", private: true },
+      null,
+      2,
+    )}\n`,
+  );
+  const npmEnv = { npm_config_cache: join(cliInstallRoot, "npm-cache") };
+  run(
+    "npm",
+    ["pack", "--ignore-scripts", "--pack-destination", packRoot],
+    { cwd: packageRoot, env: npmEnv, timeout: 120_000 },
+  );
+  const archive = readdirSync(packRoot).find((name) => name.endsWith(".tgz"));
+  assert(archive, "npm pack returned no CLI archive");
+  run(
+    "npm",
+    [
+      "install",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      join(packRoot, archive),
+    ],
+    { cwd: cliInstallRoot, env: npmEnv, timeout: 120_000 },
+  );
+  const installedRoot = join(
+    cliInstallRoot,
+    "node_modules",
+    "@volatodev",
+    "cli",
+  );
+  realCli = join(installedRoot, "dist", "cli.cjs");
+  skillRoot = join(installedRoot, "skills");
+  assert(existsSync(realCli), "packed CLI executable was not installed");
+  assert(existsSync(skillRoot), "packed CLI skills were not installed");
+  return JSON.parse(readFileSync(join(installedRoot, "package.json"), "utf8"));
 }
 
 function waitForFile(path, timeoutMs = 10_000) {
@@ -174,11 +222,11 @@ function writeFixture() {
     });
   }
 
-  const wrapper = `#!/usr/bin/env node\nimport { appendFileSync } from "node:fs";\nimport { spawnSync } from "node:child_process";\n\nconst args = process.argv.slice(2);\nappendFileSync(process.env.VOLATO_EVAL_LOG, JSON.stringify({ args }) + "\\n");\nconst result = spawnSync(process.execPath, [process.env.VOLATO_REAL_CLI, ...args], { stdio: "inherit", env: process.env });\nprocess.exit(result.status ?? 1);\n`;
+  const wrapper = `#!/usr/bin/env node\nimport { appendFileSync } from "node:fs";\nimport { spawnSync } from "node:child_process";\n\nconst args = process.argv.slice(2);\nconst result = spawnSync(process.execPath, [process.env.VOLATO_REAL_CLI, ...args], { stdio: "inherit", env: process.env });\nconst status = result.status ?? 1;\nappendFileSync(process.env.VOLATO_EVAL_LOG, JSON.stringify({ args, status }) + "\\n");\nprocess.exit(status);\n`;
   writeFileSync(join(fixtureRoot, "bin", "volato"), wrapper);
   chmodSync(join(fixtureRoot, "bin", "volato"), 0o755);
 
-  const mockApi = `import { appendFileSync, writeFileSync } from "node:fs";\nimport { createServer } from "node:http";\n\nconst projectId = ${JSON.stringify(projectId)};\nconst server = createServer((request, response) => {\n  appendFileSync(process.env.VOLATO_EVAL_REQUEST_LOG, JSON.stringify({ method: request.method, url: request.url }) + "\\n");\n  const origin = "http://public@127.0.0.1:" + server.address().port;\n  let status = 200;\n  let data = {};\n  if (request.method === "GET" && request.url === "/v1/projects/" + projectId + "/setup") {\n    data = { projectId, projectName: "Vite Node Setup Eval", dsn: origin + "/api/ingest", ingestToken: "eval-server-secret" };\n  } else if (request.method === "POST" && request.url === "/v1/projects/" + projectId + "/linked") {\n    data = { projectId, linked: true };\n  } else if (request.method === "POST" && request.url.startsWith("/v1/projects/" + projectId + "/integrations/")) {\n    data = { installed: true };\n  } else if (request.method === "POST" && request.url === "/api/sourcemaps") {\n    data = { uploaded: true };\n  } else {\n    status = 404;\n  }\n  request.resume();\n  response.writeHead(status, { "content-type": "application/json" });\n  response.end(JSON.stringify(status === 200 ? { data } : { error: "not_found" }));\n});\nserver.listen(0, "127.0.0.1", () => writeFileSync(process.env.VOLATO_EVAL_PORT_FILE, String(server.address().port)));\n`;
+  const mockApi = `import { appendFileSync, writeFileSync } from "node:fs";\nimport { createServer } from "node:http";\n\nconst projectId = ${JSON.stringify(projectId)};\nconst server = createServer((request, response) => {\n  appendFileSync(process.env.VOLATO_EVAL_REQUEST_LOG, JSON.stringify({ method: request.method, url: request.url }) + "\\n");\n  const origin = "http://public@127.0.0.1:" + server.address().port;\n  let status = 200;\n  let data = {};\n  if (request.method === "GET" && request.url === "/v1/projects/" + projectId + "/setup") {\n    data = { projectId, projectName: "Vite Node Setup Eval", dsn: origin + "/api/ingest", ingestToken: "eval-server-secret" };\n  } else if (request.method === "POST" && request.url === "/v1/projects/" + projectId + "/linked") {\n    data = { projectId, linked: true };\n  } else if (request.method === "POST" && request.url.startsWith("/v1/projects/" + projectId + "/integrations/")) {\n    data = { installed: true };\n  } else if (request.method === "GET" && request.url.startsWith("/v1/errors?")) {\n    data = { kind: "ok", rows: [], nextCursor: null, query: {} };\n  } else if (request.method === "POST" && request.url === "/api/sourcemaps") {\n    data = { uploaded: true };\n  } else if (request.method === "POST" && request.url === "/api/ingest") {\n    status = 202;\n    data = { accepted: true };\n  } else {\n    status = 404;\n  }\n  request.resume();\n  response.writeHead(status, { "content-type": "application/json" });\n  response.end(JSON.stringify(status >= 200 && status < 300 ? { data } : { error: "not_found" }));\n});\nserver.listen(0, "127.0.0.1", () => writeFileSync(process.env.VOLATO_EVAL_PORT_FILE, String(server.address().port)));\n`;
   writeFileSync(join(fixtureRoot, "mock-api.mjs"), mockApi);
 
   run("git", ["init", "--quiet"]);
@@ -214,9 +262,10 @@ function usageFromTrace(trace) {
 
 let keepFixture = process.env.VOLATO_KEEP_EVAL === "1";
 let mockApiProcess;
+let packagedCli;
 
 try {
-  assert(existsSync(realCli), `built CLI not found at ${realCli}`);
+  packagedCli = installPackagedCli();
   writeFixture();
   mockApiProcess = spawn(process.execPath, [join(fixtureRoot, "mock-api.mjs")], {
     cwd: fixtureRoot,
@@ -273,11 +322,30 @@ try {
   const calledErrorsInit = commands.some(
     ({ args }) => args[0] === "errors" && args[1] === "init",
   );
+  const successfulErrorsInit = commands.findLastIndex(
+    ({ args, status }) =>
+      args[0] === "errors" && args[1] === "init" && status === 0,
+  );
+  const unrecoveredVolatoFailures = commands.filter(
+    ({ args, status }, index) =>
+      status !== 0 &&
+      !(
+        args[0] === "errors" &&
+        args[1] === "init" &&
+        index < successfulErrorsInit
+      ),
+  );
   const reportedBrowser = requests.some(
     ({ method, url }) => method === "POST" && url.endsWith("/integrations/errors-vite-react"),
   );
   const reportedNode = requests.some(
     ({ method, url }) => method === "POST" && url.endsWith("/integrations/errors-node"),
+  );
+  const sourcemapUploaded = requests.some(
+    ({ method, url }) => method === "POST" && url === "/api/sourcemaps",
+  );
+  const runtimeEventDelivered = requests.some(
+    ({ method, url }) => method === "POST" && url === "/api/ingest",
   );
   const manifest = JSON.parse(
     readFileSync(join(fixtureRoot, ".volato", "manifest.json"), "utf8"),
@@ -290,16 +358,21 @@ try {
   const result = {
     prompt: "Install Volato in this project.",
     stack: "Vite + React + Node.js + Express",
+    cliArtifact: "npm pack",
+    cliVersion: packagedCli.version,
     agentExitCode: evaluation.status,
     selectedSetupSkill,
     selectedBrowserSkill,
     selectedNodeSkill,
     calledInit,
     calledErrorsInit,
+    unrecoveredVolatoFailures,
     generatedBrowser: Boolean(manifest.integrations?.["errors-vite-react"]),
     generatedNode: Boolean(manifest.integrations?.["errors-node"]),
     reportedBrowser,
     reportedNode,
+    sourcemapUploaded,
+    runtimeEventDelivered,
     buildPassed: existsSync(join(fixtureRoot, ".volato-eval-build.json")),
     testsPassed: tests.status === 0,
     runtimeDependencyAdded: Object.keys(packageJson.dependencies ?? {}).some((name) =>
@@ -323,10 +396,16 @@ try {
   assert(selectedNodeSkill, "the agent did not inspect volato-node");
   assert(calledInit, "the agent did not link the selected Volato project");
   assert(calledErrorsInit, "the agent did not invoke Errors setup");
+  assert(
+    unrecoveredVolatoFailures.length === 0,
+    "an agent-invented Volato command failed without a recovered manual setup outcome",
+  );
   assert(result.generatedBrowser, "the browser adapter was not generated");
   assert(result.generatedNode, "the Node adapter was not generated");
   assert(reportedBrowser, "the browser integration was not reported");
   assert(reportedNode, "the Node integration was not reported");
+  assert(sourcemapUploaded, "the production build uploaded no sourcemap");
+  assert(runtimeEventDelivered, "the generated runtime delivered no event");
   assert(result.buildPassed, "the agent did not run the fixture production build");
   assert(result.testsPassed, "the generated composition did not pass tests");
   assert(!result.runtimeDependencyAdded, "setup added a Volato runtime dependency");
@@ -340,4 +419,5 @@ try {
 } finally {
   mockApiProcess?.kill("SIGTERM");
   if (!keepFixture) rmSync(fixtureRoot, { recursive: true, force: true });
+  rmSync(cliInstallRoot, { recursive: true, force: true });
 }
