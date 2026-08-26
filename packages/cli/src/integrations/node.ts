@@ -146,6 +146,10 @@ function patchBuildScript(cwd: string, runtimeRoot: string): PatchOutcome {
       detail: "add a production build with sourcemaps before enabling Node map upload",
     };
   }
+  const uploader = relative(cwd, join(runtimeRoot, "upload-sourcemaps.mjs")).replaceAll(
+    "\\",
+    "/",
+  );
   if (build.includes("upload-sourcemaps.mjs")) {
     return { path, status: "skipped", detail: "Node sourcemap upload already follows build" };
   }
@@ -157,6 +161,17 @@ function patchBuildScript(cwd: string, runtimeRoot: string): PatchOutcome {
         "the Node build does not visibly enable sourcemaps; enable them, then append the generated uploader",
     };
   }
+  const postbuild = scripts?.postbuild;
+  if (
+    typeof postbuild === "string" &&
+    commandRunsUploader(postbuild, uploader)
+  ) {
+    return {
+      path,
+      status: "skipped",
+      detail: "Node sourcemap upload already follows build",
+    };
+  }
   const outputDirectory = detectBuildOutputDirectory(cwd, build);
   if (!outputDirectory) {
     return {
@@ -166,10 +181,6 @@ function patchBuildScript(cwd: string, runtimeRoot: string): PatchOutcome {
         "the Node build output directory is ambiguous; run the generated sourcemap uploader with the repository-relative output directory after the production build",
     };
   }
-  const uploader = relative(cwd, join(runtimeRoot, "upload-sourcemaps.mjs")).replaceAll(
-    "\\",
-    "/",
-  );
   scripts!.build = `${build} && node ${uploader} ${outputDirectory}`;
   writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
   return {
@@ -177,6 +188,18 @@ function patchBuildScript(cwd: string, runtimeRoot: string): PatchOutcome {
     status: "updated",
     detail: `uploads privacy-cleaned Node sourcemaps from ${outputDirectory} after build`,
   };
+}
+
+function commandRunsUploader(command: string, uploader: string): boolean {
+  const normalizedUploader = uploader.replace(/^\.\//, "");
+  const escapedUploader = normalizedUploader.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
+  const output = new RegExp(
+    `(?:^|(?:&&|;)\\s*)node\\s+(?:\\.\\/)?${escapedUploader}\\s+((?:["'][^"']+["'])|[a-zA-Z0-9._/-]+)(?=\\s*(?:$|&&|;))`,
+  ).exec(command)?.[1];
+  return safeOutputDirectory(output) !== null;
 }
 
 function safeOutputDirectory(value: string | undefined): string | null {

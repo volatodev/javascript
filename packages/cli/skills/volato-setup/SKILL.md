@@ -23,7 +23,9 @@ data path. Do not invent capture code from scratch.
    Errors adapters. Stop with a clear unsupported or partial-coverage result
    when no adapter applies.
 4. Review every file change reported by the selected integration before
-   continuing.
+   continuing. If setup reports a `manual` outcome, complete that exact action
+   and rerun `volato errors init`. Do not continue to verification or declare
+   readiness until the rerun exits successfully with no manual outcome.
 5. Inspect deployment config and public application/auth URL variables. When
    the browser-facing production origins are unambiguous, replace the project
    allowlist with `volato projects origins set <id> <origin...>`. Do not add API

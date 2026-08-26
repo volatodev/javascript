@@ -172,4 +172,52 @@ describe("Node + Express generated integration", () => {
         .build,
     ).toBe("node scripts/build.mjs --source-map");
   });
+
+  it("accepts a reviewed postbuild uploader after an ambiguous build", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "fixture",
+        type: "module",
+        scripts: { build: "node scripts/build.mjs --source-map" },
+        dependencies: { express: "5.1.0" },
+      }, null, 2)}\n`,
+    );
+
+    const first = generateNodeIntegration({
+      cwd,
+      project: detectErrorsStack(cwd).node!,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+    expect(first.outcomes).toContainEqual(
+      expect.objectContaining({ status: "manual" }),
+    );
+
+    const packageJson = JSON.parse(
+      readFileSync(join(cwd, "package.json"), "utf8"),
+    );
+    packageJson.scripts.postbuild =
+      "node src/volato-node/upload-sourcemaps.mjs dist";
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify(packageJson, null, 2)}\n`,
+    );
+
+    const second = generateNodeIntegration({
+      cwd,
+      project: detectErrorsStack(cwd).node!,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    expect(second.outcomes.every((outcome) => outcome.status !== "manual")).toBe(
+      true,
+    );
+    expect(second.outcomes).toContainEqual(
+      expect.objectContaining({
+        path: join(cwd, "package.json"),
+        status: "skipped",
+        detail: expect.stringMatching(/already follows build/i),
+      }),
+    );
+  });
 });
