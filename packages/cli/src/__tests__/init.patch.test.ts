@@ -144,7 +144,7 @@ describe("patchInstrumentation", () => {
     );
   });
 
-  it("creates an ESM instrumentation.js with a type:module reminder", () => {
+  it("creates an ESM instrumentation.js without requiring package module mode", () => {
     const path = join(cwd, "instrumentation.js");
 
     const out = patchInstrumentation(path, "js");
@@ -153,7 +153,8 @@ describe("patchInstrumentation", () => {
       'export { onRequestError } from "./volato/instrumentation"',
     );
     expect(readFileSync(path, "utf8")).not.toContain("require(");
-    expect(out.detail).toMatch(/type.*module/);
+    expect(out.status).toBe("created");
+    expect(out.detail).toBeUndefined();
   });
 
   it("skips when the file already wires Volato", () => {
@@ -273,6 +274,14 @@ describe("buildMiddlewareSnippet", () => {
     expect(snippet).toContain("process.env.NEXT_PUBLIC_VOLATO_COMMIT_SHA");
     expect(snippet).toContain("environment: process.env.NODE_ENV");
     expect(snippet).not.toMatch(/process\.env\.VOLATO_DSN(?!_)/);
+  });
+
+  it("emits valid JavaScript when the host middleware is JavaScript", () => {
+    const snippet = buildMiddlewareSnippet("./volato/middleware.js", "js");
+
+    expect(snippet).toContain('from "./volato/middleware.js"');
+    expect(snippet).toContain("dsn: process.env.NEXT_PUBLIC_VOLATO_DSN,");
+    expect(snippet).not.toContain("NEXT_PUBLIC_VOLATO_DSN!");
   });
 });
 

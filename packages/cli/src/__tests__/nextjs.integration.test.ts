@@ -111,6 +111,36 @@ describe("Next.js generated integration", () => {
     expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
   });
 
+  it("generates JavaScript and JSX runtime files for a JavaScript application", () => {
+    rmSync(join(cwd, "src", "app", "layout.tsx"));
+    writeFileSync(
+      join(cwd, "src", "app", "layout.jsx"),
+      "export default function Layout({ children }) { return <body>{children}</body>; }\n",
+    );
+    rmSync(join(cwd, "next.config.ts"));
+    writeFileSync(join(cwd, "next.config.mjs"), "export default {};\n");
+    const project = detectProject(cwd);
+
+    const result = generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+
+    expect(existsSync(join(cwd, "src", "volato", "client.jsx"))).toBe(true);
+    expect(existsSync(join(cwd, "src", "volato", "server.js"))).toBe(true);
+    expect(
+      result.generatedFiles.some((path) => /\.(?:ts|tsx)$/.test(path)),
+    ).toBe(false);
+    expect(readFileSync(project.layoutPath, "utf8")).not.toContain(
+      "NEXT_PUBLIC_VOLATO_DSN!",
+    );
+    expect(readFileSync(project.errorBoundaryPath, "utf8")).not.toContain(
+      "digest?:",
+    );
+  });
+
   it("is idempotent while generated files remain untouched", () => {
     const project = detectProject(cwd);
     generateNextjsIntegration({

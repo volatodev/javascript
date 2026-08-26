@@ -206,6 +206,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         appDir: nextjsAppDir,
         runtimeRoot: nextjsRuntimeRoot,
         dsn: setup.dsn,
+        language: stack.nextjs.language,
       },
       options.nonInteractive,
       options.sendTestEvent,
@@ -222,6 +223,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       nextjsRuntimeRoot,
       cwd,
       manualOutcomes.length === 0,
+      stack.nextjs.language,
     );
   } else {
     printPortableNextSteps(
@@ -358,7 +360,9 @@ function printNextSteps(
   runtimeRoot: string,
   cwd: string,
   complete: boolean,
+  language: "ts" | "js",
 ): void {
+  const runtimeExtension = language === "js" ? ".js" : "";
   process.stdout.write(`${pc.bold("Next steps")}\n`);
   process.stdout.write(
     `  ${pc.dim("1.")} Restart your dev server so the new env vars load.\n`,
@@ -370,7 +374,7 @@ function printNextSteps(
       `  ${pc.dim("2.")} Wrap your proxy (${pc.cyan(rel)}):\n\n`,
     );
     const snippet = buildProxySnippet(
-      localModule(proxyPath, join(runtimeRoot, "server")),
+      localModule(proxyPath, join(runtimeRoot, `server${runtimeExtension}`)),
     )
       .split("\n")
       .map((line) => `       ${line}`)
@@ -382,7 +386,11 @@ function printNextSteps(
       `  ${pc.dim("2.")} Wrap your middleware (${pc.cyan(rel)}):\n\n`,
     );
     const snippet = buildMiddlewareSnippet(
-      localModule(middlewarePath, join(runtimeRoot, "middleware")),
+      localModule(
+        middlewarePath,
+        join(runtimeRoot, `middleware${runtimeExtension}`),
+      ),
+      language,
     )
       .split("\n")
       .map((line) => `       ${line}`)

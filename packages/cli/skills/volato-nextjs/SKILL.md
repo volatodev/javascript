@@ -1,6 +1,6 @@
 ---
 name: volato-nextjs
-description: Generate, adapt, and verify the dependency-free Volato integration for a Next.js 15 or 16 App Router application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, server action, route handler, middleware, build identity, or sourcemap capture must be checked.
+description: Generate, adapt, and verify the dependency-free Volato integration for a JavaScript or TypeScript Next.js 15/16 App Router application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, server action, route handler, middleware, build identity, or sourcemap capture must be checked.
 ---
 
 # Set up Volato for Next.js
@@ -10,7 +10,9 @@ judgment only to hook that code into an existing application.
 
 ## Workflow
 
-1. Confirm Next.js 15+ and an App Router root at `app/` or `src/app/`.
+1. Confirm Next.js 15/16 and an App Router root at `app/` or `src/app/`.
+   Preserve the repository language: generate `.js`/`.jsx` into JavaScript
+   applications and `.ts`/`.tsx` into TypeScript applications.
 2. Run `volato init --project <id>` if the repository is not connected, then
    run `volato errors init`; do not hand-copy runtime implementations.
 3. Inspect changes to the layout, error boundary, instrumentation hook, Next

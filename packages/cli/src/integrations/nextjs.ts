@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import type { ProjectShape } from "../commands/init/detect";
+import { NEXTJS_JAVASCRIPT_RUNTIME } from "../generated/nextjs-javascript-runtime";
 import {
   patchEnvLocal,
   patchErrorBoundary,
@@ -25,7 +26,7 @@ import {
   writeIntegration,
 } from "./manifest";
 
-export const NEXTJS_RECIPE_VERSION = "2.1.0";
+export const NEXTJS_RECIPE_VERSION = "2.2.0";
 
 export type GenerateNextjsOptions = {
   cwd: string;
@@ -33,6 +34,7 @@ export type GenerateNextjsOptions = {
   ingestToken?: string;
   project: ProjectShape;
   sourceRoot?: string;
+  javascriptRuntime?: Readonly<Record<string, string>>;
 };
 
 export type GenerateNextjsResult = {
@@ -77,15 +79,23 @@ function copyRuntime(sourceRoot: string, targetRoot: string): string[] {
   });
 }
 
+function copyJavascriptRuntime(
+  runtime: Readonly<Record<string, string>>,
+  targetRoot: string,
+): string[] {
+  return Object.entries(runtime)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([path, source]) => {
+      const target = join(targetRoot, path);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, source, "utf8");
+      return target;
+    });
+}
+
 export function generateNextjsIntegration(
   options: GenerateNextjsOptions,
 ): GenerateNextjsResult {
-  if (options.project.language !== "ts") {
-    throw new Error(
-      "The generated Next.js recipe currently requires a TypeScript App Router project.",
-    );
-  }
-
   const manifest = readManifest(options.cwd);
   if (!manifest) {
     throw new Error(
@@ -105,14 +115,22 @@ export function generateNextjsIntegration(
   }
 
   const sourceRoot = options.sourceRoot ?? bundledRuntimeRoot();
-  if (!existsSync(sourceRoot)) {
+  if (options.project.language === "ts" && !existsSync(sourceRoot)) {
     throw new Error(`Next.js recipe assets are missing: ${sourceRoot}`);
   }
   const runtimeRoot =
     options.project.appDir === "src/app"
       ? join(options.cwd, "src", "volato")
       : join(options.cwd, "volato");
-  const generatedFiles = copyRuntime(sourceRoot, runtimeRoot);
+  const generatedFiles =
+    options.project.language === "ts"
+      ? copyRuntime(sourceRoot, runtimeRoot)
+      : copyJavascriptRuntime(
+          options.javascriptRuntime ?? NEXTJS_JAVASCRIPT_RUNTIME,
+          runtimeRoot,
+        );
+  const runtimeExtension = options.project.language === "js" ? ".js" : "";
+  const clientExtension = options.project.language === "js" ? ".jsx" : "";
 
   const outcomes: PatchOutcome[] = [
     patchEnvLocal(options.cwd, options.dsn, options.ingestToken),
@@ -121,26 +139,31 @@ export function generateNextjsIntegration(
       options.project.language,
       modulePath(
         options.project.instrumentationPath,
-        join(runtimeRoot, "instrumentation"),
+        join(runtimeRoot, `instrumentation${runtimeExtension}`),
       ),
     ),
     patchLayout(
       options.project.layoutPath,
-      modulePath(options.project.layoutPath, join(runtimeRoot, "client")),
+      modulePath(
+        options.project.layoutPath,
+        join(runtimeRoot, `client${clientExtension}`),
+      ),
+      options.project.language,
     ),
     patchErrorBoundary(
       options.project.errorBoundaryPath,
       modulePath(
         options.project.errorBoundaryPath,
-        join(runtimeRoot, "error-boundary"),
+        join(runtimeRoot, `error-boundary${clientExtension}`),
       ),
+      options.project.language,
     ),
     patchNextConfig(
       options.project.nextConfigPath,
       options.project.nextConfigPath
         ? modulePath(
             options.project.nextConfigPath,
-            join(runtimeRoot, "withVolato"),
+            join(runtimeRoot, `withVolato${runtimeExtension}`),
           )
         : "./volato/withVolato",
       options.project.nextMajor,

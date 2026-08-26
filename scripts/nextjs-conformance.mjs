@@ -86,17 +86,44 @@ function runCli(args, options) {
 const AUTH_TOKEN = "conformance-agent-token";
 const INGEST_TOKEN = "conformance-ingest-token";
 const FULL_MATRIX = [
-  { label: "Next.js 15", next: "15.5.22", react: "19.2.8" },
-  { label: "Next.js 16", next: "16.2.12", react: "19.2.8" },
+  {
+    label: "Next.js 15 TypeScript",
+    next: "15.5.22",
+    react: "19.2.8",
+    language: "ts",
+  },
+  {
+    label: "Next.js 15 JavaScript",
+    next: "15.5.22",
+    react: "19.2.8",
+    language: "js",
+  },
+  {
+    label: "Next.js 16 TypeScript",
+    next: "16.2.12",
+    react: "19.2.8",
+    language: "ts",
+  },
+  {
+    label: "Next.js 16 JavaScript",
+    next: "16.2.12",
+    react: "19.2.8",
+    language: "js",
+  },
 ];
 const requestedNextVersion = process.env.VOLATO_NEXTJS_VERSION;
-const MATRIX = requestedNextVersion
-  ? FULL_MATRIX.filter((entry) => entry.next === requestedNextVersion)
-  : FULL_MATRIX;
+const requestedLanguage = process.env.VOLATO_NEXTJS_LANGUAGE;
+const MATRIX = FULL_MATRIX.filter(
+  (entry) =>
+    (!requestedNextVersion || entry.next === requestedNextVersion) &&
+    (!requestedLanguage || entry.language === requestedLanguage),
+);
 
 if (MATRIX.length === 0) {
   throw new Error(
-    `Unsupported VOLATO_NEXTJS_VERSION=${requestedNextVersion ?? ""}`,
+    `Unsupported Next.js conformance selection: version=${
+      requestedNextVersion ?? "all"
+    }, language=${requestedLanguage ?? "all"}`,
   );
 }
 
@@ -146,12 +173,17 @@ function run(command, args, options = {}) {
 }
 
 function writeFixture(root, entry) {
+  const typescript = entry.language === "ts";
+  const componentExtension = typescript ? "tsx" : "jsx";
+  const configExtension = typescript ? "ts" : "mjs";
   mkdirSync(join(root, "app"), { recursive: true });
   writeFileSync(
     join(root, "package.json"),
     `${JSON.stringify(
       {
-        name: `volato-${entry.next.replaceAll(".", "-")}-conformance`,
+        name: `volato-${entry.next.replaceAll(".", "-")}-${
+          entry.language
+        }-conformance`,
         private: true,
         scripts: { build: "next build" },
         dependencies: {
@@ -159,42 +191,53 @@ function writeFixture(root, entry) {
           react: entry.react,
           "react-dom": entry.react,
         },
-        devDependencies: {
-          "@types/node": "24.10.0",
-          "@types/react": "19.2.17",
-          "@types/react-dom": "19.2.3",
-          typescript: "5.9.3",
-        },
+        ...(typescript
+          ? {
+              devDependencies: {
+                "@types/node": "24.10.0",
+                "@types/react": "19.2.17",
+                "@types/react-dom": "19.2.3",
+                typescript: "5.9.3",
+              },
+            }
+          : {}),
       },
       null,
       2,
     )}\n`,
   );
   writeFileSync(
-    join(root, "app", "layout.tsx"),
-    `export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+    join(root, "app", `layout.${componentExtension}`),
+    typescript
+      ? `export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="en"><body>{children}</body></html>;
+}
+`
+      : `export default function RootLayout({ children }) {
   return <html lang="en"><body>{children}</body></html>;
 }
 `,
   );
   writeFileSync(
-    join(root, "app", "page.tsx"),
+    join(root, "app", `page.${componentExtension}`),
     `export default function Page() {
   return <main>Volato conformance</main>;
 }
 `,
   );
   writeFileSync(
-    join(root, "next.config.ts"),
+    join(root, `next.config.${configExtension}`),
     'export default { output: "standalone" };\n',
   );
   writeFileSync(join(root, ".gitignore"), "node_modules\n.next\n.env*.local\n");
   if (Number(entry.next.split(".")[0]) >= 16) {
     writeFileSync(
-      join(root, "proxy.ts"),
-      `import { wrapProxy } from "./volato/server";
+      join(root, `proxy.${typescript ? "ts" : "js"}`),
+      `import { wrapProxy } from "./volato/server${typescript ? "" : ".js"}";
 
-export const proxy = wrapProxy(async (request: Request) => {
+export const proxy = wrapProxy(async (request${
+        typescript ? ": Request" : ""
+      }) => {
   if (new URL(request.url).pathname === "/volato-proxy-crash") {
     throw new Error("Volato Next.js 16 proxy conformance");
   }
@@ -386,7 +429,7 @@ try {
   const apiOrigin = `http://127.0.0.1:${address.port}`;
 
   for (const [index, entry] of MATRIX.entries()) {
-    const fixture = join(scratch, `next-${entry.next}`);
+    const fixture = join(scratch, `next-${entry.next}-${entry.language}`);
     const projectId = `00000000-0000-4000-8000-00000000000${index + 1}`;
     writeFixture(fixture, entry);
 
@@ -440,6 +483,8 @@ try {
       ),
       `${entry.label} setup printed the ingest token.`,
     );
+    const componentExtension = entry.language === "ts" ? "tsx" : "jsx";
+    const runtimeExtension = entry.language === "ts" ? "ts" : "js";
     for (const required of [
       ".agents/skills/volato-setup/SKILL.md",
       ".agents/skills/volato-errors/SKILL.md",
@@ -447,9 +492,9 @@ try {
       ".volato/manifest.json",
       ".env.local",
       ".gitignore",
-      "app/error.tsx",
-      "instrumentation.ts",
-      "volato/server.ts",
+      `app/error.${componentExtension}`,
+      `instrumentation.${runtimeExtension}`,
+      `volato/server.${runtimeExtension}`,
     ]) {
       assert(
         existsSync(join(fixture, required)),
@@ -481,6 +526,33 @@ try {
         manifest.integrations["errors-nextjs"],
       `${entry.label} setup did not preserve the Errors integration entry.`,
     );
+    if (entry.language === "js") {
+      const generatedTypescript = [
+        ...filesWithSuffix(join(fixture, "volato"), ".ts"),
+        ...filesWithSuffix(join(fixture, "volato"), ".tsx"),
+      ];
+      assert(
+        generatedTypescript.length === 0,
+        `${
+          entry.label
+        } emitted TypeScript into a JavaScript repository:\n${generatedTypescript.join(
+          "\n",
+        )}`,
+      );
+      const fixturePackage = JSON.parse(
+        readFileSync(join(fixture, "package.json"), "utf8"),
+      );
+      assert(
+        !fixturePackage.devDependencies?.typescript,
+        `${entry.label} unexpectedly required TypeScript.`,
+      );
+      assert(
+        !readFileSync(join(fixture, "app", "layout.jsx"), "utf8").includes(
+          "NEXT_PUBLIC_VOLATO_DSN!",
+        ),
+        `${entry.label} left a TypeScript non-null assertion in layout.jsx.`,
+      );
+    }
 
     if (index === 0) {
       state.rejectTestEvents = true;

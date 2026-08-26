@@ -2,6 +2,10 @@
 
 Treat an integration as complete only when all applicable surfaces pass:
 
+The generated runtime must match the host repository language. Both JavaScript
+(`.js`/`.jsx`) and TypeScript (`.ts`/`.tsx`) are conformance-tested without a
+runtime package dependency; JavaScript setup must not add TypeScript tooling.
+
 | Surface            | Required capture                                              |
 | ------------------ | ------------------------------------------------------------- |
 | Browser            | `window.error`, unhandled rejection, React error boundary     |

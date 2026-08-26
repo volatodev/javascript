@@ -229,12 +229,9 @@ export function patchNextBuildScript(
 /**
  * Create `instrumentation.ts` (or `.js`) re-exporting the generated hook.
  *
- * Both .ts and .js variants emit ESM `export { onRequestError }`.
- * For JS projects without
- * `"type": "module"` in their own package.json, a CJS-style file
- * would either fail to parse (Node ESM) or fail at runtime (`require`
- * an ESM-only export). We emit ESM and document the project-side
- * requirement when called via the CLI.
+ * Both .ts and .js variants emit ESM `export { onRequestError }`; Next.js
+ * compiles the instrumentation convention as application source regardless of
+ * the package's Node module mode.
  *
  * If the file already exists with a Volato marker → skip; if it
  * exists without one → `manual` so the orchestrator warns the user.
@@ -261,18 +258,9 @@ export function patchInstrumentation(
   }
 
   ensureDir(path);
-  // Same ESM body for both .ts and .js. Next.js is happy to load ESM
-  // instrumentation.js when the project's package.json has
-  // `"type": "module"`. If it doesn't, the JS variant requires the
-  // user to opt in — flagged via the `detail` field below.
   const body = `export { onRequestError } from "${modulePath}";\n`;
   writeFileSync(path, body, "utf8");
-
-  const detail =
-    language === "js"
-      ? 'created (requires "type": "module" in your package.json — switch to TypeScript or set the field if your project is CJS)'
-      : undefined;
-  return { path, status: "created", ...(detail ? { detail } : {}) };
+  return { path, status: "created" };
 }
 
 /**
@@ -294,6 +282,7 @@ export function patchInstrumentation(
 export function patchLayout(
   path: string,
   modulePath = "../volato/client",
+  language: "ts" | "js" = path.endsWith(".jsx") ? "js" : "ts",
 ): PatchOutcome {
   const original = readIfExists(path);
   if (original === null) {
@@ -326,8 +315,11 @@ export function patchLayout(
   const importBlock = `import { VolatoBootstrap } from "${modulePath}";\n`;
   // Sibling, not wrapper — keeps the patch compatible with server
   // layouts (the default for app/layout.tsx in Next 15).
-  const insertion =
-    "<VolatoBootstrap dsn={process.env.NEXT_PUBLIC_VOLATO_DSN!} />\n        {children}";
+  const dsn =
+    language === "ts"
+      ? "process.env.NEXT_PUBLIC_VOLATO_DSN!"
+      : "process.env.NEXT_PUBLIC_VOLATO_DSN";
+  const insertion = `<VolatoBootstrap dsn={${dsn}} />\n        {children}`;
 
   const withInsertion = original.replace("{children}", insertion);
   const withImports = insertAfterLastImport(withInsertion, importBlock);
@@ -367,13 +359,18 @@ function insertAfterLastImport(source: string, block: string): string {
  */
 export function buildMiddlewareSnippet(
   modulePath = "./volato/middleware",
+  language: "ts" | "js" = "ts",
 ): string {
+  const dsn =
+    language === "ts"
+      ? "process.env.NEXT_PUBLIC_VOLATO_DSN!"
+      : "process.env.NEXT_PUBLIC_VOLATO_DSN";
   return `import { wrapMiddleware } from "${modulePath}";
 
 export default wrapMiddleware(async (req) => {
   // your existing middleware logic
 }, {
-  dsn: process.env.NEXT_PUBLIC_VOLATO_DSN!,
+  dsn: ${dsn},
   release: process.env.NEXT_PUBLIC_VOLATO_RELEASE,
   commitSha: process.env.NEXT_PUBLIC_VOLATO_COMMIT_SHA,
   environment: process.env.NODE_ENV,
@@ -740,6 +737,7 @@ function findExportDefaultExpression(
 export function patchErrorBoundary(
   path: string,
   modulePath = "../volato/error-boundary",
+  language: "ts" | "js" = path.endsWith(".jsx") ? "js" : "ts",
 ): PatchOutcome {
   const existing = readIfExists(path);
   if (existing && existing.includes("captureFromErrorBoundary")) {
@@ -758,6 +756,16 @@ export function patchErrorBoundary(
   }
 
   ensureDir(path);
+  const props =
+    language === "ts"
+      ? `{
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}`
+      : "{ error, reset }";
   writeFileSync(
     path,
     `"use client";
@@ -765,13 +773,7 @@ export function patchErrorBoundary(
 import { useEffect } from "react";
 import { captureFromErrorBoundary } from "${modulePath}";
 
-export default function Error({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function Error(${props}) {
   useEffect(() => {
     captureFromErrorBoundary(error);
   }, [error]);

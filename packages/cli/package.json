@@ -38,11 +38,12 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "lint": "tsc --noEmit",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "generate:nextjs-js": "node scripts/generate-nextjs-javascript-runtime.mjs",
+    "build": "pnpm generate:nextjs-js && tsup",
+    "dev": "pnpm generate:nextjs-js && tsup --watch",
+    "lint": "pnpm generate:nextjs-js && tsc --noEmit",
+    "typecheck": "pnpm generate:nextjs-js && tsc --noEmit",
+    "test": "pnpm generate:nextjs-js && vitest run",
     "clean": "rm -rf dist .turbo",
     "prepublishOnly": "pnpm clean && pnpm build && pnpm test"
   },

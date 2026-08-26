@@ -18,6 +18,7 @@ export type VerifyGeneratedNextjsOptions = {
   appDir: AppRouterLocation;
   runtimeRoot: string;
   dsn: string;
+  language?: "ts" | "js";
   timeoutMs?: number;
 };
 
@@ -76,7 +77,9 @@ export function verificationRouteSource(
   serverModule: string,
   marker: string,
 ): string {
-  return `import { __captureExceptionWithDelivery, initServer } from ${JSON.stringify(serverModule)};
+  return `import { __captureExceptionWithDelivery, initServer } from ${JSON.stringify(
+    serverModule,
+  )};
 
 const marker = ${JSON.stringify(marker)};
 initServer({ enabled: true, environment: "development" });
@@ -119,10 +122,7 @@ async function freePort(): Promise<number> {
   });
 }
 
-function signalChild(
-  child: VerificationChild,
-  signal: NodeJS.Signals,
-): void {
+function signalChild(child: VerificationChild, signal: NodeJS.Signals): void {
   if (child.exitCode !== null || child.signalCode !== null) return;
   try {
     if (process.platform !== "win32" && child.pid) {
@@ -168,7 +168,9 @@ async function waitForVerification(
     if (child.exitCode !== null || child.signalCode !== null) {
       const logs = output().trim();
       throw new Error(
-        `Next.js exited before verification completed.${logs ? `\n${logs}` : ""}`,
+        `Next.js exited before verification completed.${
+          logs ? `\n${logs}` : ""
+        }`,
       );
     }
 
@@ -213,7 +215,9 @@ async function waitForVerification(
 
   const logs = output().trim();
   throw new Error(
-    `Timed out waiting for the generated Next.js integration (${lastDetail}).${logs ? `\n${logs}` : ""}`,
+    `Timed out waiting for the generated Next.js integration (${lastDetail}).${
+      logs ? `\n${logs}` : ""
+    }`,
   );
 }
 
@@ -241,7 +245,10 @@ export async function verifyGeneratedNextjsIntegration(
   } while (existsSync(routeDir));
   mkdirSync(routeDir);
 
-  const routePath = join(routeDir, "route.ts");
+  const routePath = join(
+    routeDir,
+    options.language === "js" ? "route.js" : "route.ts",
+  );
   const marker = randomUUID();
   const routeName = relative(join(options.cwd, options.appDir), routeDir)
     .replaceAll("\\", "/")
@@ -249,7 +256,13 @@ export async function verifyGeneratedNextjsIntegration(
   writeFileSync(
     routePath,
     verificationRouteSource(
-      localModule(routePath, join(options.runtimeRoot, "server")),
+      localModule(
+        routePath,
+        join(
+          options.runtimeRoot,
+          options.language === "js" ? "server.js" : "server",
+        ),
+      ),
       marker,
     ),
     { encoding: "utf8", flag: "wx" },
@@ -296,14 +309,7 @@ export async function verifyGeneratedNextjsIntegration(
     const port = await freePort();
     const startedChild = spawn(
       process.execPath,
-      [
-        nextBin,
-        "dev",
-        "--hostname",
-        "127.0.0.1",
-        "--port",
-        String(port),
-      ],
+      [nextBin, "dev", "--hostname", "127.0.0.1", "--port", String(port)],
       {
         cwd: options.cwd,
         detached: process.platform !== "win32",
