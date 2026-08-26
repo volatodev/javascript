@@ -93,7 +93,6 @@ try {
     "skills/volato-vite-react/assets/runtime/rspack.ts",
     "skills/volato-node/SKILL.md",
     "skills/volato-node/assets/runtime/node.ts",
-    "skills/volato-node/assets/runtime/node.js",
     "skills/volato-node/assets/runtime/express.ts",
     "skills/volato-node/assets/runtime/upload-sourcemaps.mjs",
   ]) {
@@ -125,6 +124,11 @@ try {
   assert(
     bundledCli.includes("volato errors init"),
     "packed CLI is missing the Errors installation surface",
+  );
+  assert(
+    bundledCli.includes("node.cjs") &&
+      bundledCli.includes("installFatalHandlers"),
+    "packed CLI is missing generated CommonJS Node capture",
   );
   const publicHelp = run(process.execPath, [cli, "--help"]);
   assert(

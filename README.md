@@ -27,6 +27,12 @@ with independent Node.js runtime capture and Express HTTP context. A Vite
 frontend does not imply Node: a project may install the browser adapter, the
 Node adapter, or both.
 
+The long-lived Node contract covers maintained Node 22/24, conventional
+servers, jobs and scripts, TypeScript/JavaScript, and package-declared
+ESM/CommonJS. Express 4/5 adds HTTP context for the conformed same-file and
+split app/listen topologies while preserving application-owned error handlers
+and responses.
+
 Setup generates:
 
 ```text
@@ -69,6 +75,9 @@ pnpm exec playwright install chromium
 pnpm build
 pnpm test
 pnpm smoke:nextjs
+pnpm smoke:browser-react
+pnpm smoke:node-long-lived
+pnpm smoke:express
 pnpm smoke:vite-node
 ```
 
@@ -84,6 +93,13 @@ every exercised production surface, without a Volato runtime dependency.
 adapters through the packed CLI, builds Vite and Node, captures browser,
 React, Express and fatal-process failures, and proves map privacy plus fatal
 exit semantics.
+
+`pnpm smoke:node-long-lived` consumes the frozen 24-cell matrix and runs the
+packed CLI on exact Node 22.23.2/24.19.0 binaries across the three process
+shapes, both languages and both module systems. `pnpm smoke:express` runs the
+four Express 4.22.2/5.2.1 topology cells with framework-specific async
+propagation, application-owned responses, privacy checks and exact source
+resolution.
 
 ## License
 

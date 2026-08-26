@@ -19,7 +19,7 @@ import {
 } from "./manifest.js";
 import { NODE_JAVASCRIPT_RUNTIME } from "../generated/node-javascript-runtime.js";
 
-export const NODE_RECIPE_VERSION = "1.1.0";
+export const NODE_RECIPE_VERSION = "1.2.0";
 
 export type GenerateNodeOptions = {
   cwd: string;
@@ -86,10 +86,11 @@ function runtimeModulePath(
   project: NodeProjectShape,
   runtimeRoot: string,
   name: "node" | "express",
+  fromPath = project.entryPath,
 ): string {
   const extension =
     project.language === "js" && project.module === "cjs" ? "cjs" : "js";
-  return modulePath(project.entryPath, join(runtimeRoot, `${name}.${extension}`));
+  return modulePath(fromPath, join(runtimeRoot, `${name}.${extension}`));
 }
 
 function importRuntime(
@@ -145,54 +146,117 @@ function patchNodeEntry(
     "initVolatoNode",
     runtimeModulePath(project, runtimeRoot, "node"),
   );
-  let prefix = `${nodeImport}initVolatoNode();\n`;
-  let body = original;
-  const outcomes: PatchOutcome[] = [];
+  writeFileSync(
+    path,
+    prependInitialization(original, `${nodeImport}initVolatoNode();\n`),
+    "utf8",
+  );
+  return [
+    {
+      path,
+      status: "updated",
+      detail: project.express
+        ? "initialized long-lived Node process capture"
+        : "initialized generic Node capture without Express HTTP context",
+    },
+  ];
+}
 
-  if (project.express) {
-    if (/app\.use\([\s\S]{0,120}\b(?:err|error)\b/.test(original)) {
-      return [
-        {
-          path,
-          status: "manual",
-          detail:
-            "existing Express error middleware detected; place volatoExpressErrorHandler before it so the existing response behavior remains authoritative",
-        },
-      ];
+function lineStart(source: string, index: number): number {
+  return source.lastIndexOf("\n", Math.max(0, index - 1)) + 1;
+}
+
+function inlineErrorHandlerIndex(source: string): number | null {
+  const match = /^[ \t]*app\.use\s*\(\s*(?:async\s*)?\(?\s*(?:err|error)\b[^\n]*=>/m.exec(
+    source,
+  );
+  return match?.index ?? null;
+}
+
+function namedErrorHandlerIndex(source: string): number | null {
+  const mounts = [...source.matchAll(/^[ \t]*app\.use\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*;?/gm)];
+  for (const mount of mounts) {
+    const name = mount[1]!;
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const declaration = new RegExp(
+      `(?:function\\s+${escaped}\\s*\\(|(?:const|let|var)\\s+${escaped}\\s*=\\s*(?:async\\s*)?\\(?)([^)]*)`,
+    ).exec(source);
+    if (
+      declaration &&
+      (declaration[1]?.match(/,/g)?.length ?? 0) >= 3
+    ) {
+      return mount.index;
     }
-    const listenIndex = body.lastIndexOf("app.listen");
-    if (listenIndex < 0) {
-      return [
-        {
-          path,
-          status: "manual",
-          detail:
-            "Express app.listen call was not found; mount volatoExpressErrorHandler after routes and before the existing error handler",
-        },
-      ];
-    }
-    const expressImport = importRuntime(
-      project,
-      "volatoExpressErrorHandler",
-      runtimeModulePath(project, runtimeRoot, "express"),
-    );
-    prefix = `${nodeImport}${expressImport}initVolatoNode();\n`;
-    const listenLineStart = body.lastIndexOf("\n", listenIndex) + 1;
-    body = `${body.slice(0, listenLineStart)}app.use(volatoExpressErrorHandler());\n${body.slice(listenLineStart)}`;
-    outcomes.push({
-      path,
-      status: "updated",
-      detail: "initialized Node capture and mounted Express error middleware after routes",
-    });
-  } else {
-    outcomes.push({
-      path,
-      status: "updated",
-      detail: "initialized generic Node capture without Express HTTP context",
-    });
   }
-  writeFileSync(path, prependInitialization(body, prefix), "utf8");
-  return outcomes;
+  return null;
+}
+
+function expressMountBoundary(
+  source: string,
+  topology: "same-file" | "split-bootstrap",
+): number | null {
+  const existingErrorHandler =
+    inlineErrorHandlerIndex(source) ?? namedErrorHandlerIndex(source);
+  if (existingErrorHandler !== null) return lineStart(source, existingErrorHandler);
+  const boundaryPatterns =
+    topology === "same-file"
+      ? [/\bapp\.listen\s*\(/]
+      : [/\bmodule\.exports\s*=\s*app\b/, /\bexport\s+default\s+app\b/, /\bexport\s*\{[^}]*\bapp\b[^}]*\}/];
+  for (const pattern of boundaryPatterns) {
+    const index = source.search(pattern);
+    if (index >= 0) return lineStart(source, index);
+  }
+  return null;
+}
+
+function patchExpressApp(
+  project: NodeProjectShape,
+  runtimeRoot: string,
+): PatchOutcome[] {
+  if (
+    !project.express ||
+    !project.expressAppPath ||
+    !project.expressTopology
+  ) {
+    return [];
+  }
+  const path = project.expressAppPath;
+  const original = readFileSync(path, "utf8");
+  if (original.includes("volatoExpressErrorHandler")) {
+    return [
+      {
+        path,
+        status: "skipped",
+        detail: "Express error capture already mounted",
+      },
+    ];
+  }
+  const boundary = expressMountBoundary(original, project.expressTopology);
+  if (boundary === null) {
+    return [
+      {
+        path,
+        status: "manual",
+        detail:
+          "mount volatoExpressErrorHandler after all routes and before the existing Express error handler or app export",
+      },
+    ];
+  }
+  const withMount = `${original.slice(0, boundary)}app.use(volatoExpressErrorHandler());\n${original.slice(boundary)}`;
+  const expressImport = importRuntime(
+    project,
+    "volatoExpressErrorHandler",
+    runtimeModulePath(project, runtimeRoot, "express", path),
+  );
+  writeFileSync(path, prependInitialization(withMount, expressImport), "utf8");
+  return [
+    {
+      path,
+      status: "updated",
+      detail:
+        "mounted Express capture after routes and before application-owned error handling",
+    },
+  ];
 }
 
 function patchBuildScript(
@@ -361,6 +425,7 @@ export function generateNodeIntegration(
       options.ingestToken !== undefined,
     ),
     ...patchNodeEntry(options.project, runtimeRoot),
+    ...patchExpressApp(options.project, runtimeRoot),
     patchBuildScript(options.cwd, runtimeRoot, options.project),
   ];
   const integration = createGeneratedIntegration(options.cwd, {

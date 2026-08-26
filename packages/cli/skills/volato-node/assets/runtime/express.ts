@@ -2,7 +2,6 @@ import { captureNodeException } from "./node.js";
 
 type ExpressRequest = {
   method?: unknown;
-  baseUrl?: unknown;
   route?: { path?: unknown };
   id?: unknown;
   get?: (name: string) => unknown;
@@ -18,10 +17,7 @@ function safeString(value: unknown, max: number): string | undefined {
 }
 
 function normalizedRoute(req: ExpressRequest): string | undefined {
-  const base = safeString(req.baseUrl, 2_048) ?? "";
-  const path = safeString(req.route?.path, 2_048);
-  if (!path) return base || undefined;
-  return `${base}${path}`.replace(/\/+/g, "/").slice(0, 4_096);
+  return safeString(req.route?.path, 4_096)?.replace(/\/+/g, "/");
 }
 
 export function volatoExpressErrorHandler() {

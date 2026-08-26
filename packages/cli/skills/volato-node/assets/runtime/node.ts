@@ -21,6 +21,7 @@ let activeConfig: Required<Pick<NodeConfig, "environment" | "timeoutMs">> &
   timeoutMs: 1_500,
 };
 let handlersInstalled = false;
+const capturedValues = new WeakSet<object>();
 
 function configured(config: NodeConfig = {}): typeof activeConfig {
   const environment =
@@ -73,6 +74,13 @@ export async function captureNodeException(
   context: NodeCaptureContext = {},
 ): Promise<boolean> {
   if (!activeConfig.dsn || activeConfig.enabled === false) return false;
+  if (
+    (typeof value === "object" && value !== null) ||
+    typeof value === "function"
+  ) {
+    if (capturedValues.has(value)) return false;
+    capturedValues.add(value);
+  }
   const error = asError(value);
   const release = activeConfig.release;
   const payload = {

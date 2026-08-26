@@ -41,8 +41,10 @@ instrument the app.
 \`volato errors init\` retrieves the linked project's credentials and generates
 the applicable independent adapters: Next.js 15/16 App Router or Pages Router,
 React browser capture with Vite, Webpack, or Rspack, and Node.js runtime capture
-with Express HTTP context when Express is present. A browser build tool alone
-never implies a Node server. No Volato runtime
+for conventional servers, jobs, and scripts on Node 22/24 across
+TypeScript/JavaScript and package-declared ESM/CommonJS. Express 4/5 HTTP
+context covers the conformed same-file and split app/listen topologies. A
+browser build tool alone never implies a Node server. No Volato runtime
 dependency is added. Re-running is idempotent and refuses to overwrite locally
 edited generated files. \`--send-test-event\` is the built-in Next.js verifier;
 the browser and Node skills define their production-build conformance scenarios.

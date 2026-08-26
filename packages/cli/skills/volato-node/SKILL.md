@@ -46,6 +46,9 @@ the first explicit HTTP adapter.
   headers, raw query values, or arbitrary parameters.
 - Keep `VOLATO_INGEST_TOKEN` server-only.
 - Never upload `sourcesContent`.
+- Server sourcemaps may remain beside a private Node deployment artifact after
+  sanitization; public browser maps are the files that must be removed. Do not
+  require deletion of a private `dist/server*.map` as a Node readiness check.
 - Do not attach a competing fatal handler when the application already owns
   one; require the explicit, rerunnable composition above.
 - Never keep a fatally broken process alive for telemetry.

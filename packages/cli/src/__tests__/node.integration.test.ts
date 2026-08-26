@@ -47,6 +47,122 @@ afterEach(() => {
 });
 
 describe("Node + Express generated integration", () => {
+  it("places capture before an existing same-file Express error handler", () => {
+    const entryPath = join(cwd, "src", "server.ts");
+    writeFileSync(
+      entryPath,
+      `import express from "express";
+const app = express();
+app.get("/health", (_req, res) => res.send("ok"));
+app.use((error, _req, res, _next) => res.status(418).send(error.message));
+app.listen(3000);
+`,
+    );
+    const project = detectErrorsStack(cwd).node!;
+
+    const result = generateNodeIntegration({
+      cwd,
+      project,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    const entry = readFileSync(entryPath, "utf8");
+    expect(entry.indexOf('app.get("/health"')).toBeLessThan(
+      entry.indexOf("app.use(volatoExpressErrorHandler())"),
+    );
+    expect(entry.indexOf("app.use(volatoExpressErrorHandler())")).toBeLessThan(
+      entry.indexOf("app.use((error"),
+    );
+    expect(result.outcomes.every((outcome) => outcome.status !== "manual")).toBe(
+      true,
+    );
+  });
+
+  it("places capture before a named four-argument Express error handler", () => {
+    const entryPath = join(cwd, "src", "server.ts");
+    writeFileSync(
+      entryPath,
+      `import express from "express";
+const app = express();
+app.get("/health", (_req, res) => res.send("ok"));
+function applicationErrorHandler(error, _req, res, _next) {
+  res.status(418).send(error.message);
+}
+app.use(applicationErrorHandler);
+app.listen(3000);
+`,
+    );
+
+    const project = detectErrorsStack(cwd).node!;
+    generateNodeIntegration({
+      cwd,
+      project,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    const entry = readFileSync(entryPath, "utf8");
+    expect(entry.indexOf("app.use(volatoExpressErrorHandler())")).toBeLessThan(
+      entry.indexOf("app.use(applicationErrorHandler)"),
+    );
+  });
+
+  it("composes a split CommonJS app before its existing error handler", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "split-express",
+        type: "commonjs",
+        dependencies: { express: "4.22.2" },
+      }, null, 2)}\n`,
+    );
+    rmSync(join(cwd, "src", "server.ts"));
+    const entryPath = join(cwd, "src", "server.js");
+    const appPath = join(cwd, "src", "app.js");
+    writeFileSync(
+      entryPath,
+      'const app = require("./app");\napp.listen(3000);\n',
+    );
+    writeFileSync(
+      appPath,
+      `const express = require("express");
+const app = express();
+app.get("/health", (_req, res) => res.send("ok"));
+app.use((error, _req, res, _next) => res.status(418).send(error.message));
+module.exports = app;
+`,
+    );
+    const project = detectErrorsStack(cwd).node!;
+    expect(project).toMatchObject({
+      expressTopology: "split-bootstrap",
+      expressAppPath: appPath,
+    });
+
+    const result = generateNodeIntegration({
+      cwd,
+      project,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    const entry = readFileSync(entryPath, "utf8");
+    const app = readFileSync(appPath, "utf8");
+    expect(entry).toContain(
+      'const { initVolatoNode } = require("./volato-node/node.cjs");',
+    );
+    expect(entry).not.toContain("volatoExpressErrorHandler");
+    expect(app).toContain(
+      'const { volatoExpressErrorHandler } = require("./volato-node/express.cjs");',
+    );
+    expect(app.indexOf('app.get("/health"')).toBeLessThan(
+      app.indexOf("app.use(volatoExpressErrorHandler())"),
+    );
+    expect(app.indexOf("app.use(volatoExpressErrorHandler())")).toBeLessThan(
+      app.indexOf("app.use((error"),
+    );
+    expect(result.outcomes.every((outcome) => outcome.status !== "manual")).toBe(
+      true,
+    );
+  });
+
   it("generates executable CommonJS source for a no-build JavaScript job", () => {
     writeFileSync(
       join(cwd, "package.json"),

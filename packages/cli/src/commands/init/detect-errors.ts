@@ -1,11 +1,12 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { detectProject, type ProjectShape } from "./detect.js";
 
 export type SourceLanguage = "ts" | "js";
 export type BrowserBuildAdapter = "vite" | "webpack" | "rspack";
 export type NodeModuleFormat = "esm" | "cjs";
 export type NodeProcessShape = "server" | "job" | "script";
+export type ExpressTopology = "same-file" | "split-bootstrap";
 
 export type BrowserReactProjectShape = {
   cwd: string;
@@ -27,6 +28,10 @@ export type NodeProjectShape = {
   language: SourceLanguage;
   module: NodeModuleFormat;
   processShape: NodeProcessShape;
+  expressVersion?: 4 | 5;
+  expressTopology?: ExpressTopology;
+  expressAppPath?: string;
+  expressUnsupportedReason?: string;
 };
 
 export type ErrorsStackShape = {
@@ -195,7 +200,7 @@ function nodeShape(
   deps: Record<string, string>,
   hasBrowserBuild: boolean,
 ): NodeProjectShape | undefined {
-  const express = typeof deps.express === "string";
+  const expressInstalled = typeof deps.express === "string";
   const candidates: Array<{
     path: string;
     processShape: NodeProcessShape;
@@ -223,7 +228,7 @@ function nodeShape(
     // not evidence of a deployed Node process without an HTTP framework.
     return !(
       hasBrowserBuild &&
-      !express &&
+      !expressInstalled &&
       processShape === "script" &&
       /^src\/index\.[jt]s$/.test(path)
     );
@@ -238,7 +243,7 @@ function nodeShape(
   }
   const selected = candidates[0];
   if (!selected) {
-    if (express) {
+    if (expressInstalled) {
       throw new ErrorsStackDetectionError(
         "Express is installed, but Volato could not identify one conventional server entry. Use src/server.{ts,js}, server.{ts,js}, src/index.{ts,js}, or index.{ts,js}, or select the server application root explicitly.",
       );
@@ -246,13 +251,94 @@ function nodeShape(
     return undefined;
   }
   const entryPath = join(cwd, selected.path);
+  const express = expressInstalled
+    ? detectExpressTopology(entryPath, deps.express!)
+    : null;
   return {
     cwd,
     entryPath,
-    express,
+    express: express?.supported ?? false,
     language: languageOf(entryPath),
     module: pkg.type === "module" ? "esm" : "cjs",
-    processShape: express ? "server" : selected.processShape,
+    processShape: expressInstalled ? "server" : selected.processShape,
+    ...(express?.supported
+      ? {
+          expressVersion: express.version,
+          expressTopology: express.topology,
+          expressAppPath: express.appPath,
+        }
+      : express
+        ? { expressUnsupportedReason: express.reason }
+        : {}),
+  };
+}
+
+type ExpressDetection =
+  | {
+      supported: true;
+      version: 4 | 5;
+      topology: ExpressTopology;
+      appPath: string;
+    }
+  | { supported: false; reason: string };
+
+function dependencyMajor(specifier: string): number | null {
+  const match = /(?:^|[^0-9])(\d+)(?:\.|$)/.exec(specifier);
+  return match ? Number(match[1]) : null;
+}
+
+function detectExpressTopology(
+  entryPath: string,
+  versionSpecifier: string,
+): ExpressDetection {
+  const major = dependencyMajor(versionSpecifier);
+  if (major !== 4 && major !== 5) {
+    return {
+      supported: false,
+      reason: `Express ${major ?? JSON.stringify(versionSpecifier)} HTTP composition is not supported`,
+    };
+  }
+  const entry = readFileSync(entryPath, "utf8");
+  const createsApp =
+    /\b(?:const|let|var)\s+app\s*=\s*express(?:\.default)?\s*\(/.test(
+      entry,
+    );
+  const listens = /\bapp\.listen\s*\(/.test(entry);
+  const extension = languageOf(entryPath) === "ts" ? "ts" : "js";
+  const appPath = join(dirname(entryPath), `app.${extension}`);
+  const hasAppFile = existsSync(appPath) && appPath !== entryPath;
+
+  if (createsApp && listens && !hasAppFile) {
+    return {
+      supported: true,
+      version: major,
+      topology: "same-file",
+      appPath: entryPath,
+    };
+  }
+  if (hasAppFile && listens) {
+    const app = readFileSync(appPath, "utf8");
+    const importsApp =
+      /(?:from\s*["']\.\/app(?:\.[cm]?[jt]s)?["']|require\s*\(\s*["']\.\/app(?:\.[cm]?[jt]s)?["']\s*\))/.test(
+        entry,
+      );
+    const appCreatesExpress =
+      /\b(?:const|let|var)\s+app\s*=\s*express(?:\.default)?\s*\(/.test(
+        app,
+      );
+    if (importsApp && appCreatesExpress) {
+      return {
+        supported: true,
+        version: major,
+        topology: "split-bootstrap",
+        appPath,
+      };
+    }
+  }
+  return {
+    supported: false,
+    reason:
+      "Express was detected, but one supported same-file or split app/listen topology could not be identified",
   };
 }
 
@@ -346,6 +432,11 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
       node
         ? `${label} HTTP context is not supported; only generic Node process and manual capture will be installed.`
         : `${label} HTTP context is not supported and no conventional Node server entry was found; the server was not modified.`,
+    );
+  }
+  if (node?.expressUnsupportedReason) {
+    notices.push(
+      `${node.expressUnsupportedReason}; generic Node process capture will be installed without Express HTTP context.`,
     );
   }
   return { cwd, browserReact, viteReact, node, notices };

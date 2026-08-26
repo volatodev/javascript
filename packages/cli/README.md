@@ -56,6 +56,12 @@ not touch application source or runtime credentials. `volato errors init` then
 retrieves credentials without printing them and owns the generated-file
 entries in the manifest. It adds no Volato runtime package.
 
+The long-lived Node recipe targets conventional servers, jobs, and scripts on
+Node 22/24, with TypeScript/JavaScript and package-declared ESM/CommonJS.
+Express 4/5 context is composed only for the conformed same-file or split
+app/listen topologies; unsupported or ambiguous HTTP composition remains
+generic Node capture with an explicit notice.
+
 The project-origins command replaces the complete browser-origin allowlist.
 It canonicalises URLs, removes duplicates, and is safe for an agent to rerun.
 `--clear` accepts browser events from any origin. This setting reduces casual

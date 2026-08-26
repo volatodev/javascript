@@ -61,6 +61,88 @@ describe("detectErrorsStack", () => {
     );
   });
 
+  it("detects an Express 5 same-file server topology", () => {
+    writePackage(
+      cwd,
+      { express: "5.2.1" },
+      { type: "module" },
+    );
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "server.ts"),
+      'import express from "express";\nconst app = express();\napp.get("/", route);\napp.listen(3000);\n',
+    );
+
+    expect(detectErrorsStack(cwd).node).toMatchObject({
+      express: true,
+      expressVersion: 5,
+      expressTopology: "same-file",
+      expressAppPath: join(cwd, "src", "server.ts"),
+    });
+  });
+
+  it("detects an Express 4 split CommonJS bootstrap topology", () => {
+    writePackage(
+      cwd,
+      { express: "4.22.2" },
+      { type: "commonjs" },
+    );
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "server.js"),
+      'const app = require("./app");\napp.listen(3000);\n',
+    );
+    writeFileSync(
+      join(cwd, "src", "app.js"),
+      'const express = require("express");\nconst app = express();\napp.get("/", route);\nmodule.exports = app;\n',
+    );
+
+    expect(detectErrorsStack(cwd).node).toMatchObject({
+      express: true,
+      expressVersion: 4,
+      expressTopology: "split-bootstrap",
+      expressAppPath: join(cwd, "src", "app.js"),
+    });
+  });
+
+  it("keeps generic Node capture when the installed Express major is unsupported", () => {
+    writePackage(
+      cwd,
+      { express: "6.0.0" },
+      { type: "module" },
+    );
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "server.js"),
+      'const app = express();\napp.listen(3000);\n',
+    );
+
+    const result = detectErrorsStack(cwd);
+    expect(result.node).toMatchObject({ express: false });
+    expect(result.notices).toContainEqual(
+      expect.stringMatching(/Express 6.*not supported.*generic Node/i),
+    );
+  });
+
+  it("does not guess between same-file and split Express app ownership", () => {
+    writePackage(cwd, { express: "5.2.1" }, { type: "module" });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "server.ts"),
+      'const app = express();\napp.listen(3000);\n',
+    );
+    writeFileSync(
+      join(cwd, "src", "app.ts"),
+      'const app = express();\nexport default app;\n',
+    );
+
+    const result = detectErrorsStack(cwd);
+    expect(result.node).toMatchObject({ express: false });
+    expect(result.notices).toContainEqual(
+      expect.stringMatching(/same-file or split.*could not be identified.*generic Node/i),
+    );
+  });
+
   it("detects Vite + React and Express independently in one application", () => {
     writePackage(cwd, {
       express: "^5.1.0",
