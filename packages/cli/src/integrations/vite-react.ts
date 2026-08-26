@@ -7,7 +7,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import type { ViteReactProjectShape } from "../commands/init/detect-errors.js";
+import type {
+  SourceLanguage,
+  ViteReactProjectShape,
+} from "../commands/init/detect-errors.js";
+import { BROWSER_JAVASCRIPT_RUNTIME } from "../generated/browser-javascript-runtime.js";
 import {
   patchEnvValues,
   type PatchOutcome,
@@ -20,7 +24,7 @@ import {
   writeIntegration,
 } from "./manifest.js";
 
-export const VITE_REACT_RECIPE_VERSION = "1.0.0";
+export const VITE_REACT_RECIPE_VERSION = "2.0.0";
 
 export type GenerateViteReactOptions = {
   cwd: string;
@@ -61,7 +65,19 @@ function filesUnder(root: string): string[] {
     .sort();
 }
 
-function copyRuntime(sourceRoot: string, targetRoot: string): string[] {
+function copyRuntime(
+  sourceRoot: string,
+  targetRoot: string,
+  language: SourceLanguage,
+): string[] {
+  if (language === "js") {
+    return Object.entries(BROWSER_JAVASCRIPT_RUNTIME).map(([name, contents]) => {
+      const target = join(targetRoot, name);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, contents, "utf8");
+      return target;
+    });
+  }
   return filesUnder(sourceRoot).map((path) => {
     const target = join(targetRoot, relative(sourceRoot, path));
     mkdirSync(dirname(target), { recursive: true });
@@ -92,7 +108,16 @@ function patchReactEntry(
         "existing React Error Boundary detected; call captureBrowserError from its componentDidCatch without replacing its fallback behavior",
     };
   }
-  const renderPattern = /(\.render\()\s*(<App\s*\/>)(\s*\);)/;
+  const renderCalls = original.match(/\.render\s*\(/g) ?? [];
+  if (renderCalls.length > 1) {
+    return {
+      path,
+      status: "manual",
+      detail:
+        "multiple React roots detected; compose one VolatoBootstrap for the browser and one VolatoErrorBoundary around each intended root",
+    };
+  }
+  const renderPattern = /(\.render\s*\()\s*([\s\S]+?)(\s*\);\s*)$/;
   if (!renderPattern.test(original)) {
     return {
       path,
@@ -104,7 +129,7 @@ function patchReactEntry(
   const importLine = `import { VolatoBootstrap, VolatoErrorBoundary } from ${JSON.stringify(browserModule)};\n`;
   const next = `${importLine}${original.replace(
     renderPattern,
-    "$1\n  <VolatoErrorBoundary>\n    <VolatoBootstrap />\n    $2\n  </VolatoErrorBoundary>$3",
+    "$1\n  <>\n    <VolatoBootstrap />\n    <VolatoErrorBoundary>\n      $2\n    </VolatoErrorBoundary>\n  </>$3",
   )}`;
   writeFileSync(path, next, "utf8");
   return { path, status: "updated", detail: "composed browser capture at the React root" };
@@ -152,7 +177,11 @@ export function generateViteReactIntegration(
   const sourceRoot = options.sourceRoot ?? assetsRoot();
   if (!existsSync(sourceRoot)) throw new Error(`Vite + React recipe assets are missing: ${sourceRoot}`);
   const runtimeRoot = join(options.cwd, "src", "volato");
-  const generatedFiles = copyRuntime(sourceRoot, runtimeRoot);
+  const generatedFiles = copyRuntime(
+    sourceRoot,
+    runtimeRoot,
+    options.project.language,
+  );
   const outcomes: PatchOutcome[] = [
     patchEnvValues(
       options.cwd,
@@ -166,7 +195,7 @@ export function generateViteReactIntegration(
     ),
     patchReactEntry(
       options.project.entryPath,
-      modulePath(options.project.entryPath, join(runtimeRoot, "browser")),
+      modulePath(options.project.entryPath, join(runtimeRoot, "react")),
     ),
     patchViteConfig(
       options.project.viteConfigPath,

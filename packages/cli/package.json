@@ -38,12 +38,14 @@
     "access": "public"
   },
   "scripts": {
+    "generate:browser-js": "node scripts/generate-browser-javascript-runtime.mjs",
     "generate:nextjs-js": "node scripts/generate-nextjs-javascript-runtime.mjs",
-    "build": "pnpm generate:nextjs-js && tsup",
-    "dev": "pnpm generate:nextjs-js && tsup --watch",
-    "lint": "pnpm generate:nextjs-js && tsc --noEmit",
-    "typecheck": "pnpm generate:nextjs-js && tsc --noEmit",
-    "test": "pnpm generate:nextjs-js && vitest run",
+    "generate:runtimes": "pnpm generate:nextjs-js && pnpm generate:browser-js",
+    "build": "pnpm generate:runtimes && tsup",
+    "dev": "pnpm generate:runtimes && tsup --watch",
+    "lint": "pnpm generate:runtimes && tsc --noEmit",
+    "typecheck": "pnpm generate:runtimes && tsc --noEmit",
+    "test": "pnpm generate:runtimes && vitest run",
     "clean": "rm -rf dist .turbo",
     "prepublishOnly": "pnpm clean && pnpm build && pnpm test"
   },

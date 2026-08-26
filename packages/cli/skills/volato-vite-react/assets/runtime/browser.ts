@@ -1,5 +1,3 @@
-import React, { type ErrorInfo, type ReactNode, useEffect } from "react";
-
 type CaptureSource =
   | "window_error"
   | "unhandled_rejection"
@@ -18,30 +16,29 @@ export type BrowserConfig = {
   enabled?: boolean;
 };
 
+declare const __VOLATO_BROWSER_CONFIG__: BrowserConfig | undefined;
+
 const ATTEMPT_TIMEOUT_MS = 1_500;
 let activeConfig: BrowserConfig | null = null;
 let listenersAttached = false;
 let warnedMissingDsn = false;
-const capturedObjects = new WeakSet<object>();
+let capturedObjects = new WeakSet<object>();
 
-function envValue(name: "dsn" | "release" | "environment"): string | undefined {
-  const env = import.meta.env as Record<string, unknown>;
-  const value =
-    name === "dsn"
-      ? env.VITE_VOLATO_DSN
-      : name === "release"
-        ? env.VITE_VOLATO_RELEASE
-        : env.VITE_VOLATO_ENVIRONMENT ?? env.MODE;
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+function injectedConfig(): BrowserConfig {
+  return typeof __VOLATO_BROWSER_CONFIG__ === "undefined"
+    ? {}
+    : (__VOLATO_BROWSER_CONFIG__ ?? {});
 }
 
 function effectiveConfig(config: BrowserConfig): BrowserConfig {
-  const environment = config.environment ?? envValue("environment") ?? "production";
+  const injected = injectedConfig();
+  const environment =
+    config.environment ?? injected.environment ?? "production";
   return {
-    dsn: config.dsn ?? envValue("dsn"),
-    release: config.release ?? envValue("release"),
+    dsn: config.dsn ?? injected.dsn,
+    release: config.release ?? injected.release,
     environment,
-    enabled: config.enabled ?? environment !== "development",
+    enabled: config.enabled ?? injected.enabled ?? environment !== "development",
   };
 }
 
@@ -107,7 +104,10 @@ function alreadyCaptured(value: unknown): boolean {
 
 function currentRoute(): string | undefined {
   if (typeof location === "undefined") return undefined;
-  return location.pathname.slice(0, 4_096);
+  const depth = location.pathname.split("/").filter(Boolean).length;
+  return depth === 0
+    ? "/"
+    : `/${Array.from({ length: Math.min(depth, 64) }, () => ":segment").join("/")}`;
 }
 
 export async function captureBrowserError(
@@ -160,55 +160,40 @@ export async function captureBrowserError(
   }
 }
 
+function onWindowError(event: ErrorEvent): void {
+  void captureBrowserError(event.error ?? event.message, {
+    capturedVia: "window_error",
+  });
+}
+
+function onUnhandledRejection(event: PromiseRejectionEvent): void {
+  void captureBrowserError(event.reason, { capturedVia: "unhandled_rejection" });
+}
+
 export function initVolatoBrowser(config: BrowserConfig = {}): void {
   if (typeof window === "undefined") return;
   const resolved = effectiveConfig(config);
   if (!resolved.dsn) {
     if (!warnedMissingDsn) {
       warnedMissingDsn = true;
-      console.error("[Volato] VITE_VOLATO_DSN is missing; browser capture is disabled.");
+      console.error("[Volato] Browser DSN is missing; capture is disabled.");
     }
     return;
   }
   activeConfig = resolved;
   if (listenersAttached) return;
   listenersAttached = true;
-  window.addEventListener("error", (event) => {
-    void captureBrowserError(event.error ?? event.message, {
-      capturedVia: "window_error",
-    });
-  });
-  window.addEventListener("unhandledrejection", (event) => {
-    void captureBrowserError(event.reason, { capturedVia: "unhandled_rejection" });
-  });
+  window.addEventListener("error", onWindowError);
+  window.addEventListener("unhandledrejection", onUnhandledRejection);
 }
 
-export function VolatoBootstrap(): null {
-  useEffect(() => initVolatoBrowser(), []);
-  return null;
-}
-
-type BoundaryProps = { children: ReactNode; fallback?: ReactNode };
-type BoundaryState = { failed: boolean };
-
-export class VolatoErrorBoundary extends React.Component<
-  BoundaryProps,
-  BoundaryState
-> {
-  state: BoundaryState = { failed: false };
-
-  static getDerivedStateFromError(): BoundaryState {
-    return { failed: true };
+export function __resetVolatoBrowserForTests(): void {
+  if (listenersAttached && typeof window !== "undefined") {
+    window.removeEventListener("error", onWindowError);
+    window.removeEventListener("unhandledrejection", onUnhandledRejection);
   }
-
-  componentDidCatch(error: Error, info: ErrorInfo): void {
-    void captureBrowserError(error, {
-      componentStack: info.componentStack ?? undefined,
-      capturedVia: "error_boundary",
-    });
-  }
-
-  render(): ReactNode {
-    return this.state.failed ? (this.props.fallback ?? null) : this.props.children;
-  }
+  activeConfig = null;
+  listenersAttached = false;
+  warnedMissingDsn = false;
+  capturedObjects = new WeakSet<object>();
 }

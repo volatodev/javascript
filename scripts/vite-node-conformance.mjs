@@ -168,8 +168,8 @@ import { describe, expect, it } from "vitest";
 import {
   initVolatoBrowser,
   captureBrowserError,
-  VolatoErrorBoundary,
 } from "./volato/browser";
+import { VolatoErrorBoundary } from "./volato/react";
 
 const dsn = process.env.VOLATO_TEST_DSN!;
 
@@ -353,7 +353,8 @@ try {
   for (const required of [
     ".agents/skills/volato-vite-react/SKILL.md",
     ".agents/skills/volato-node/SKILL.md",
-    "src/volato/browser.tsx",
+    "src/volato/browser.ts",
+    "src/volato/react.tsx",
     "src/volato/vite.ts",
     "src/volato-node/node.ts",
     "src/volato-node/express.ts",

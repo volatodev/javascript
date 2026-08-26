@@ -145,12 +145,15 @@ export function withVolato(
       const loaded = loadEnv(env.mode, process.cwd(), "");
       dsn = loaded.VITE_VOLATO_DSN;
       ingestToken = loaded.VOLATO_INGEST_TOKEN;
+      const environment =
+        options.environment ?? loaded.VITE_VOLATO_ENVIRONMENT ?? env.mode;
       return {
         define: {
-          "import.meta.env.VITE_VOLATO_RELEASE": JSON.stringify(release ?? ""),
-          "import.meta.env.VITE_VOLATO_ENVIRONMENT": JSON.stringify(
-            options.environment ?? loaded.VITE_VOLATO_ENVIRONMENT ?? env.mode,
-          ),
+          __VOLATO_BROWSER_CONFIG__: JSON.stringify({
+            dsn,
+            environment,
+            release,
+          }),
         },
         build: { sourcemap: true },
       };
