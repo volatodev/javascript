@@ -19,6 +19,7 @@
     "eval:errors-agent": "node scripts/errors-agent-eval.mjs",
     "eval:errors-regression-agent": "node scripts/errors-regression-agent-eval.mjs",
     "eval:errors-setup-agent": "pnpm --filter @volatodev/cli build && node scripts/errors-setup-agent-eval.mjs",
+    "matrix:errors": "node scripts/errors-runtime-matrix.mjs",
     "smoke:nextjs": "pnpm --filter @volatodev/cli build && node scripts/nextjs-conformance.mjs",
     "smoke:vite-node": "pnpm --filter @volatodev/cli build && node scripts/vite-node-conformance.mjs",
     "smoke:published": "node scripts/package-smoke.mjs @volatodev/cli@beta",
