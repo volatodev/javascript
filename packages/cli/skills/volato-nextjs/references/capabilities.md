@@ -23,6 +23,8 @@ Also verify:
 - browser, server and Edge bundles contain only APIs available in their runtime;
 - Pages Router keeps existing `_app` and `_error` behavior, including the
   original `_error.getInitialProps`, while client render failures emit once;
+- hybrid applications compose both routers around one generated runtime, with
+  one browser and server event per original failure;
 - middleware forwards the build-injected `NEXT_PUBLIC_VOLATO_RELEASE` to
   `wrapMiddleware`, so Edge events select the same sourcemaps as other runtimes;
 - Next.js 16 remains on its configured bundler and runs the generated browser

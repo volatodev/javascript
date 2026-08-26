@@ -172,6 +172,40 @@ describe("Next.js generated integration", () => {
     ).toBe(true);
   });
 
+  it("composes App and Pages routers through one generated runtime", () => {
+    mkdirSync(join(cwd, "src", "pages"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "pages", "legacy.tsx"),
+      "export default function Legacy() { return <main>Legacy</main>; }\n",
+    );
+    const project = detectProject(cwd);
+
+    const result = generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+
+    expect(project.routerKind).toBe("hybrid");
+    expect(result.runtimeRoot).toBe(join(cwd, "src", "volato"));
+    expect(readFileSync(project.layoutPath!, "utf8")).toContain(
+      'from "../volato/client"',
+    );
+    expect(readFileSync(project.errorBoundaryPath!, "utf8")).toContain(
+      'from "../volato/error-boundary"',
+    );
+    expect(readFileSync(project.pagesAppPath!, "utf8")).toContain(
+      'from "../volato/client"',
+    );
+    expect(readFileSync(project.pagesErrorPath!, "utf8")).toContain(
+      'from "../volato/pages-error"',
+    );
+    expect(
+      result.generatedFiles.filter((path) => path.endsWith("client.tsx")),
+    ).toHaveLength(1);
+  });
+
   it("is idempotent while generated files remain untouched", () => {
     const project = detectProject(cwd);
     generateNextjsIntegration({

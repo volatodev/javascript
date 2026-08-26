@@ -1,5 +1,6 @@
 import { execFileSync, spawn } from "node:child_process";
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -90,13 +91,17 @@ const FULL_MATRIX = [
   { next: "15.5.22", react: "19.2.8" },
   { next: "16.2.12", react: "19.2.8" },
 ].flatMap((version) =>
-  ["app", "pages"].flatMap((router) =>
+  ["app", "pages", "hybrid"].flatMap((router) =>
     ["ts", "js"].map((language) => ({
       ...version,
       router,
       language,
       label: `Next.js ${version.next.split(".")[0]} ${
-        router === "app" ? "App Router" : "Pages Router"
+        router === "app"
+          ? "App Router"
+          : router === "pages"
+            ? "Pages Router"
+            : "App + Pages Router"
       } ${language === "ts" ? "TypeScript" : "JavaScript"}`,
     })),
   ),
@@ -170,8 +175,10 @@ function writeFixture(root, entry) {
   const typescript = entry.language === "ts";
   const componentExtension = typescript ? "tsx" : "jsx";
   const configExtension = typescript ? "ts" : "mjs";
-  const routerRoot = entry.router === "app" ? "app" : "pages";
-  mkdirSync(join(root, routerRoot), { recursive: true });
+  const hasAppRouter = entry.router !== "pages";
+  const hasPagesRouter = entry.router !== "app";
+  if (hasAppRouter) mkdirSync(join(root, "app"), { recursive: true });
+  if (hasPagesRouter) mkdirSync(join(root, "pages"), { recursive: true });
   writeFileSync(
     join(root, "package.json"),
     `${JSON.stringify(
@@ -201,7 +208,7 @@ function writeFixture(root, entry) {
       2,
     )}\n`,
   );
-  if (entry.router === "app") {
+  if (hasAppRouter) {
     writeFileSync(
       join(root, "app", `layout.${componentExtension}`),
       typescript
@@ -214,14 +221,58 @@ function writeFixture(root, entry) {
 }
 `,
     );
+    const appPageRoot =
+      entry.router === "hybrid" ? join(root, "app", "app-home") : join(root, "app");
+    mkdirSync(appPageRoot, { recursive: true });
     writeFileSync(
-      join(root, "app", `page.${componentExtension}`),
+      join(appPageRoot, `page.${componentExtension}`),
       `export default function Page() {
   return <main>Volato conformance</main>;
 }
 `,
     );
-  } else {
+    const appBrowserRoot = join(root, "app", "app-browser-crash");
+    mkdirSync(appBrowserRoot, { recursive: true });
+    writeFileSync(
+      join(appBrowserRoot, `page.${componentExtension}`),
+      `"use client";
+
+import { useEffect, useState } from "react";
+
+export default function AppBrowserCrash() {
+  const [crash, setCrash] = useState(false);
+  useEffect(() => {
+    document.documentElement.dataset.volatoFixtureHydrated = "app";
+  }, []);
+  if (crash) throw new Error("Volato App browser render conformance");
+  return <button id="volato-app-browser-crash" onClick={() => setCrash(true)}>Crash</button>;
+}
+`,
+    );
+    const appServerRoot = join(root, "app", "app-server-crash");
+    mkdirSync(appServerRoot, { recursive: true });
+    writeFileSync(
+      join(appServerRoot, `page.${componentExtension}`),
+      `export const dynamic = "force-dynamic";
+
+export default function AppServerCrash() {
+  throw new Error("Volato App server render conformance");
+}
+`,
+    );
+    const appApiRoot = join(root, "app", "api", "app-crash");
+    mkdirSync(appApiRoot, { recursive: true });
+    writeFileSync(
+      join(appApiRoot, `route.${typescript ? "ts" : "js"}`),
+      `import { wrapRoute } from "../../../volato/server${typescript ? "" : ".js"}";
+
+export const GET = wrapRoute(async function GET() {
+  throw new Error("Volato App Route Handler conformance");
+});
+`,
+    );
+  }
+  if (hasPagesRouter) {
     mkdirSync(join(root, "pages", "api"), { recursive: true });
     writeFileSync(
       join(root, "pages", `index.${componentExtension}`),
@@ -350,12 +401,33 @@ async function reservePort() {
 
 async function startNextProduction(root) {
   const port = await reservePort();
+  const standaloneRoot = join(root, ".next", "standalone");
+  const standaloneEntry = join(standaloneRoot, "server.js");
+  assert(
+    existsSync(standaloneEntry),
+    "Next.js production build did not emit its standalone server.",
+  );
+  const staticRoot = join(root, ".next", "static");
+  if (existsSync(staticRoot)) {
+    cpSync(staticRoot, join(standaloneRoot, ".next", "static"), {
+      recursive: true,
+    });
+  }
+  const publicRoot = join(root, "public");
+  if (existsSync(publicRoot)) {
+    cpSync(publicRoot, join(standaloneRoot, "public"), { recursive: true });
+  }
   const child = spawn(
-    "pnpm",
-    ["exec", "next", "start", "-H", "127.0.0.1", "-p", String(port)],
+    process.execPath,
+    [standaloneEntry],
     {
-      cwd: root,
-      env: { ...process.env, NO_COLOR: "1" },
+      cwd: standaloneRoot,
+      env: {
+        ...process.env,
+        HOSTNAME: "127.0.0.1",
+        PORT: String(port),
+        NO_COLOR: "1",
+      },
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
@@ -401,6 +473,130 @@ async function waitForEventCount(count, logs, label) {
     await new Promise((resolveWait) => setTimeout(resolveWait, 50));
   }
   throw new Error(`${label} timed out waiting for ingest.\n${logs()}`);
+}
+
+async function exerciseBrowserSurface(production, browser, entry, surface) {
+  const page = await browser.newPage();
+  try {
+    await page.goto(`${production.origin}${surface.path}?token=browser-secret`);
+    await page.waitForFunction(
+      (hydrationMarker) =>
+        document.documentElement.dataset.volatoFixtureHydrated ===
+        hydrationMarker,
+      surface.hydrationMarker,
+    );
+
+    const beforeWindowEvents = state.testEvents.length;
+    await page.evaluate((message) => {
+      const error = new Error(message);
+      window.dispatchEvent(
+        new ErrorEvent("error", { error, message: error.message }),
+      );
+    }, surface.windowMessage);
+    await waitForEventCount(
+      beforeWindowEvents + 1,
+      production.logs,
+      `${entry.label} ${surface.label} window witness`,
+    );
+    await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+    assert(
+      state.testEvents.length === beforeWindowEvents + 1,
+      `${entry.label} ${surface.label} installed duplicate window listeners.`,
+    );
+    const windowEvent = state.testEvents.at(-1);
+    assert(
+      windowEvent.message === surface.windowMessage &&
+        windowEvent.runtime === "client" &&
+        windowEvent.capturedVia === "window_error",
+      `${entry.label} ${surface.label} window witness used an unexpected capture path: ${JSON.stringify(
+        windowEvent,
+      )}`,
+    );
+
+    const beforeRenderEvents = state.testEvents.length;
+    await page.locator(surface.selector).click();
+    await waitForEventCount(
+      beforeRenderEvents + 1,
+      production.logs,
+      `${entry.label} ${surface.label} browser render`,
+    );
+    await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+    assert(
+      state.testEvents.length === beforeRenderEvents + 1,
+      `${entry.label} ${surface.label} browser render did not emit exactly one event.\n${production.logs()}`,
+    );
+    const renderEvent = state.testEvents.at(-1);
+    assert(
+      renderEvent.message === surface.renderMessage &&
+        renderEvent.runtime === "client" &&
+        renderEvent.capturedVia === "error_boundary",
+      `${entry.label} ${surface.label} browser render used an unexpected capture path: ${JSON.stringify(
+        renderEvent,
+      )}`,
+    );
+    assert(
+      !JSON.stringify(renderEvent).includes("browser-secret"),
+      `${entry.label} ${surface.label} browser render leaked query values.`,
+    );
+  } finally {
+    await page.close();
+  }
+}
+
+async function exerciseServerSurface(production, entry, surface) {
+  const beforeEvents = state.testEvents.length;
+  const response = await fetch(
+    `${production.origin}${surface.path}?token=server-secret`,
+    {
+      headers: {
+        cookie: "session=server-secret",
+        "user-agent": "volato-nextjs-conformance",
+      },
+    },
+  );
+  assert(
+    !response.ok,
+    `${entry.label} ${surface.path} did not preserve failure semantics.`,
+  );
+  await waitForEventCount(
+    beforeEvents + 1,
+    production.logs,
+    `${entry.label} ${surface.label}`,
+  );
+  await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+  const emittedEvents = state.testEvents.slice(beforeEvents);
+  const primaryEvents = emittedEvents.filter(
+    (event) => event.message === surface.message,
+  );
+  const unexpectedEvents = emittedEvents.filter(
+    (event) =>
+      event.message !== surface.message &&
+      !(surface.allowedSecondaryMessages ?? []).includes(event.message),
+  );
+  assert(
+    primaryEvents.length === 1 && unexpectedEvents.length === 0,
+    `${entry.label} ${surface.path} did not emit exactly one primary event: ${JSON.stringify(
+      emittedEvents.map((event) => ({
+        message: event.message,
+        runtime: event.runtime,
+        capturedVia: event.capturedVia,
+      })),
+    )}.\n${production.logs()}`,
+  );
+  const event = primaryEvents[0];
+  assert(
+    event.message === surface.message &&
+      event.runtime === surface.runtime &&
+      event.capturedVia === surface.capturedVia,
+    `${entry.label} ${surface.path} used an unexpected capture path: ${JSON.stringify(
+      event,
+    )}`,
+  );
+  const serialized = JSON.stringify(event);
+  assert(
+    !serialized.includes("server-secret") && !serialized.includes("session="),
+    `${entry.label} ${surface.path} leaked query or cookie values.`,
+  );
 }
 
 const state = {
@@ -595,10 +791,16 @@ try {
         testEvent.capturedVia === "manual",
       `${entry.label} setup test event did not use the generated server capture path.`,
     );
-    const apiRoot = join(fixture, entry.router, "api");
+    const verificationApiRoot = join(
+      fixture,
+      entry.router === "pages" ? "pages" : "app",
+      "api",
+    );
     assert(
-      !existsSync(apiRoot) ||
-        !readdirSync(apiRoot).some((name) => name.startsWith("volato-verify-")),
+      !existsSync(verificationApiRoot) ||
+        !readdirSync(verificationApiRoot).some((name) =>
+          name.startsWith("volato-verify-"),
+        ),
       `${entry.label} setup left its temporary verification route behind.`,
     );
     assert(
@@ -609,13 +811,17 @@ try {
     );
     const componentExtension = entry.language === "ts" ? "tsx" : "jsx";
     const runtimeExtension = entry.language === "ts" ? "ts" : "js";
-    const routerFiles =
-      entry.router === "app"
+    const routerFiles = [
+      ...(entry.router !== "pages"
         ? [`app/error.${componentExtension}`]
-        : [
+        : []),
+      ...(entry.router !== "app"
+        ? [
             `pages/_app.${componentExtension}`,
             `pages/_error.${componentExtension}`,
-          ];
+          ]
+        : []),
+    ];
     for (const required of [
       ".agents/skills/volato-setup/SKILL.md",
       ".agents/skills/volato-errors/SKILL.md",
@@ -677,14 +883,22 @@ try {
         !fixturePackage.devDependencies?.typescript,
         `${entry.label} unexpectedly required TypeScript.`,
       );
-      const browserEntry =
-        entry.router === "app"
-          ? join(fixture, "app", "layout.jsx")
-          : join(fixture, "pages", "_app.jsx");
-      assert(
-        !readFileSync(browserEntry, "utf8").includes("NEXT_PUBLIC_VOLATO_DSN!"),
-        `${entry.label} left a TypeScript non-null assertion in layout.jsx.`,
-      );
+      const browserEntries = [
+        ...(entry.router !== "pages"
+          ? [join(fixture, "app", "layout.jsx")]
+          : []),
+        ...(entry.router !== "app"
+          ? [join(fixture, "pages", "_app.jsx")]
+          : []),
+      ];
+      for (const browserEntry of browserEntries) {
+        assert(
+          !readFileSync(browserEntry, "utf8").includes(
+            "NEXT_PUBLIC_VOLATO_DSN!",
+          ),
+          `${entry.label} left a TypeScript non-null assertion in ${browserEntry}.`,
+        );
+      }
     }
 
     if (index === 0) {
@@ -712,8 +926,8 @@ try {
         `${entry.label} setup reported a false success after ingest rejected the event.`,
       );
       assert(
-        !existsSync(apiRoot) ||
-          !readdirSync(apiRoot).some((name) =>
+        !existsSync(verificationApiRoot) ||
+          !readdirSync(verificationApiRoot).some((name) =>
             name.startsWith("volato-verify-"),
           ),
         `${entry.label} failed verification left its temporary route behind.`,
@@ -766,165 +980,91 @@ try {
       filesWithSuffix(join(fixture, ".next", "server"), ".js.map").length > 0,
       `${entry.label} build removed private server sourcemaps before standalone assembly.`,
     );
-    if (entry.router === "pages" || entry.next.startsWith("16.")) {
-      const production = await startNextProduction(fixture);
+    const production = await startNextProduction(fixture);
+    try {
+      const browser = await chromium.launch({ headless: true });
       try {
-        if (entry.router === "pages") {
-          const beforeBrowserEvents = state.testEvents.length;
-          const browser = await chromium.launch({ headless: true });
-          try {
-            const page = await browser.newPage();
-            await page.goto(
-              `${production.origin}/browser-crash?token=browser-secret`,
-            );
-            await page.waitForFunction(
-              () =>
-                document.documentElement.dataset.volatoFixtureHydrated ===
-                "true",
-            );
-            const beforeWindowEvents = state.testEvents.length;
-            await page.evaluate(() => {
-              const error = new Error("Volato Pages window witness");
-              window.dispatchEvent(
-                new ErrorEvent("error", { error, message: error.message }),
-              );
-            });
-            await waitForEventCount(
-              beforeWindowEvents + 1,
-              production.logs,
-              `${entry.label} window witness`,
-            );
-            const windowEvent = state.testEvents.at(-1);
-            assert(
-              windowEvent.message === "Volato Pages window witness" &&
-                windowEvent.runtime === "client" &&
-                windowEvent.capturedVia === "window_error",
-              `${
-                entry.label
-              } window witness used an unexpected capture path: ${JSON.stringify(
-                windowEvent,
-              )}`,
-            );
-
-            const beforeRenderEvents = state.testEvents.length;
-            await page.locator("#volato-browser-crash").click();
-            await waitForEventCount(
-              beforeRenderEvents + 1,
-              production.logs,
-              `${entry.label} browser render`,
-            );
-            await new Promise((resolveWait) => setTimeout(resolveWait, 500));
-          } finally {
-            await browser.close();
-          }
-          assert(
-            state.testEvents.length === beforeBrowserEvents + 2,
-            `${
-              entry.label
-            } browser render did not emit exactly one event.\n${production.logs()}`,
-          );
-          const browserEvent = state.testEvents.at(-1);
-          assert(
-            browserEvent.message ===
-              "Volato Pages browser render conformance" &&
-              browserEvent.runtime === "client" &&
-              browserEvent.capturedVia === "error_boundary",
-            `${
-              entry.label
-            } browser render used an unexpected capture path: ${JSON.stringify(
-              browserEvent,
-            )}`,
-          );
-          assert(
-            !JSON.stringify(browserEvent).includes("browser-secret"),
-            `${entry.label} browser render leaked query values.`,
-          );
-
-          for (const surface of [
-            {
-              path: "/ssr-crash?token=pages-secret",
-              message: "Volato Pages SSR conformance",
-              runtime: "pages_render",
-            },
-            {
-              path: "/api/crash?token=pages-secret",
-              message: "Volato Pages API conformance",
-              runtime: "route_handler",
-            },
-          ]) {
-            const beforeEvents = state.testEvents.length;
-            const response = await fetch(
-              `${production.origin}${surface.path}`,
-              {
-                headers: {
-                  cookie: "session=pages-secret",
-                  "user-agent": "volato-nextjs-conformance",
-                },
-              },
-            );
-            assert(
-              !response.ok,
-              `${entry.label} ${surface.path} did not preserve failure semantics.`,
-            );
-            assert(
-              state.testEvents.length === beforeEvents + 1,
-              `${entry.label} ${
-                surface.path
-              } did not emit exactly one event.\n${production.logs()}`,
-            );
-            const event = state.testEvents.at(-1);
-            assert(
-              event.message === surface.message &&
-                event.runtime === surface.runtime &&
-                event.capturedVia === "on_request_error",
-              `${entry.label} ${
-                surface.path
-              } used an unexpected capture path: ${JSON.stringify(event)}`,
-            );
-            const serialized = JSON.stringify(event);
-            assert(
-              !serialized.includes("pages-secret") &&
-                !serialized.includes("session="),
-              `${entry.label} ${surface.path} leaked query or cookie values.`,
-            );
-          }
+        if (entry.router !== "pages") {
+          await exerciseBrowserSurface(production, browser, entry, {
+            label: "App Router",
+            path: "/app-browser-crash",
+            hydrationMarker: "app",
+            selector: "#volato-app-browser-crash",
+            windowMessage: "Volato App window witness",
+            renderMessage: "Volato App browser render conformance",
+          });
         }
-        if (entry.next.startsWith("16.")) {
-          const beforeProxyEvents = state.testEvents.length;
-          const response = await fetch(
-            `${production.origin}/volato-proxy-crash?token=proxy-secret`,
-            {
-              headers: {
-                cookie: "session=proxy-secret",
-                "user-agent": "volato-nextjs-conformance",
-              },
-            },
-          );
-          assert(
-            !response.ok,
-            "Next.js 16 proxy fixture did not preserve failure semantics.",
-          );
-          assert(
-            state.testEvents.length === beforeProxyEvents + 1,
-            `Next.js 16 proxy did not emit exactly one event.\n${production.logs()}`,
-          );
-          const proxyEvent = state.testEvents.at(-1);
-          assert(
-            proxyEvent.message === "Volato Next.js 16 proxy conformance" &&
-              proxyEvent.runtime === "middleware" &&
-              proxyEvent.capturedVia === "wrap_middleware",
-            "Next.js 16 proxy event used an unexpected capture path.",
-          );
-          const serializedProxyEvent = JSON.stringify(proxyEvent);
-          assert(
-            !serializedProxyEvent.includes("proxy-secret") &&
-              !serializedProxyEvent.includes("session="),
-            "Next.js 16 proxy event leaked query or cookie values.",
-          );
+        if (entry.router !== "app") {
+          await exerciseBrowserSurface(production, browser, entry, {
+            label: "Pages Router",
+            path: "/browser-crash",
+            hydrationMarker: "true",
+            selector: "#volato-browser-crash",
+            windowMessage: "Volato Pages window witness",
+            renderMessage: "Volato Pages browser render conformance",
+          });
         }
       } finally {
-        await stopNextProduction(production.child);
+        await browser.close();
       }
+
+      if (entry.router !== "pages") {
+        for (const surface of [
+          {
+            label: "App Router server render",
+            path: "/app-server-crash",
+            message: "Volato App server render conformance",
+            runtime: "rsc",
+            capturedVia: "on_request_error",
+          },
+          {
+            label: "App Route Handler",
+            path: "/api/app-crash",
+            message: "Volato App Route Handler conformance",
+            runtime: "route_handler",
+            capturedVia: "wrap_route",
+          },
+        ]) {
+          await exerciseServerSurface(production, entry, surface);
+        }
+      }
+      if (entry.router !== "app") {
+        for (const surface of [
+          {
+            label: "Pages Router SSR",
+            path: "/ssr-crash",
+            message: "Volato Pages SSR conformance",
+            runtime: "pages_render",
+            capturedVia: "on_request_error",
+          },
+          {
+            label: "Pages API Route",
+            path: "/api/crash",
+            message: "Volato Pages API conformance",
+            runtime: "route_handler",
+            capturedVia: "on_request_error",
+          },
+        ]) {
+          await exerciseServerSurface(production, entry, surface);
+        }
+      }
+      if (entry.next.startsWith("16.")) {
+        await exerciseServerSurface(production, entry, {
+          label: "Next.js 16 proxy",
+          path: "/volato-proxy-crash",
+          message: "Volato Next.js 16 proxy conformance",
+          runtime: "middleware",
+          capturedVia: "wrap_middleware",
+          // Next.js 16 emits a separate ERR_HTTP_HEADERS_SENT cascade after
+          // rethrowing a proxy failure. It is a real second error, not a
+          // duplicate of the wrapped failure, so Volato must not hide it.
+          allowedSecondaryMessages: [
+            "Cannot append headers after they are sent to the client",
+          ],
+        });
+      }
+    } finally {
+      await stopNextProduction(production.child);
     }
     process.stdout.write(
       `✓ ${entry.label} ${entry.next}: authenticated init + production build\n`,

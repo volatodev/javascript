@@ -198,6 +198,34 @@ describe("detectProject", () => {
     expect(project.language).toBe("js");
   });
 
+  it("detects an App + Pages hybrid and keeps both router entry points", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "src", "app"), { recursive: true });
+    mkdirSync(join(cwd, "src", "pages"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "app", "layout.tsx"),
+      "export default () => null;",
+    );
+    writeFileSync(
+      join(cwd, "src", "pages", "legacy.tsx"),
+      "export default () => null;",
+    );
+
+    const project = detectProject(cwd);
+
+    expect(project.routerKind).toBe("hybrid");
+    expect(project.appDir).toBe("src/app");
+    expect(project.pagesDir).toBe("src/pages");
+    expect(project.layoutPath).toBe(join(cwd, "src", "app", "layout.tsx"));
+    expect(project.pagesAppPath).toBe(join(cwd, "src", "pages", "_app.tsx"));
+    expect(project.pagesErrorPath).toBe(
+      join(cwd, "src", "pages", "_error.tsx"),
+    );
+    expect(project.instrumentationPath).toBe(
+      join(cwd, "src", "instrumentation.ts"),
+    );
+  });
+
   it("rejects a Next.js project with neither router", () => {
     makePackageJson();
 

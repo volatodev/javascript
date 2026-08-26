@@ -20,11 +20,11 @@ investigation and correction job;
 `volato-nextjs`, `volato-vite-react`, and `volato-node` own independent capture
 integrations. Generated application source emits only contract-declared data.
 
-Errors supports JavaScript and TypeScript Next.js 15/16 App Router and Pages
-Router applications, plus Vite + React browser capture, with independent
-Node.js runtime capture and Express HTTP context. A Vite frontend does not
-imply Node: a project may install the browser adapter, the Node adapter, or
-both.
+Errors supports JavaScript and TypeScript Next.js 15/16 App Router, Pages
+Router, and hybrid App + Pages applications, plus Vite + React browser capture,
+with independent Node.js runtime capture and Express HTTP context. A Vite
+frontend does not imply Node: a project may install the browser adapter, the
+Node adapter, or both.
 
 Setup generates:
 
@@ -73,10 +73,10 @@ pnpm smoke:vite-node
 ```
 
 `pnpm smoke:nextjs` creates clean JavaScript and TypeScript Next.js 15 and 16
-App Router and Pages Router applications, connects each repository, initializes
-Errors, exercises router-specific browser and server failures, builds for
-production and requires real sourcemap uploads without a Volato runtime
-dependency.
+App Router, Pages Router, and hybrid applications, connects each repository,
+initializes Errors, exercises router-specific browser and server failures,
+builds for production and requires real sourcemap uploads without a Volato
+runtime dependency.
 
 `pnpm smoke:vite-node` creates a clean full-stack fixture, installs both
 adapters through the packed CLI, builds Vite and Node, captures browser,

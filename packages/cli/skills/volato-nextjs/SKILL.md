@@ -1,6 +1,6 @@
 ---
 name: volato-nextjs
-description: Generate, adapt, and verify the dependency-free Volato integration for a JavaScript or TypeScript Next.js 15/16 App Router or Pages Router application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, SSR, server action, route handler, API Route, middleware, build identity, or sourcemap capture must be checked.
+description: Generate, adapt, and verify the dependency-free Volato integration for a JavaScript or TypeScript Next.js 15/16 App Router, Pages Router, or hybrid application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, SSR, server action, route handler, API Route, middleware, build identity, or sourcemap capture must be checked.
 ---
 
 # Set up Volato for Next.js
