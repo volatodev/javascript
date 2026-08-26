@@ -30,6 +30,37 @@ afterEach(() => {
 });
 
 describe("detectErrorsStack", () => {
+  it.each([
+    ["server", "src/server.ts", "module", "ts", "esm"],
+    ["job", "src/job.js", "commonjs", "js", "cjs"],
+    ["script", "src/index.ts", "commonjs", "ts", "cjs"],
+  ] as const)(
+    "detects one conventional %s entry with its language and module format",
+    (processShape, entry, packageType, language, module) => {
+      writePackage(cwd, {}, { type: packageType });
+      mkdirSync(join(cwd, "src"));
+      writeFileSync(join(cwd, entry), "export const fixture = true;\n");
+
+      expect(detectErrorsStack(cwd).node).toMatchObject({
+        entryPath: join(cwd, entry),
+        processShape,
+        language,
+        module,
+      });
+    },
+  );
+
+  it("refuses ambiguous conventional Node entries instead of selecting the first", () => {
+    writePackage(cwd, {}, { type: "module" });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(join(cwd, "src", "server.js"), "startServer();\n");
+    writeFileSync(join(cwd, "src", "job.js"), "runJob();\n");
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(
+      /multiple conventional Node entries.*src\/server\.js.*src\/job\.js.*no files were modified/i,
+    );
+  });
+
   it("detects Vite + React and Express independently in one application", () => {
     writePackage(cwd, {
       express: "^5.1.0",

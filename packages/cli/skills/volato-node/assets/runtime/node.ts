@@ -12,6 +12,7 @@ export type NodeConfig = {
   release?: string;
   enabled?: boolean;
   timeoutMs?: number;
+  installFatalHandlers?: boolean;
 };
 
 let activeConfig: Required<Pick<NodeConfig, "environment" | "timeoutMs">> &
@@ -30,6 +31,7 @@ function configured(config: NodeConfig = {}): typeof activeConfig {
     environment,
     enabled: config.enabled ?? environment !== "development",
     timeoutMs: config.timeoutMs ?? 1_500,
+    installFatalHandlers: config.installFatalHandlers ?? true,
   };
 }
 
@@ -129,6 +131,7 @@ export function initVolatoNode(config: NodeConfig = {}): void {
     console.error("[Volato] VOLATO_DSN is missing; Node capture is disabled.");
     return;
   }
+  if (activeConfig.installFatalHandlers === false) return;
   if (handlersInstalled) return;
   handlersInstalled = true;
 

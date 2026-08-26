@@ -47,6 +47,136 @@ afterEach(() => {
 });
 
 describe("Node + Express generated integration", () => {
+  it("generates executable CommonJS source for a no-build JavaScript job", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "worker",
+        type: "commonjs",
+      }, null, 2)}\n`,
+    );
+    rmSync(join(cwd, "src", "server.ts"));
+    writeFileSync(
+      join(cwd, "src", "job.js"),
+      "#!/usr/bin/env node\nrunJob();\n",
+    );
+
+    const project = detectErrorsStack(cwd).node!;
+    const result = generateNodeIntegration({
+      cwd,
+      project,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    const entry = readFileSync(project.entryPath, "utf8");
+    expect(entry).toMatch(/^#!\/usr\/bin\/env node\nconst \{ initVolatoNode \} = require\("\.\/volato-node\/node\.cjs"\);/);
+    expect(existsSync(join(cwd, "src", "volato-node", "node.cjs"))).toBe(
+      true,
+    );
+    expect(readFileSync(join(cwd, "src", "volato-node", "node.cjs"), "utf8")).toContain(
+      "module.exports",
+    );
+    expect(result.outcomes.every((outcome) => outcome.status !== "manual")).toBe(
+      true,
+    );
+  });
+
+  it("generates executable ESM source for a no-build JavaScript script", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({ name: "script", type: "module" }, null, 2)}\n`,
+    );
+    rmSync(join(cwd, "src", "server.ts"));
+    writeFileSync(join(cwd, "src", "index.js"), "await runScript();\n");
+
+    const project = detectErrorsStack(cwd).node!;
+    const result = generateNodeIntegration({
+      cwd,
+      project,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    expect(readFileSync(project.entryPath, "utf8")).toMatch(
+      /^import \{ initVolatoNode \} from "\.\/volato-node\/node\.js";/,
+    );
+    expect(existsSync(join(cwd, "src", "volato-node", "node.js"))).toBe(true);
+    expect(result.outcomes.every((outcome) => outcome.status !== "manual")).toBe(
+      true,
+    );
+  });
+
+  it("requires and then recognizes explicit composition with existing fatal handlers", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "worker",
+        type: "module",
+        scripts: { build: "tsc --sourceMap" },
+      }, null, 2)}\n`,
+    );
+    writeFileSync(
+      join(cwd, "tsconfig.json"),
+      `${JSON.stringify({ compilerOptions: { outDir: "dist" } }, null, 2)}\n`,
+    );
+    const entryPath = join(cwd, "src", "server.ts");
+    const original = `process.on("uncaughtException", async (error) => {
+  await closeDatabase();
+  process.exit(1);
+});
+process.on("unhandledRejection", async (reason) => {
+  await closeDatabase();
+  process.exit(1);
+});
+startServer();
+`;
+    writeFileSync(entryPath, original);
+    const project = detectErrorsStack(cwd).node!;
+
+    const first = generateNodeIntegration({
+      cwd,
+      project,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    expect(first.outcomes).toContainEqual(
+      expect.objectContaining({
+        path: entryPath,
+        status: "manual",
+        detail: expect.stringMatching(
+          /captureNodeException.*installFatalHandlers: false.*original handlers/i,
+        ),
+      }),
+    );
+    expect(readFileSync(entryPath, "utf8")).toBe(original);
+
+    writeFileSync(
+      entryPath,
+      `import { captureNodeException, initVolatoNode } from "./volato-node/node.js";
+initVolatoNode({ installFatalHandlers: false });
+process.on("uncaughtException", async (error) => {
+  await captureNodeException(error, { capturedVia: "uncaught_exception" });
+  await closeDatabase();
+  process.exit(1);
+});
+process.on("unhandledRejection", async (reason) => {
+  await captureNodeException(reason, { capturedVia: "unhandled_rejection" });
+  await closeDatabase();
+  process.exit(1);
+});
+startServer();
+`,
+    );
+
+    const second = generateNodeIntegration({
+      cwd,
+      project,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+    expect(second.outcomes.every((outcome) => outcome.status !== "manual")).toBe(
+      true,
+    );
+  });
+
   it("installs fatal runtime capture, Express context, and a post-build map upload", () => {
     const project = detectErrorsStack(cwd).node!;
     const result = generateNodeIntegration({

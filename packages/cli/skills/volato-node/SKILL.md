@@ -10,8 +10,12 @@ the first explicit HTTP adapter.
 
 ## Workflow
 
-1. Identify the deployed Node entry and production build command. Do not treat
-   frontend tooling as proof of a server runtime.
+1. Identify exactly one conventional deployed Node entry and production build
+   command. The supported long-lived matrix is Node 22.23.2/24.19.0,
+   TypeScript/JavaScript, package-declared ESM/CommonJS, and
+   `server`/`job`/`script` entries. Multiple conventional entries require an
+   explicit application root/entry. Do not treat frontend tooling as proof of
+   a server runtime.
 2. Run `volato init --project <id>` when needed, then `volato errors init`.
 3. Inspect the generated `volato-node/` runtime, entry import, process handler,
    build script, environment values, and manifest entry.
@@ -30,6 +34,11 @@ the first explicit HTTP adapter.
 7. Exercise manual capture, a controlled Express error when applicable, and a
    fatal child-process error. Confirm fatal capture flushes within its bounded
    deadline and the child still exits non-zero.
+8. If the selected entry already owns `uncaughtException` or
+   `unhandledRejection`, preserve that handler: await `captureNodeException`
+   inside it with the matching `capturedVia`, initialize with
+   `installFatalHandlers: false`, retain the original cleanup/exit behavior,
+   and rerun setup until the manual outcome disappears.
 
 ## Privacy and lifecycle rules
 
@@ -38,7 +47,7 @@ the first explicit HTTP adapter.
 - Keep `VOLATO_INGEST_TOKEN` server-only.
 - Never upload `sourcesContent`.
 - Do not attach a competing fatal handler when the application already owns
-  one; require explicit composition with `captureNodeException`.
+  one; require the explicit, rerunnable composition above.
 - Never keep a fatally broken process alive for telemetry.
 - Do not claim Express context for Node without Express.
 

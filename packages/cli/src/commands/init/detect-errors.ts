@@ -4,6 +4,8 @@ import { detectProject, type ProjectShape } from "./detect.js";
 
 export type SourceLanguage = "ts" | "js";
 export type BrowserBuildAdapter = "vite" | "webpack" | "rspack";
+export type NodeModuleFormat = "esm" | "cjs";
+export type NodeProcessShape = "server" | "job" | "script";
 
 export type BrowserReactProjectShape = {
   cwd: string;
@@ -23,6 +25,8 @@ export type NodeProjectShape = {
   entryPath: string;
   express: boolean;
   language: SourceLanguage;
+  module: NodeModuleFormat;
+  processShape: NodeProcessShape;
 };
 
 export type ErrorsStackShape = {
@@ -187,36 +191,69 @@ function browserShape(
 
 function nodeShape(
   cwd: string,
+  pkg: PackageJson,
   deps: Record<string, string>,
   hasBrowserBuild: boolean,
 ): NodeProjectShape | undefined {
-  const entryPath = firstExisting(cwd, [
-    "src/server.ts",
-    "src/server.js",
-    "server.ts",
-    "server.js",
-    "src/index.ts",
-    "src/index.js",
-    "index.ts",
-    "index.js",
-  ]);
   const express = typeof deps.express === "string";
-  if (!entryPath) {
+  const candidates: Array<{
+    path: string;
+    processShape: NodeProcessShape;
+  }> = [
+    ...["src/server.ts", "src/server.js", "server.ts", "server.js"].map(
+      (path) => ({ path, processShape: "server" as const }),
+    ),
+    ...["src/job.ts", "src/job.js", "job.ts", "job.js"].map((path) => ({
+      path,
+      processShape: "job" as const,
+    })),
+    ...[
+      "src/script.ts",
+      "src/script.js",
+      "script.ts",
+      "script.js",
+      "src/index.ts",
+      "src/index.js",
+      "index.ts",
+      "index.js",
+    ].map((path) => ({ path, processShape: "script" as const })),
+  ].filter(({ path, processShape }) => {
+    if (!existsSync(join(cwd, path))) return false;
+    // A browser build commonly owns src/index.* as a helper or barrel. It is
+    // not evidence of a deployed Node process without an HTTP framework.
+    return !(
+      hasBrowserBuild &&
+      !express &&
+      processShape === "script" &&
+      /^src\/index\.[jt]s$/.test(path)
+    );
+  });
+
+  if (candidates.length > 1) {
+    throw new ErrorsStackDetectionError(
+      `Multiple conventional Node entries were detected (${candidates
+        .map(({ path }) => path)
+        .join(", ")}). Select one application entry explicitly; no files were modified.`,
+    );
+  }
+  const selected = candidates[0];
+  if (!selected) {
     if (express) {
       throw new ErrorsStackDetectionError(
-        "Express is installed, but Volato could not identify a server entry. Use src/server.ts, src/server.js, server.ts, or server.js, or select the server application root explicitly.",
+        "Express is installed, but Volato could not identify one conventional server entry. Use src/server.{ts,js}, server.{ts,js}, src/index.{ts,js}, or index.{ts,js}, or select the server application root explicitly.",
       );
     }
     return undefined;
   }
-
-  // Vite's own Node-based build toolchain is not evidence of a deployed Node
-  // runtime. A Vite app gets server capture only when a distinct server entry
-  // exists (or Express is explicitly installed).
-  if (hasBrowserBuild && !express && /src\/index\.[jt]s$/.test(entryPath)) {
-    return undefined;
-  }
-  return { cwd, entryPath, express, language: languageOf(entryPath) };
+  const entryPath = join(cwd, selected.path);
+  return {
+    cwd,
+    entryPath,
+    express,
+    language: languageOf(entryPath),
+    module: pkg.type === "module" ? "esm" : "cjs",
+    processShape: express ? "server" : selected.processShape,
+  };
 }
 
 function nestedPackageRoots(cwd: string, pkg: PackageJson): string[] {
@@ -276,7 +313,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
           viteConfigPath: browserReact.buildConfigPath,
         }
       : undefined;
-  const node = nodeShape(cwd, deps, Boolean(browserReact));
+  const node = nodeShape(cwd, pkg, deps, Boolean(browserReact));
   const unsupportedBackends = unsupportedBackendLabels(cwd);
   const unsupportedHttpFrameworks = UNSUPPORTED_HTTP_FRAMEWORKS.filter(
     ([dependency]) => typeof deps[dependency] === "string",

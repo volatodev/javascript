@@ -17,8 +17,9 @@ import {
   readManifest,
   writeIntegration,
 } from "./manifest.js";
+import { NODE_JAVASCRIPT_RUNTIME } from "../generated/node-javascript-runtime.js";
 
-export const NODE_RECIPE_VERSION = "1.0.0";
+export const NODE_RECIPE_VERSION = "1.1.0";
 
 export type GenerateNodeOptions = {
   cwd: string;
@@ -52,23 +53,60 @@ function assetsRoot(): string {
 function modulePath(fromFile: string, target: string): string {
   let path = relative(dirname(fromFile), target).replaceAll("\\", "/");
   if (!path.startsWith(".")) path = `./${path}`;
-  return `${path}.js`;
+  return path;
 }
 
 function copyRuntime(
   sourceRoot: string,
   targetRoot: string,
-  language: "ts" | "js",
+  project: NodeProjectShape,
 ): string[] {
-  const extension = language === "ts" ? "ts" : "js";
+  const extension =
+    project.language === "ts"
+      ? "ts"
+      : project.module === "cjs"
+        ? "cjs"
+        : "js";
   const names = [`node.${extension}`, `express.${extension}`, "upload-sourcemaps.mjs"];
   return names.map((name) => {
-    const source = join(sourceRoot, name);
     const target = join(targetRoot, name);
     mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, readFileSync(source));
+    if (project.language === "js" && name !== "upload-sourcemaps.mjs") {
+      const generated = NODE_JAVASCRIPT_RUNTIME[name];
+      if (!generated) throw new Error(`Generated Node runtime is missing: ${name}`);
+      writeFileSync(target, generated, "utf8");
+    } else {
+      writeFileSync(target, readFileSync(join(sourceRoot, name)));
+    }
     return target;
   });
+}
+
+function runtimeModulePath(
+  project: NodeProjectShape,
+  runtimeRoot: string,
+  name: "node" | "express",
+): string {
+  const extension =
+    project.language === "js" && project.module === "cjs" ? "cjs" : "js";
+  return modulePath(project.entryPath, join(runtimeRoot, `${name}.${extension}`));
+}
+
+function importRuntime(
+  project: NodeProjectShape,
+  name: "initVolatoNode" | "volatoExpressErrorHandler",
+  path: string,
+): string {
+  return project.module === "cjs"
+    ? `const { ${name} } = require(${JSON.stringify(path)});\n`
+    : `import { ${name} } from ${JSON.stringify(path)};\n`;
+}
+
+function prependInitialization(original: string, prefix: string): string {
+  const shebang = /^(#![^\n]*(?:\n|$))/.exec(original)?.[1];
+  return shebang
+    ? `${shebang}${prefix}${original.slice(shebang.length)}`
+    : `${prefix}${original}`;
 }
 
 function patchNodeEntry(
@@ -77,12 +115,36 @@ function patchNodeEntry(
 ): PatchOutcome[] {
   const path = project.entryPath;
   const original = readFileSync(path, "utf8");
+  const existingFatalHandlers = [
+    "uncaughtException",
+    "unhandledRejection",
+  ].filter((event) =>
+    new RegExp(
+      `process\\.(?:on|once|prependListener)\\s*\\(\\s*["']${event}["']`,
+    ).test(original),
+  );
+  if (
+    existingFatalHandlers.length > 0 &&
+    !original.includes("installFatalHandlers: false")
+  ) {
+    return [
+      {
+        path,
+        status: "manual",
+        detail:
+          `existing ${existingFatalHandlers.join(" and ")} handlers detected; ` +
+          "import and await captureNodeException inside each handler with its capturedVia value, initialize initVolatoNode({ installFatalHandlers: false }), and keep the original handlers' cleanup and exit semantics",
+      },
+    ];
+  }
   if (original.includes("initVolatoNode")) {
     return [{ path, status: "skipped", detail: "Node capture already initialized" }];
   }
-  const nodeImport = `import { initVolatoNode } from ${JSON.stringify(
-    modulePath(path, join(runtimeRoot, "node")),
-  )};\n`;
+  const nodeImport = importRuntime(
+    project,
+    "initVolatoNode",
+    runtimeModulePath(project, runtimeRoot, "node"),
+  );
   let prefix = `${nodeImport}initVolatoNode();\n`;
   let body = original;
   const outcomes: PatchOutcome[] = [];
@@ -109,9 +171,11 @@ function patchNodeEntry(
         },
       ];
     }
-    const expressImport = `import { volatoExpressErrorHandler } from ${JSON.stringify(
-      modulePath(path, join(runtimeRoot, "express")),
-    )};\n`;
+    const expressImport = importRuntime(
+      project,
+      "volatoExpressErrorHandler",
+      runtimeModulePath(project, runtimeRoot, "express"),
+    );
     prefix = `${nodeImport}${expressImport}initVolatoNode();\n`;
     const listenLineStart = body.lastIndexOf("\n", listenIndex) + 1;
     body = `${body.slice(0, listenLineStart)}app.use(volatoExpressErrorHandler());\n${body.slice(listenLineStart)}`;
@@ -127,11 +191,15 @@ function patchNodeEntry(
       detail: "initialized generic Node capture without Express HTTP context",
     });
   }
-  writeFileSync(path, `${prefix}${body}`, "utf8");
+  writeFileSync(path, prependInitialization(body, prefix), "utf8");
   return outcomes;
 }
 
-function patchBuildScript(cwd: string, runtimeRoot: string): PatchOutcome {
+function patchBuildScript(
+  cwd: string,
+  runtimeRoot: string,
+  project: NodeProjectShape,
+): PatchOutcome {
   const path = join(cwd, "package.json");
   const pkg = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
   const scripts =
@@ -140,6 +208,13 @@ function patchBuildScript(cwd: string, runtimeRoot: string): PatchOutcome {
       : null;
   const build = scripts?.build;
   if (typeof build !== "string") {
+    if (project.language === "js") {
+      return {
+        path,
+        status: "skipped",
+        detail: "direct JavaScript source needs no production sourcemap upload",
+      };
+    }
     return {
       path,
       status: "manual",
@@ -273,7 +348,7 @@ export function generateNodeIntegration(
   if (!existsSync(sourceRoot)) throw new Error(`Node recipe assets are missing: ${sourceRoot}`);
   const sourceDirectory = dirname(options.project.entryPath);
   const runtimeRoot = join(sourceDirectory, "volato-node");
-  const generatedFiles = copyRuntime(sourceRoot, runtimeRoot, options.project.language);
+  const generatedFiles = copyRuntime(sourceRoot, runtimeRoot, options.project);
   const outcomes: PatchOutcome[] = [
     patchEnvValues(
       options.cwd,
@@ -286,7 +361,7 @@ export function generateNodeIntegration(
       options.ingestToken !== undefined,
     ),
     ...patchNodeEntry(options.project, runtimeRoot),
-    patchBuildScript(options.cwd, runtimeRoot),
+    patchBuildScript(options.cwd, runtimeRoot, options.project),
   ];
   const integration = createGeneratedIntegration(options.cwd, {
     recipe: options.project.express ? "errors-node-express" : "errors-node",

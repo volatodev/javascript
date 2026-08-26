@@ -10,6 +10,7 @@ dist/
 next-env.d.ts
 packages/cli/src/generated/nextjs-javascript-runtime.ts
 packages/cli/src/generated/browser-javascript-runtime.ts
+packages/cli/src/generated/node-javascript-runtime.ts
 
 # Env files
 .env

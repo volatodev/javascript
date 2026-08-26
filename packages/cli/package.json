@@ -40,7 +40,8 @@
   "scripts": {
     "generate:browser-js": "node scripts/generate-browser-javascript-runtime.mjs",
     "generate:nextjs-js": "node scripts/generate-nextjs-javascript-runtime.mjs",
-    "generate:runtimes": "pnpm generate:nextjs-js && pnpm generate:browser-js",
+    "generate:node-js": "node scripts/generate-node-javascript-runtime.mjs",
+    "generate:runtimes": "pnpm generate:nextjs-js && pnpm generate:browser-js && pnpm generate:node-js",
     "build": "pnpm generate:runtimes && tsup",
     "dev": "pnpm generate:runtimes && tsup --watch",
     "lint": "pnpm generate:runtimes && tsc --noEmit",
