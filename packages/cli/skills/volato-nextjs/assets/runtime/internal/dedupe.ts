@@ -16,7 +16,25 @@
 const DEFAULT_TTL_MS = 5_000;
 const MAX_ENTRIES = 200;
 
-const lastSeenAt = new Map<string, number>();
+const DEDUPE_STATE_KEY = Symbol.for("@volatodev/nextjs/dedupe-state");
+
+function sharedLastSeenAt(): Map<string, number> {
+  const registry = globalThis as unknown as Record<symbol, unknown>;
+  const existing = registry[DEDUPE_STATE_KEY];
+  if (existing instanceof Map) {
+    return existing as Map<string, number>;
+  }
+
+  const created = new Map<string, number>();
+  registry[DEDUPE_STATE_KEY] = created;
+  return created;
+}
+
+// Next.js can compile Route Handlers and instrumentation into independent
+// bundles whose module scopes do not meet even though they run in the same
+// process. Sharing this bounded map prevents the rethrown Route Handler error
+// from being sent again by `onRequestError`.
+const lastSeenAt = sharedLastSeenAt();
 
 function firstFrame(stack: unknown): string {
   if (typeof stack !== "string") return "";

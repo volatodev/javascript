@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   __resetDedupeForTests,
   shouldSend,
@@ -28,6 +28,19 @@ describe("shouldSend", () => {
     expect(shouldSend(evA(), { now: () => now })).toBe(true);
     now = 1_000;
     expect(shouldSend(evA(), { now: () => now })).toBe(false);
+  });
+
+  it("shares recent captures across independently bundled runtime modules", async () => {
+    const firstBundle = await import("../internal/dedupe");
+    firstBundle.__resetDedupeForTests();
+    expect(firstBundle.shouldSend(evA(), { now: () => 0 })).toBe(true);
+
+    vi.resetModules();
+    const instrumentationBundle = await import("../internal/dedupe");
+    expect(
+      instrumentationBundle.shouldSend(evA(), { now: () => 1_000 }),
+    ).toBe(false);
+    instrumentationBundle.__resetDedupeForTests();
   });
 
   it("after TTL expiry, the same event passes again", () => {
