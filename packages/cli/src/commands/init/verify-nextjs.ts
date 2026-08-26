@@ -11,11 +11,12 @@ import {
 import { createServer } from "node:net";
 import { dirname, join, relative } from "node:path";
 import type { Readable } from "node:stream";
-import type { AppRouterLocation } from "./detect";
+import type { AppRouterLocation, PagesRouterLocation } from "./detect";
 
 export type VerifyGeneratedNextjsOptions = {
   cwd: string;
-  appDir: AppRouterLocation;
+  appDir?: AppRouterLocation | null;
+  pagesDir?: PagesRouterLocation | null;
   runtimeRoot: string;
   dsn: string;
   language?: "ts" | "js";
@@ -99,6 +100,45 @@ export async function GET() {
     { marker, accepted, stack: Boolean(error.stack), detail },
     { status: accepted ? 200 : 502 },
   );
+}
+`;
+}
+
+export function verificationPagesApiSource(
+  serverModule: string,
+  marker: string,
+  language: "ts" | "js",
+): string {
+  const typeImport =
+    language === "ts"
+      ? 'import type { NextApiRequest, NextApiResponse } from "next";\n'
+      : "";
+  const requestType = language === "ts" ? ": NextApiRequest" : "";
+  const responseType = language === "ts" ? ": NextApiResponse" : "";
+  return `${typeImport}import { __captureExceptionWithDelivery, initServer } from ${JSON.stringify(
+    serverModule,
+  )};
+
+const marker = ${JSON.stringify(marker)};
+initServer({ enabled: true, environment: "development" });
+
+export default async function handler(_request${requestType}, response${responseType}) {
+  const error = new Error("Volato integration test — generated Next.js runtime");
+  const accepted = await __captureExceptionWithDelivery(error, {
+    runtime: "route_handler",
+    route: "/__volato_verify__",
+    capturedVia: "manual",
+  });
+  const detail = accepted
+    ? "ingest accepted the generated capture"
+    : "ingest did not accept the generated capture";
+
+  response.status(accepted ? 200 : 502).json({
+    marker,
+    accepted,
+    stack: Boolean(error.stack),
+    detail,
+  });
 }
 `;
 }
@@ -232,7 +272,14 @@ async function waitForVerification(
 export async function verifyGeneratedNextjsIntegration(
   options: VerifyGeneratedNextjsOptions,
 ): Promise<void> {
-  const apiDir = join(options.cwd, options.appDir, "api");
+  const routerRoot = options.appDir ?? options.pagesDir;
+  if (!routerRoot) {
+    throw new Error(
+      "Next.js verification requires an App or Pages Router root.",
+    );
+  }
+  const appRouter = Boolean(options.appDir);
+  const apiDir = join(options.cwd, routerRoot, "api");
   const apiDirExisted = existsSync(apiDir);
   mkdirSync(apiDir, { recursive: true });
 
@@ -247,26 +294,33 @@ export async function verifyGeneratedNextjsIntegration(
 
   const routePath = join(
     routeDir,
-    options.language === "js" ? "route.js" : "route.ts",
+    appRouter
+      ? options.language === "js"
+        ? "route.js"
+        : "route.ts"
+      : options.language === "js"
+      ? "index.js"
+      : "index.ts",
   );
   const marker = randomUUID();
-  const routeName = relative(join(options.cwd, options.appDir), routeDir)
+  const routeName = relative(join(options.cwd, routerRoot), routeDir)
     .replaceAll("\\", "/")
     .replace(/^api\//, "api/");
-  writeFileSync(
+  const serverModule = localModule(
     routePath,
-    verificationRouteSource(
-      localModule(
-        routePath,
-        join(
-          options.runtimeRoot,
-          options.language === "js" ? "server.js" : "server",
-        ),
-      ),
-      marker,
+    join(
+      options.runtimeRoot,
+      options.language === "js" ? "server.js" : "server",
     ),
-    { encoding: "utf8", flag: "wx" },
   );
+  const routeSource = appRouter
+    ? verificationRouteSource(serverModule, marker)
+    : verificationPagesApiSource(
+        serverModule,
+        marker,
+        options.language ?? "ts",
+      );
+  writeFileSync(routePath, routeSource, { encoding: "utf8", flag: "wx" });
 
   let child: VerificationChild | null = null;
   const cleanupFiles = () => {

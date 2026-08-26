@@ -31,8 +31,8 @@ type NextErrorContext = {
   renderType?: string;
 };
 
-function mapRuntime(routeType: NextRouteType): ServerRuntime {
-  switch (routeType) {
+function mapRuntime(context: NextErrorContext): ServerRuntime {
+  switch (context.routeType) {
     case "route":
       return "route_handler";
     case "action":
@@ -41,7 +41,7 @@ function mapRuntime(routeType: NextRouteType): ServerRuntime {
       return "middleware";
     case "render":
     default:
-      return "rsc";
+      return context.routerKind === "Pages Router" ? "pages_render" : "rsc";
   }
 }
 
@@ -83,7 +83,7 @@ export async function onRequestError(
 ): Promise<void> {
   const route = context.routePath ?? request?.path;
   await captureException(error, {
-    runtime: mapRuntime(context.routeType),
+    runtime: mapRuntime(context),
     route: route ? scrubPath(route) : undefined,
     headers: buildHeaders(request?.headers),
     capturedVia: "on_request_error",

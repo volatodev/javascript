@@ -69,6 +69,7 @@ const WHITELISTED_HEADERS = ["user-agent", "referer"] as const;
 
 export type ServerRuntime =
   | "rsc"
+  | "pages_render"
   | "server_action"
   | "route_handler"
   | "middleware";

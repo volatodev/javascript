@@ -48,6 +48,25 @@ describe("onRequestError (Next.js 15 instrumentation hook)", () => {
     expect(body.route).toBe("/dashboard");
   });
 
+  it("distinguishes a Pages Router server render from RSC", async () => {
+    await onRequestError(
+      new Error("pages SSR boom"),
+      { path: "/account?token=secret", method: "GET", headers: {} },
+      {
+        routerKind: "Pages Router",
+        routePath: "/pages/account",
+        routeType: "render",
+        renderSource: "server-rendering",
+      },
+    );
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0]![1] as RequestInit).body as string,
+    ) as Record<string, unknown>;
+    expect(body.runtime).toBe("pages_render");
+    expect(JSON.stringify(body)).not.toContain("secret");
+  });
+
   it("maps routeType=action to runtime=server_action", async () => {
     await onRequestError(
       new Error("action boom"),

@@ -17,6 +17,8 @@ import {
   patchInstrumentation,
   patchLayout,
   patchNextConfig,
+  patchPagesApp,
+  patchPagesError,
 } from "../commands/init/patch";
 
 let cwd: string;
@@ -255,6 +257,107 @@ export default function RootLayout({
     const out = patchLayout(path);
 
     expect(out.status).toBe("manual");
+  });
+});
+
+describe("patchPagesApp", () => {
+  it("creates a minimal TypeScript custom App without disabling static optimization", () => {
+    const path = join(cwd, "pages", "_app.tsx");
+
+    const out = patchPagesApp(path, "../volato/client", "ts");
+
+    expect(out.status).toBe("created");
+    const source = readFileSync(path, "utf8");
+    expect(source).toContain('import type { AppProps } from "next/app"');
+    expect(source).toContain('from "../volato/client"');
+    expect(source).toContain("<VolatoBootstrap");
+    expect(source).toContain("<Component {...pageProps} />");
+    expect(source).not.toContain("getInitialProps");
+  });
+
+  it("composes an existing custom App around its single Component render", () => {
+    const path = join(cwd, "pages", "_app.tsx");
+    mkdirSync(join(cwd, "pages"));
+    writeFileSync(
+      path,
+      `import type { AppProps } from "next/app";
+export default function App({ Component, pageProps }: AppProps) {
+  return <main><Component {...pageProps} /></main>;
+}
+`,
+    );
+
+    const out = patchPagesApp(path, "../volato/client", "ts");
+
+    expect(out.status).toBe("updated");
+    const source = readFileSync(path, "utf8");
+    expect(source).toContain("<main><>");
+    expect(source).toContain("<VolatoBootstrap");
+    expect(source).toContain("<Component {...pageProps} />");
+    expect(source).toContain("</></main>");
+  });
+
+  it("emits valid JavaScript and refuses an ambiguous custom App", () => {
+    const javascriptPath = join(cwd, "pages", "_app.jsx");
+    mkdirSync(join(cwd, "pages"));
+    writeFileSync(
+      javascriptPath,
+      "export default function App({ Component, pageProps }) { return <Component {...pageProps} />; }\n",
+    );
+
+    expect(
+      patchPagesApp(javascriptPath, "../volato/client.jsx", "js").status,
+    ).toBe("updated");
+    expect(readFileSync(javascriptPath, "utf8")).not.toContain(
+      "NEXT_PUBLIC_VOLATO_DSN!",
+    );
+
+    const ambiguousPath = join(cwd, "pages", "ambiguous.tsx");
+    writeFileSync(
+      ambiguousPath,
+      "export default function App({ Component, pageProps }) { return Math.random() ? <Component {...pageProps} /> : <Component {...pageProps} />; }\n",
+    );
+    expect(patchPagesApp(ambiguousPath, "../volato/client", "ts").status).toBe(
+      "manual",
+    );
+  });
+});
+
+describe("patchPagesError", () => {
+  it("creates a wrapper around Next's native error component", () => {
+    const path = join(cwd, "pages", "_error.tsx");
+
+    const out = patchPagesError(path, "../volato/pages-error");
+
+    expect(out.status).toBe("created");
+    const source = readFileSync(path, "utf8");
+    expect(source).toContain('import NextError from "next/error"');
+    expect(source).toContain('from "../volato/pages-error"');
+    expect(source).toContain("withVolatoPagesError(NextError)");
+  });
+
+  it("wraps and preserves an existing custom error export", () => {
+    const path = join(cwd, "pages", "_error.tsx");
+    mkdirSync(join(cwd, "pages"));
+    writeFileSync(
+      path,
+      `function CustomError({ statusCode }) { return <p>{statusCode}</p>; }
+CustomError.getInitialProps = ({ res }) => ({ statusCode: res?.statusCode ?? 500 });
+export default CustomError;
+`,
+    );
+
+    const out = patchPagesError(path, "../volato/pages-error");
+
+    expect(out.status).toBe("updated");
+    const source = readFileSync(path, "utf8");
+    expect(source).toContain("CustomError.getInitialProps");
+    expect(source).toContain(
+      "export default withVolatoPagesError(CustomError)",
+    );
+    expect(patchPagesError(path, "../volato/pages-error").status).toBe(
+      "skipped",
+    );
   });
 });
 

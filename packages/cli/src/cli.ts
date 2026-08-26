@@ -230,7 +230,7 @@ errors
   .option("--fingerprint <substring>", "case-insensitive fingerprint match")
   .option(
     "--runtime <runtime>",
-    "scope runtime: browser, node, client, rsc, server_action, route_handler, middleware",
+    "scope runtime: browser, node, client, rsc, pages_render, server_action, route_handler, middleware",
   )
   .option("--route <route>", "scope to an exact normalized route")
   .option("--first-seen-after <iso>", "group first seen at or after ISO timestamp")

@@ -151,7 +151,7 @@ describe("detectProject", () => {
     );
   });
 
-  it("throws DetectionError when no App Router layout exists", () => {
+  it("detects a TypeScript Pages Router when no App Router exists", () => {
     makePackageJson();
     mkdirSync(join(cwd, "pages"));
     writeFileSync(
@@ -159,7 +159,49 @@ describe("detectProject", () => {
       "export default () => null;",
     );
 
-    expect(() => detectProject(cwd)).toThrow(/App Router/);
+    const project = detectProject(cwd);
+
+    expect(project.routerKind).toBe("pages");
+    expect(project.appDir).toBeNull();
+    expect(project.pagesDir).toBe("pages");
+    expect(project.pagesAppPath).toBe(join(cwd, "pages", "_app.tsx"));
+    expect(project.pagesErrorPath).toBe(join(cwd, "pages", "_error.tsx"));
+    expect(project.instrumentationPath).toBe(join(cwd, "instrumentation.ts"));
+    expect(project.language).toBe("ts");
+  });
+
+  it("detects a JavaScript Pages Router under src and preserves existing reserved files", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "src", "pages"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "pages", "index.jsx"),
+      "export default () => null;",
+    );
+    writeFileSync(
+      join(cwd, "src", "pages", "_app.js"),
+      "export default function App({ Component, pageProps }) { return <Component {...pageProps} />; }",
+    );
+    writeFileSync(
+      join(cwd, "src", "pages", "_error.js"),
+      "export default function Error() { return null; }",
+    );
+
+    const project = detectProject(cwd);
+
+    expect(project.routerKind).toBe("pages");
+    expect(project.pagesDir).toBe("src/pages");
+    expect(project.pagesAppPath).toBe(join(cwd, "src", "pages", "_app.js"));
+    expect(project.pagesErrorPath).toBe(join(cwd, "src", "pages", "_error.js"));
+    expect(project.instrumentationPath).toBe(
+      join(cwd, "src", "instrumentation.js"),
+    );
+    expect(project.language).toBe("js");
+  });
+
+  it("rejects a Next.js project with neither router", () => {
+    makePackageJson();
+
+    expect(() => detectProject(cwd)).toThrow(/app\/.*layout|pages/);
   });
 
   it("locates next.config.ts and computes the error boundary path", () => {

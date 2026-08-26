@@ -5,6 +5,7 @@ export const VOLATO_REASON_HEADER = "X-Volato-Reason";
 export type Runtime =
   | "client"
   | "rsc"
+  | "pages_render"
   | "server_action"
   | "route_handler"
   | "middleware";

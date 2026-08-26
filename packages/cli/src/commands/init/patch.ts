@@ -349,6 +349,118 @@ function insertAfterLastImport(source: string, block: string): string {
 }
 
 /**
+ * Mount browser capture in the Pages Router's custom App. Creating `_app`
+ * deliberately avoids `getInitialProps`, so static optimization is preserved.
+ * Existing Apps are changed only when exactly one self-closing `<Component />`
+ * render can be identified; every other shape remains a manual composition.
+ */
+export function patchPagesApp(
+  path: string,
+  modulePath = "../volato/client",
+  language: "ts" | "js" = path.endsWith(".tsx") ? "ts" : "js",
+): PatchOutcome {
+  const existing = readIfExists(path);
+  const dsn =
+    language === "ts"
+      ? "process.env.NEXT_PUBLIC_VOLATO_DSN!"
+      : "process.env.NEXT_PUBLIC_VOLATO_DSN";
+  const bootstrap = `<VolatoBootstrap dsn={${dsn}} />`;
+  const importLine = `import { VolatoBootstrap } from "${modulePath}";\n`;
+
+  if (existing === null) {
+    ensureDir(path);
+    const typeImport =
+      language === "ts" ? 'import type { AppProps } from "next/app";\n' : "";
+    const props =
+      language === "ts"
+        ? "{ Component, pageProps }: AppProps"
+        : "{ Component, pageProps }";
+    writeFileSync(
+      path,
+      `${typeImport}${importLine}\nexport default function App(${props}) {\n  return (\n    <>\n      ${bootstrap}\n      <Component {...pageProps} />\n    </>\n  );\n}\n`,
+      "utf8",
+    );
+    return { path, status: "created" };
+  }
+  if (existing.includes("VolatoBootstrap") || existing.includes(modulePath)) {
+    return {
+      path,
+      status: "skipped",
+      detail: "custom App already mounts Volato browser capture",
+    };
+  }
+
+  const componentRenders = existing.match(/<Component\b[\s\S]*?\/>/g) ?? [];
+  if (componentRenders.length !== 1) {
+    return {
+      path,
+      status: "manual",
+      detail:
+        "custom App has no single `<Component />` render — mount <VolatoBootstrap /> once without changing its data lifecycle",
+    };
+  }
+
+  const wrapped = `<>\n      ${bootstrap}\n      ${componentRenders[0]}\n    </>`;
+  const replaced = existing.replace(componentRenders[0], wrapped);
+  writeFileSync(path, insertAfterLastImport(replaced, importLine), "utf8");
+  return {
+    path,
+    status: "updated",
+    detail: "mounted browser capture in the custom App",
+  };
+}
+
+/**
+ * Compose Pages Router's universal error component without replacing its UI.
+ * The generated higher-order component delegates the original
+ * `getInitialProps` and reports its actual `context.err` on client transitions;
+ * server errors remain owned by Next's awaited `onRequestError` hook.
+ */
+export function patchPagesError(
+  path: string,
+  modulePath = "../volato/pages-error",
+): PatchOutcome {
+  const existing = readIfExists(path);
+  const importLine = `import { withVolatoPagesError } from "${modulePath}";\n`;
+  if (existing?.includes("withVolatoPagesError")) {
+    return {
+      path,
+      status: "skipped",
+      detail: "Pages Router error component already reports to Volato",
+    };
+  }
+  if (existing === null) {
+    ensureDir(path);
+    writeFileSync(
+      path,
+      `import NextError from "next/error";\n${importLine}\nexport default withVolatoPagesError(NextError);\n`,
+      "utf8",
+    );
+    return { path, status: "created" };
+  }
+
+  const located = findExportDefaultExpression(existing);
+  if (!located) {
+    return {
+      path,
+      status: "manual",
+      detail:
+        "custom `_error` has no parseable default export — wrap it with `withVolatoPagesError(...)` manually",
+    };
+  }
+  const replaced =
+    existing.slice(0, located.startIndex) +
+    `export default withVolatoPagesError(${located.expression.trim()})` +
+    existing.slice(located.endIndex);
+  writeFileSync(path, insertAfterLastImport(replaced, importLine), "utf8");
+  return {
+    path,
+    status: "updated",
+    detail: "composed the existing Pages Router error component",
+  };
+}
+
+/**
  * Build the snippet we tell the user to paste into their existing
  * `middleware.ts`. We never auto-mutate middleware — its shape varies far
  * too much across apps for a regex patch to be safe.

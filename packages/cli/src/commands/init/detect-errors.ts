@@ -219,7 +219,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
       );
     }
     throw new ErrorsStackDetectionError(
-      "No supported Errors stack was detected. Supported targets are Next.js 15/16 App Router, Vite + React in the browser, and Node.js (with Express as the supported HTTP adapter).",
+      "No supported Errors stack was detected. Supported targets are Next.js 15/16 App Router or Pages Router, Vite + React in the browser, and Node.js (with Express as the supported HTTP adapter).",
     );
   }
 

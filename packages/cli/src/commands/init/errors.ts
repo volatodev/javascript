@@ -99,7 +99,6 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
 
   const outcomes: PatchOutcome[] = [];
   let nextjsRuntimeRoot: string | null = null;
-  let nextjsAppDir: "app" | "src/app" | null = null;
 
   if (stack.nextjs) {
     const generated = generateNextjsIntegration({
@@ -109,7 +108,6 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       project: stack.nextjs,
     });
     nextjsRuntimeRoot = generated.runtimeRoot;
-    nextjsAppDir = stack.nextjs.appDir;
     outcomes.push(
       {
         path: generated.runtimeRoot,
@@ -194,16 +192,12 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
     }
   }
 
-  if (
-    manualOutcomes.length === 0 &&
-    stack.nextjs &&
-    nextjsRuntimeRoot &&
-    nextjsAppDir
-  ) {
+  if (manualOutcomes.length === 0 && stack.nextjs && nextjsRuntimeRoot) {
     await maybeSendTestEvent(
       {
         cwd,
-        appDir: nextjsAppDir,
+        appDir: stack.nextjs.appDir,
+        pagesDir: stack.nextjs.pagesDir,
         runtimeRoot: nextjsRuntimeRoot,
         dsn: setup.dsn,
         language: stack.nextjs.language,
@@ -224,6 +218,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       cwd,
       manualOutcomes.length === 0,
       stack.nextjs.language,
+      stack.nextjs.routerKind,
     );
   } else {
     printPortableNextSteps(
@@ -361,6 +356,7 @@ function printNextSteps(
   cwd: string,
   complete: boolean,
   language: "ts" | "js",
+  routerKind: "app" | "pages" | "hybrid",
 ): void {
   const runtimeExtension = language === "js" ? ".js" : "";
   process.stdout.write(`${pc.bold("Next steps")}\n`);
@@ -404,26 +400,35 @@ function printNextSteps(
     );
   }
 
-  process.stdout.write(
-    `  ${pc.dim("3.")} For Route Handlers, wrap each export with ${pc.cyan(
-      "wrapRoute",
-    )} from your generated ${pc.cyan(
-      `${relpath(cwd, runtimeRoot)}/server`,
-    )} module.\n`,
-  );
-  process.stdout.write(
-    `  ${pc.dim("4.")} For Server Actions returning ${pc.cyan(
-      "{ error }",
-    )} (no throw), call ${pc.cyan(
-      "reportActionError",
-    )} from the generated server module.\n`,
-  );
+  if (routerKind === "pages") {
+    process.stdout.write(
+      `  ${pc.dim(
+        "3.",
+      )} Pages Router render, SSR and API Route throws are captured by the generated instrumentation and error component.\n`,
+    );
+  } else {
+    process.stdout.write(
+      `  ${pc.dim("3.")} For Route Handlers, wrap each export with ${pc.cyan(
+        "wrapRoute",
+      )} from your generated ${pc.cyan(
+        `${relpath(cwd, runtimeRoot)}/server`,
+      )} module.\n`,
+    );
+    process.stdout.write(
+      `  ${pc.dim("4.")} For Server Actions returning ${pc.cyan(
+        "{ error }",
+      )} (no throw), call ${pc.cyan(
+        "reportActionError",
+      )} from the generated server module.\n`,
+    );
+  }
   // The token gates the automatic sourcemap upload that the generated
   // `withVolato()` build helper performs at `next build`. Without it, prod errors arrive as
   // minified frames and the agent can't open the offending file.
   // Find it on the project's settings page alongside the DSN.
+  const buildStep = routerKind === "pages" ? "4." : "5.";
   process.stdout.write(
-    `  ${pc.dim("5.")} ${pc.bold("(CI)")} Set ${pc.cyan(
+    `  ${pc.dim(buildStep)} ${pc.bold("(CI)")} Set ${pc.cyan(
       "VOLATO_INGEST_TOKEN",
     )} in your CI environment — ${pc.cyan(
       "withVolato()",

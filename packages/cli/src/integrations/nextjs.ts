@@ -16,6 +16,8 @@ import {
   patchLayout,
   patchNextBuildScript,
   patchNextConfig,
+  patchPagesApp,
+  patchPagesError,
   type PatchOutcome,
 } from "../commands/init/patch";
 import {
@@ -26,7 +28,7 @@ import {
   writeIntegration,
 } from "./manifest";
 
-export const NEXTJS_RECIPE_VERSION = "2.2.0";
+export const NEXTJS_RECIPE_VERSION = "3.0.0";
 
 export type GenerateNextjsOptions = {
   cwd: string;
@@ -119,7 +121,8 @@ export function generateNextjsIntegration(
     throw new Error(`Next.js recipe assets are missing: ${sourceRoot}`);
   }
   const runtimeRoot =
-    options.project.appDir === "src/app"
+    options.project.appDir === "src/app" ||
+    options.project.pagesDir === "src/pages"
       ? join(options.cwd, "src", "volato")
       : join(options.cwd, "volato");
   const generatedFiles =
@@ -142,22 +145,47 @@ export function generateNextjsIntegration(
         join(runtimeRoot, `instrumentation${runtimeExtension}`),
       ),
     ),
-    patchLayout(
-      options.project.layoutPath,
-      modulePath(
+  ];
+  if (options.project.layoutPath && options.project.errorBoundaryPath) {
+    outcomes.push(
+      patchLayout(
         options.project.layoutPath,
-        join(runtimeRoot, `client${clientExtension}`),
+        modulePath(
+          options.project.layoutPath,
+          join(runtimeRoot, `client${clientExtension}`),
+        ),
+        options.project.language,
       ),
-      options.project.language,
-    ),
-    patchErrorBoundary(
-      options.project.errorBoundaryPath,
-      modulePath(
+      patchErrorBoundary(
         options.project.errorBoundaryPath,
-        join(runtimeRoot, `error-boundary${clientExtension}`),
+        modulePath(
+          options.project.errorBoundaryPath,
+          join(runtimeRoot, `error-boundary${clientExtension}`),
+        ),
+        options.project.language,
       ),
-      options.project.language,
-    ),
+    );
+  }
+  if (options.project.pagesAppPath && options.project.pagesErrorPath) {
+    outcomes.push(
+      patchPagesApp(
+        options.project.pagesAppPath,
+        modulePath(
+          options.project.pagesAppPath,
+          join(runtimeRoot, `client${clientExtension}`),
+        ),
+        options.project.language,
+      ),
+      patchPagesError(
+        options.project.pagesErrorPath,
+        modulePath(
+          options.project.pagesErrorPath,
+          join(runtimeRoot, `pages-error${clientExtension}`),
+        ),
+      ),
+    );
+  }
+  outcomes.push(
     patchNextConfig(
       options.project.nextConfigPath,
       options.project.nextConfigPath
@@ -176,7 +204,7 @@ export function generateNextjsIntegration(
         join(runtimeRoot, "postbuild.cjs"),
       ),
     ),
-  ];
+  );
 
   const integration = createGeneratedIntegration(options.cwd, {
     recipe: "errors-nextjs-app-router",

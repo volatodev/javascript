@@ -39,7 +39,7 @@ Headless / CI — skip \`login\` and set the token in the environment:
 instrument the app.
 
 \`volato errors init\` retrieves the linked project's credentials and generates
-the applicable independent adapters: Next.js 15/16 App Router, Vite + React
+the applicable independent adapters: Next.js 15/16 App Router or Pages Router, Vite + React
 browser capture, and Node.js runtime capture with Express HTTP context when
 Express is present. Vite alone never implies a Node server. No Volato runtime
 dependency is added. Re-running is idempotent and refuses to overwrite locally

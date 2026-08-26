@@ -141,6 +141,37 @@ describe("Next.js generated integration", () => {
     );
   });
 
+  it("composes a Pages Router application without creating App Router files", () => {
+    rmSync(join(cwd, "src", "app"), { recursive: true });
+    mkdirSync(join(cwd, "src", "pages"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "pages", "index.tsx"),
+      "export default function Page() { return <main>Pages</main>; }\n",
+    );
+    const project = detectProject(cwd);
+
+    const result = generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+
+    expect(project.routerKind).toBe("pages");
+    expect(existsSync(join(cwd, "src", "pages", "_app.tsx"))).toBe(true);
+    expect(existsSync(join(cwd, "src", "pages", "_error.tsx"))).toBe(true);
+    expect(readFileSync(project.pagesAppPath!, "utf8")).toContain(
+      "<VolatoBootstrap",
+    );
+    expect(readFileSync(project.pagesErrorPath!, "utf8")).toContain(
+      "withVolatoPagesError",
+    );
+    expect(existsSync(join(cwd, "src", "app"))).toBe(false);
+    expect(
+      result.generatedFiles.some((path) => path.endsWith("pages-error.tsx")),
+    ).toBe(true);
+  });
+
   it("is idempotent while generated files remain untouched", () => {
     const project = detectProject(cwd);
     generateNextjsIntegration({

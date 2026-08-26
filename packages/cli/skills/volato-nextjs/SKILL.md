@@ -1,6 +1,6 @@
 ---
 name: volato-nextjs
-description: Generate, adapt, and verify the dependency-free Volato integration for a JavaScript or TypeScript Next.js 15/16 App Router application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, server action, route handler, middleware, build identity, or sourcemap capture must be checked.
+description: Generate, adapt, and verify the dependency-free Volato integration for a JavaScript or TypeScript Next.js 15/16 App Router or Pages Router application. Use when volato-setup detects Next.js, when generated Next.js capture files need repair or update, or when browser, RSC, SSR, server action, route handler, API Route, middleware, build identity, or sourcemap capture must be checked.
 ---
 
 # Set up Volato for Next.js
@@ -10,7 +10,8 @@ judgment only to hook that code into an existing application.
 
 ## Workflow
 
-1. Confirm Next.js 15/16 and an App Router root at `app/` or `src/app/`.
+1. Confirm Next.js 15/16 and an App Router root at `app/` or `src/app/`, a
+   Pages Router root at `pages/` or `src/pages/`, or both.
    Preserve the repository language: generate `.js`/`.jsx` into JavaScript
    applications and `.ts`/`.tsx` into TypeScript applications.
 2. Run `volato init --project <id>` if the repository is not connected, then
@@ -54,6 +55,10 @@ it for both runtime events and sourcemap uploads.
 - Use Next's `onRequestError` hook for leaked RSC errors.
 - Use the generated React helper from `app/error.tsx`; do not wrap the root
   layout in a competing error boundary.
+- In Pages Router, preserve the custom App's data lifecycle and compose the
+  generated bootstrap around its single page render. The generated `_error`
+  wrapper delegates the existing component and `getInitialProps`; server
+  render, SSR, and API Route errors stay on the awaited `onRequestError` path.
 - Upload browser and server sourcemaps during the production build, skip stale
   development artifacts, and remove `sourcesContent` before transit.
 - Browser capture sends directly to ingest by default. Add a same-origin tunnel

@@ -1,4 +1,4 @@
-# Next.js App Router conformance
+# Next.js router conformance
 
 Treat an integration as complete only when all applicable surfaces pass:
 
@@ -10,6 +10,8 @@ runtime package dependency; JavaScript setup must not add TypeScript tooling.
 | ------------------ | ------------------------------------------------------------- |
 | Browser            | `window.error`, unhandled rejection, React error boundary     |
 | RSC                | Next.js `onRequestError`                                      |
+| Pages render / SSR | `onRequestError` as `pages_render`                            |
+| Pages API Route    | `onRequestError` as `route_handler`                           |
 | Server action      | thrown error and explicit reported failure                    |
 | Route handler      | thrown handler error                                          |
 | Middleware         | thrown Edge-runtime error                                     |
@@ -19,6 +21,8 @@ runtime package dependency; JavaScript setup must not add TypeScript tooling.
 Also verify:
 
 - browser, server and Edge bundles contain only APIs available in their runtime;
+- Pages Router keeps existing `_app` and `_error` behavior, including the
+  original `_error.getInitialProps`, while client render failures emit once;
 - middleware forwards the build-injected `NEXT_PUBLIC_VOLATO_RELEASE` to
   `wrapMiddleware`, so Edge events select the same sourcemaps as other runtimes;
 - Next.js 16 remains on its configured bundler and runs the generated browser
