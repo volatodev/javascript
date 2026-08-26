@@ -98,6 +98,29 @@ describe("withVolato", () => {
     expect(out.webpack).toBeUndefined();
     expect(typeof compiler?.runAfterProductionCompile).toBe("function");
   });
+
+  it("preserves a synchronous config factory and its arguments", () => {
+    const factory = vi.fn((phase: string) => ({ phase, custom: true }));
+
+    const wrapped = withVolato(factory);
+    const out = wrapped("phase-production");
+
+    expect(factory).toHaveBeenCalledWith("phase-production");
+    expect(out.phase).toBe("phase-production");
+    expect(out.custom).toBe(true);
+    expect(out.productionBrowserSourceMaps).toBe(true);
+  });
+
+  it("awaits an asynchronous config factory before composing it", async () => {
+    const factory = vi.fn(async () => ({ output: "standalone" }));
+
+    const wrapped = withVolato(factory, { nextMajor: 16 });
+    const out = await wrapped();
+
+    expect(out.output).toBe("standalone");
+    expect(out.productionBrowserSourceMaps).toBe(true);
+    expect(typeof out.compiler?.runAfterProductionCompile).toBe("function");
+  });
 });
 
 describe("withVolato — VOLATO_INGEST_TOKEN warning", () => {

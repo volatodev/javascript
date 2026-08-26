@@ -334,8 +334,8 @@ function printPortableNextSteps(
   );
   if (complete) {
     process.stdout.write(
-      `${pc.green("✓")} ${pc.bold("Volato Errors is ready.")} ${pc.dim(
-        "Deploy these changes; the dashboard will surface the first production error when it arrives.",
+      `${pc.green("✓")} ${pc.bold("Volato Errors files are composed.")} ${pc.dim(
+        "Run the production build and applicable capture checks before deployment.",
       )}\n`,
     );
   } else {
@@ -438,8 +438,8 @@ function printNextSteps(
   );
   if (complete) {
     process.stdout.write(
-      `${pc.green("✓")} ${pc.bold("Volato Errors is ready.")} ${pc.dim(
-        "Deploy these changes; the dashboard will surface the first production error when it arrives.",
+      `${pc.green("✓")} ${pc.bold("Volato Errors files are composed.")} ${pc.dim(
+        "Run the production build and applicable capture checks before deployment.",
       )}\n`,
     );
   } else {

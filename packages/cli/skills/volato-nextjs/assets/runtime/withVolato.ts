@@ -474,6 +474,20 @@ type NextConfigLike = {
   [k: string]: unknown;
 };
 
+// Next accepts either a config object or a sync/async config factory. Keep the
+// factory shape broad enough to preserve Next's phase and default-config
+// arguments without importing `next` into the generated integration.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type NextConfigFactory = (...args: any[]) =>
+  | NextConfigLike
+  | Promise<NextConfigLike>;
+
+type VolatoWrappedFactory<T extends NextConfigFactory> = (
+  ...args: Parameters<T>
+) => ReturnType<T> extends Promise<infer TConfig>
+  ? Promise<TConfig & NextConfigLike>
+  : ReturnType<T> & NextConfigLike;
+
 /**
  * Resolve the current build's commit SHA from `git rev-parse HEAD`.
  *
@@ -663,10 +677,36 @@ function explicitRelease(options: WithVolatoOptions): string | undefined {
  *   import { withVolato } from "./volato/withVolato";
  *   export default withVolato({ reactStrictMode: true });
  */
+export function withVolato<T extends NextConfigFactory>(
+  nextConfig: T,
+  options?: WithVolatoOptions,
+): VolatoWrappedFactory<T>;
 export function withVolato<T extends NextConfigLike = NextConfigLike>(
   nextConfig: T,
+  options?: WithVolatoOptions,
+): T;
+export function withVolato(
+  nextConfig: NextConfigLike | NextConfigFactory,
   options: WithVolatoOptions = {},
-): T {
+): NextConfigLike | NextConfigFactory {
+  if (typeof nextConfig === "function") {
+    const configFactory = nextConfig;
+    return function wrappedNextConfig(this: unknown, ...args: unknown[]) {
+      const config = configFactory.apply(this, args);
+      if (
+        config !== null &&
+        typeof config === "object" &&
+        "then" in config &&
+        typeof config.then === "function"
+      ) {
+        return Promise.resolve(config).then((resolvedConfig) =>
+          withVolato(resolvedConfig, options),
+        );
+      }
+      return withVolato(config, options);
+    };
+  }
+
   // Resolve once and reuse the exact same build identifier for both sides of
   // symbolication: the value inlined into runtime events and the value sent
   // with uploaded sourcemaps. Re-detecting inside the webpack plugin breaks in
@@ -752,7 +792,7 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
           await uploader.uploadFromOutput(outputRoot);
         },
       },
-    } as T;
+    };
   }
 
   const userWebpack = nextConfig.webpack;
@@ -785,5 +825,5 @@ export function withVolato<T extends NextConfigLike = NextConfigLike>(
       }
       return next;
     },
-  } as T;
+  };
 }

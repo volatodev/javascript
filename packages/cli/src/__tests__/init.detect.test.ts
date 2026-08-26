@@ -107,6 +107,15 @@ describe("detectProject", () => {
     expect(project.middlewarePath).toBeNull();
   });
 
+  it("ignores the proxy convention before Next.js 16", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "app"));
+    writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
+    writeFileSync(join(cwd, "proxy.ts"), "export function proxy() {};\n");
+
+    expect(detectProject(cwd).proxyPath).toBeNull();
+  });
+
   it("throws DetectionError when package.json is missing", () => {
     expect(() => detectProject(cwd)).toThrow(DetectionError);
   });
@@ -226,6 +235,74 @@ describe("detectProject", () => {
     );
   });
 
+  it("matches Next.js root precedence independently for each router", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "app"), { recursive: true });
+    mkdirSync(join(cwd, "src", "app"), { recursive: true });
+    mkdirSync(join(cwd, "src", "pages"), { recursive: true });
+    writeFileSync(
+      join(cwd, "app", "layout.jsx"),
+      "export default () => null;",
+    );
+    writeFileSync(
+      join(cwd, "src", "app", "layout.tsx"),
+      "export default () => null;",
+    );
+    writeFileSync(
+      join(cwd, "src", "pages", "legacy.jsx"),
+      "export default () => null;",
+    );
+
+    const project = detectProject(cwd);
+
+    expect(project.routerKind).toBe("hybrid");
+    expect(project.appDir).toBe("app");
+    expect(project.layoutPath).toBe(join(cwd, "app", "layout.jsx"));
+    expect(project.pagesDir).toBe("src/pages");
+    expect(project.instrumentationPath).toBe(
+      join(cwd, "src", "instrumentation.js"),
+    );
+  });
+
+  it("places instrumentation beside root Pages when App Router lives in src", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "pages"), { recursive: true });
+    mkdirSync(join(cwd, "src", "app"), { recursive: true });
+    writeFileSync(
+      join(cwd, "pages", "legacy.tsx"),
+      "export default () => null;",
+    );
+    writeFileSync(
+      join(cwd, "src", "app", "layout.tsx"),
+      "export default () => null;",
+    );
+
+    const project = detectProject(cwd);
+
+    expect(project.routerKind).toBe("hybrid");
+    expect(project.appDir).toBe("src/app");
+    expect(project.pagesDir).toBe("pages");
+    expect(project.instrumentationPath).toBe(join(cwd, "instrumentation.ts"));
+  });
+
+  it("rejects a mixed-root hybrid on Next.js 16 before modifying it", () => {
+    makePackageJson({ dependencies: { next: "16.2.12" } });
+    mkdirSync(join(cwd, "pages"), { recursive: true });
+    mkdirSync(join(cwd, "src", "app"), { recursive: true });
+    writeFileSync(
+      join(cwd, "pages", "legacy.jsx"),
+      "export default () => null;",
+    );
+    writeFileSync(
+      join(cwd, "src", "app", "layout.jsx"),
+      "export default () => null;",
+    );
+
+    expect(() => detectProject(cwd)).toThrow(
+      /Next\.js 16 requires `app` and `pages` under the same root/,
+    );
+  });
+
   it("rejects a Next.js project with neither router", () => {
     makePackageJson();
 
@@ -243,7 +320,7 @@ describe("detectProject", () => {
     expect(project.errorBoundaryPath).toBe(join(cwd, "app", "error.tsx"));
   });
 
-  it("falls back to next.config.mjs / .js / .cjs in priority order", () => {
+  it("falls back to next.config.mjs / .js in priority order", () => {
     makePackageJson();
     mkdirSync(join(cwd, "app"));
     writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
@@ -251,6 +328,15 @@ describe("detectProject", () => {
 
     const project = detectProject(cwd);
     expect(project.nextConfigPath).toBe(join(cwd, "next.config.js"));
+  });
+
+  it("does not select next.config.cjs because Next.js does not support it", () => {
+    makePackageJson();
+    mkdirSync(join(cwd, "app"));
+    writeFileSync(join(cwd, "app", "layout.tsx"), "export default () => null;");
+    writeFileSync(join(cwd, "next.config.cjs"), "module.exports = {};\n");
+
+    expect(detectProject(cwd).nextConfigPath).toBeNull();
   });
 
   it("returns null nextConfigPath when no config file exists", () => {

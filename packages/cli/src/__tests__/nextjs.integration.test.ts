@@ -93,7 +93,7 @@ describe("Next.js generated integration", () => {
       'from "./volato/instrumentation"',
     );
     expect(readFileSync(project.nextConfigPath!, "utf8")).toContain(
-      'from "./src/volato/withVolato"',
+      'import volatoBuild from "./src/volato/withVolato.cjs"',
     );
     expect(
       JSON.parse(readFileSync(join(cwd, "package.json"), "utf8")).dependencies,
@@ -205,6 +205,91 @@ describe("Next.js generated integration", () => {
       result.generatedFiles.filter((path) => path.endsWith("client.tsx")),
     ).toHaveLength(1);
   });
+
+  it("uses each host file's language when composing a mixed-language hybrid", () => {
+    mkdirSync(join(cwd, "src", "pages"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "pages", "legacy.jsx"),
+      "export default function Legacy() { return <main>Legacy</main>; }\n",
+    );
+    writeFileSync(
+      join(cwd, "src", "pages", "_app.jsx"),
+      "export default function App({ Component, pageProps }) { return <Component {...pageProps} />; }\n",
+    );
+    const project = detectProject(cwd);
+
+    generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+
+    const pagesApp = readFileSync(project.pagesAppPath!, "utf8");
+    expect(pagesApp).toContain("process.env.NEXT_PUBLIC_VOLATO_DSN");
+    expect(pagesApp).not.toContain("NEXT_PUBLIC_VOLATO_DSN!");
+  });
+
+  it("creates a config and its dependency-free helper when none exists", () => {
+    rmSync(join(cwd, "next.config.ts"));
+    const project = detectProject(cwd);
+
+    const result = generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+
+    expect(existsSync(join(cwd, "next.config.mjs"))).toBe(true);
+    expect(existsSync(join(cwd, "src", "volato", "withVolato.cjs"))).toBe(
+      true,
+    );
+    expect(
+      result.generatedFiles.filter((path) => path.endsWith("withVolato.cjs")),
+    ).toHaveLength(1);
+  });
+
+  it.each([
+    [
+      "src/middleware.ts",
+      "export default function middleware() {}",
+      "wrapMiddleware",
+      15,
+    ],
+    ["src/proxy.ts", "export function proxy() {}", "wrapProxy", 16],
+  ])(
+    "keeps readiness incomplete for an uncomposed %s boundary",
+    (filename, source, wrapper, nextMajor) => {
+      if (nextMajor === 16) {
+        writeFileSync(
+          join(cwd, "package.json"),
+          JSON.stringify({
+            name: "fixture",
+            scripts: { build: "next build" },
+            dependencies: { next: "16.2.12", react: "19.2.8" },
+          }),
+        );
+      }
+      writeFileSync(join(cwd, filename), `${source}\n`);
+      const project = detectProject(cwd);
+
+      const result = generateNextjsIntegration({
+        cwd,
+        dsn: "https://pk@api.volato.dev/project",
+        project,
+        sourceRoot,
+      });
+
+      expect(result.outcomes).toContainEqual(
+        expect.objectContaining({
+          path: join(cwd, filename),
+          status: "manual",
+          detail: expect.stringContaining(wrapper),
+        }),
+      );
+    },
+  );
 
   it("is idempotent while generated files remain untouched", () => {
     const project = detectProject(cwd);

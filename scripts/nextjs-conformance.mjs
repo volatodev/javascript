@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
@@ -96,6 +96,34 @@ const FULL_MATRIX = [
       ...version,
       router,
       language,
+      appDir:
+        router === "pages"
+          ? null
+          : router === "hybrid" && language === "js"
+            ? version.next.startsWith("15.")
+              ? "app"
+              : "src/app"
+            : language === "js"
+              ? "src/app"
+              : "app",
+      pagesDir:
+        router === "app"
+          ? null
+          : router === "hybrid" && language === "js"
+            ? version.next.startsWith("15.")
+              ? "src/pages"
+              : "src/pages"
+            : language === "js"
+              ? "src/pages"
+              : "pages",
+      configKind:
+        language === "js"
+          ? "commonjs"
+          : version.next.startsWith("15.") && router === "pages"
+            ? "missing"
+            : "typescript",
+      existingInstrumentation:
+        version.next.startsWith("16.") && router === "app" && language === "ts",
       label: `Next.js ${version.next.split(".")[0]} ${
         router === "app"
           ? "App Router"
@@ -139,6 +167,12 @@ function filesWithSuffix(root, suffix) {
   });
 }
 
+function localFixtureModule(fromFile, targetFile) {
+  let specifier = relative(dirname(fromFile), targetFile).replaceAll("\\", "/");
+  if (!specifier.startsWith(".")) specifier = `./${specifier}`;
+  return specifier;
+}
+
 function run(command, args, options = {}) {
   return new Promise((resolveRun, rejectRun) => {
     const child = spawn(command, args, {
@@ -174,11 +208,20 @@ function run(command, args, options = {}) {
 function writeFixture(root, entry) {
   const typescript = entry.language === "ts";
   const componentExtension = typescript ? "tsx" : "jsx";
-  const configExtension = typescript ? "ts" : "mjs";
   const hasAppRouter = entry.router !== "pages";
   const hasPagesRouter = entry.router !== "app";
-  if (hasAppRouter) mkdirSync(join(root, "app"), { recursive: true });
-  if (hasPagesRouter) mkdirSync(join(root, "pages"), { recursive: true });
+  const appRoot = entry.appDir ? join(root, entry.appDir) : null;
+  const pagesRoot = entry.pagesDir ? join(root, entry.pagesDir) : null;
+  const runtimeRelativeRoot =
+    entry.appDir?.startsWith("src/") || entry.pagesDir?.startsWith("src/")
+      ? "src/volato"
+      : "volato";
+  const frameworkRelativeRoot = entry.pagesDir ?? entry.appDir;
+  const frameworkRoot = frameworkRelativeRoot?.startsWith("src/")
+    ? join(root, "src")
+    : root;
+  if (appRoot) mkdirSync(appRoot, { recursive: true });
+  if (pagesRoot) mkdirSync(pagesRoot, { recursive: true });
   writeFileSync(
     join(root, "package.json"),
     `${JSON.stringify(
@@ -208,9 +251,19 @@ function writeFixture(root, entry) {
       2,
     )}\n`,
   );
-  if (hasAppRouter) {
+  if (entry.existingInstrumentation) {
     writeFileSync(
-      join(root, "app", `layout.${componentExtension}`),
+      join(frameworkRoot, `instrumentation.${typescript ? "ts" : "js"}`),
+      `export function register() {
+  // existing-instrumentation-marker
+}
+`,
+    );
+  }
+  if (hasAppRouter) {
+    assert(appRoot, `${entry.label} has no App Router root.`);
+    writeFileSync(
+      join(appRoot, `layout.${componentExtension}`),
       typescript
         ? `export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en"><body>{children}</body></html>;
@@ -222,7 +275,7 @@ function writeFixture(root, entry) {
 `,
     );
     const appPageRoot =
-      entry.router === "hybrid" ? join(root, "app", "app-home") : join(root, "app");
+      entry.router === "hybrid" ? join(appRoot, "app-home") : appRoot;
     mkdirSync(appPageRoot, { recursive: true });
     writeFileSync(
       join(appPageRoot, `page.${componentExtension}`),
@@ -231,7 +284,7 @@ function writeFixture(root, entry) {
 }
 `,
     );
-    const appBrowserRoot = join(root, "app", "app-browser-crash");
+    const appBrowserRoot = join(appRoot, "app-browser-crash");
     mkdirSync(appBrowserRoot, { recursive: true });
     writeFileSync(
       join(appBrowserRoot, `page.${componentExtension}`),
@@ -249,7 +302,7 @@ export default function AppBrowserCrash() {
 }
 `,
     );
-    const appServerRoot = join(root, "app", "app-server-crash");
+    const appServerRoot = join(appRoot, "app-server-crash");
     mkdirSync(appServerRoot, { recursive: true });
     writeFileSync(
       join(appServerRoot, `page.${componentExtension}`),
@@ -260,29 +313,89 @@ export default function AppServerCrash() {
 }
 `,
     );
-    const appApiRoot = join(root, "app", "api", "app-crash");
+    const appApiRoot = join(appRoot, "api", "app-crash");
     mkdirSync(appApiRoot, { recursive: true });
+    const appRoutePath = join(
+      appApiRoot,
+      `route.${typescript ? "ts" : "js"}`,
+    );
     writeFileSync(
-      join(appApiRoot, `route.${typescript ? "ts" : "js"}`),
-      `import { wrapRoute } from "../../../volato/server${typescript ? "" : ".js"}";
+      appRoutePath,
+      `import { wrapRoute } from ${JSON.stringify(
+        localFixtureModule(
+          appRoutePath,
+          join(
+            root,
+            runtimeRelativeRoot,
+            `server${typescript ? "" : ".js"}`,
+          ),
+        ),
+      )};
 
 export const GET = wrapRoute(async function GET() {
   throw new Error("Volato App Route Handler conformance");
 });
 `,
     );
+    const appActionRoot = join(appRoot, "app-action");
+    mkdirSync(appActionRoot, { recursive: true });
+    const appActionPath = join(
+      appActionRoot,
+      `page.${componentExtension}`,
+    );
+    writeFileSync(
+      appActionPath,
+      `import { reportActionError } from ${JSON.stringify(
+        localFixtureModule(
+          appActionPath,
+          join(
+            root,
+            runtimeRelativeRoot,
+            `server${typescript ? "" : ".js"}`,
+          ),
+        ),
+      )};
+
+async function throwAction() {
+  "use server";
+  throw new Error("Volato App Server Action throw conformance");
+}
+
+async function reportAction() {
+  "use server";
+  await reportActionError(
+    new Error("Volato App Server Action returned failure conformance"),
+    { name: "conformance-returned-failure" },
+  );
+}
+
+export default function AppActionPage() {
+  return (
+    <main>
+      <form action={throwAction}>
+        <button id="volato-action-throw" type="submit">Throw</button>
+      </form>
+      <form action={reportAction}>
+        <button id="volato-action-report" type="submit">Report</button>
+      </form>
+    </main>
+  );
+}
+`,
+    );
   }
   if (hasPagesRouter) {
-    mkdirSync(join(root, "pages", "api"), { recursive: true });
+    assert(pagesRoot, `${entry.label} has no Pages Router root.`);
+    mkdirSync(join(pagesRoot, "api"), { recursive: true });
     writeFileSync(
-      join(root, "pages", `index.${componentExtension}`),
+      join(pagesRoot, `index.${componentExtension}`),
       `export default function Page() {
   return <main>Volato Pages conformance</main>;
 }
 `,
     );
     writeFileSync(
-      join(root, "pages", `_app.${componentExtension}`),
+      join(pagesRoot, `_app.${componentExtension}`),
       typescript
         ? `import type { AppProps } from "next/app";
 
@@ -296,7 +409,7 @@ export default function ExistingApp({ Component, pageProps }: AppProps) {
 `,
     );
     writeFileSync(
-      join(root, "pages", `_error.${componentExtension}`),
+      join(pagesRoot, `_error.${componentExtension}`),
       typescript
         ? `import type { NextPageContext } from "next";
 
@@ -324,7 +437,7 @@ export default CustomError;
 `,
     );
     writeFileSync(
-      join(root, "pages", `ssr-crash.${componentExtension}`),
+      join(pagesRoot, `ssr-crash.${componentExtension}`),
       `export async function getServerSideProps() {
   throw new Error("Volato Pages SSR conformance");
 }
@@ -335,7 +448,7 @@ export default function SsrCrash() {
 `,
     );
     writeFileSync(
-      join(root, "pages", `browser-crash.${componentExtension}`),
+      join(pagesRoot, `browser-crash.${componentExtension}`),
       `import { useEffect, useState } from "react";
 
 export default function BrowserCrash() {
@@ -349,7 +462,21 @@ export default function BrowserCrash() {
 `,
     );
     writeFileSync(
-      join(root, "pages", "api", `crash.${typescript ? "ts" : "js"}`),
+      join(pagesRoot, `static-crash.${componentExtension}`),
+      `export async function getStaticProps() {
+  if (process.env.VOLATO_CONFORMANCE_STATIC_FAILURE === "1") {
+    throw new Error("Volato Pages getStaticProps build conformance");
+  }
+  return { props: {} };
+}
+
+export default function StaticCrash() {
+  return <main>Static lifecycle fixture</main>;
+}
+`,
+    );
+    writeFileSync(
+      join(pagesRoot, "api", `crash.${typescript ? "ts" : "js"}`),
       typescript
         ? `import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -363,15 +490,32 @@ export default function handler(_request: NextApiRequest, _response: NextApiResp
 `,
     );
   }
-  writeFileSync(
-    join(root, `next.config.${configExtension}`),
-    'export default { output: "standalone" };\n',
-  );
+  if (entry.configKind === "commonjs") {
+    writeFileSync(
+      join(root, "next.config.js"),
+      'module.exports = async () => ({ output: "standalone" });\n',
+    );
+  } else if (entry.configKind === "typescript") {
+    writeFileSync(
+      join(root, "next.config.ts"),
+      'export default { output: "standalone" };\n',
+    );
+  }
   writeFileSync(join(root, ".gitignore"), "node_modules\n.next\n.env*.local\n");
   if (Number(entry.next.split(".")[0]) >= 16) {
+    const proxyPath = join(frameworkRoot, `proxy.${typescript ? "ts" : "js"}`);
     writeFileSync(
-      join(root, `proxy.${typescript ? "ts" : "js"}`),
-      `import { wrapProxy } from "./volato/server${typescript ? "" : ".js"}";
+      proxyPath,
+      `import { wrapProxy } from ${JSON.stringify(
+        localFixtureModule(
+          proxyPath,
+          join(
+            root,
+            runtimeRelativeRoot,
+            `server${typescript ? "" : ".js"}`,
+          ),
+        ),
+      )};
 
 export const proxy = wrapProxy(async (request${
         typescript ? ": Request" : ""
@@ -382,6 +526,36 @@ export const proxy = wrapProxy(async (request${
 });
 
 export const config = { matcher: "/volato-proxy-crash" };
+      `,
+    );
+  } else {
+    const middlewarePath = join(
+      frameworkRoot,
+      `middleware.${typescript ? "ts" : "js"}`,
+    );
+    writeFileSync(
+      middlewarePath,
+      `import { wrapMiddleware } from ${JSON.stringify(
+        localFixtureModule(
+          middlewarePath,
+          join(
+            root,
+            runtimeRelativeRoot,
+            `middleware${typescript ? "" : ".js"}`,
+          ),
+        ),
+      )};
+
+export default wrapMiddleware(async () => {
+  throw new Error("Volato Next.js 15 middleware conformance");
+}, {
+  dsn: process.env.NEXT_PUBLIC_VOLATO_DSN${typescript ? "!" : ""},
+  release: process.env.NEXT_PUBLIC_VOLATO_RELEASE,
+  commitSha: process.env.NEXT_PUBLIC_VOLATO_COMMIT_SHA,
+  environment: process.env.NODE_ENV,
+});
+
+export const config = { matcher: "/volato-middleware-crash" };
 `,
     );
   }
@@ -403,25 +577,26 @@ async function startNextProduction(root) {
   const port = await reservePort();
   const standaloneRoot = join(root, ".next", "standalone");
   const standaloneEntry = join(standaloneRoot, "server.js");
-  assert(
-    existsSync(standaloneEntry),
-    "Next.js production build did not emit its standalone server.",
-  );
-  const staticRoot = join(root, ".next", "static");
-  if (existsSync(staticRoot)) {
-    cpSync(staticRoot, join(standaloneRoot, ".next", "static"), {
-      recursive: true,
-    });
-  }
-  const publicRoot = join(root, "public");
-  if (existsSync(publicRoot)) {
-    cpSync(publicRoot, join(standaloneRoot, "public"), { recursive: true });
+  const standalone = existsSync(standaloneEntry);
+  if (standalone) {
+    const staticRoot = join(root, ".next", "static");
+    if (existsSync(staticRoot)) {
+      cpSync(staticRoot, join(standaloneRoot, ".next", "static"), {
+        recursive: true,
+      });
+    }
+    const publicRoot = join(root, "public");
+    if (existsSync(publicRoot)) {
+      cpSync(publicRoot, join(standaloneRoot, "public"), { recursive: true });
+    }
   }
   const child = spawn(
-    process.execPath,
-    [standaloneEntry],
+    standalone ? process.execPath : "pnpm",
+    standalone
+      ? [standaloneEntry]
+      : ["exec", "next", "start", "-H", "127.0.0.1", "-p", String(port)],
     {
-      cwd: standaloneRoot,
+      cwd: standalone ? standaloneRoot : root,
       env: {
         ...process.env,
         HOSTNAME: "127.0.0.1",
@@ -537,6 +712,50 @@ async function exerciseBrowserSurface(production, browser, entry, surface) {
     assert(
       !JSON.stringify(renderEvent).includes("browser-secret"),
       `${entry.label} ${surface.label} browser render leaked query values.`,
+    );
+  } finally {
+    await page.close();
+  }
+}
+
+async function exerciseActionSurface(production, browser, entry, surface) {
+  const page = await browser.newPage();
+  try {
+    await page.goto(`${production.origin}/app-action?token=action-secret`);
+    const beforeEvents = state.testEvents.length;
+    await page.locator(surface.selector).click();
+    await waitForEventCount(
+      beforeEvents + 1,
+      production.logs,
+      `${entry.label} ${surface.label}`,
+    );
+    if (surface.throws) {
+      await page.getByText("Something went wrong").waitFor();
+    }
+    await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+    const emittedEvents = state.testEvents.slice(beforeEvents);
+    const actionEvents = emittedEvents.filter(
+      (event) =>
+        event.message === surface.message && event.runtime === "server_action",
+    );
+    assert(
+      actionEvents.length === 1,
+      `${entry.label} ${surface.label} did not emit exactly one Server Action event: ${JSON.stringify(
+        emittedEvents.map((event) => ({
+          message: event.message,
+          runtime: event.runtime,
+          capturedVia: event.capturedVia,
+        })),
+      )}.\n${production.logs()}`,
+    );
+    const event = actionEvents[0];
+    assert(
+      event.capturedVia === surface.capturedVia,
+      `${entry.label} ${surface.label} used ${event.capturedVia} instead of ${surface.capturedVia}.`,
+    );
+    assert(
+      !JSON.stringify(event).includes("action-secret"),
+      `${entry.label} ${surface.label} leaked query values.`,
     );
   } finally {
     await page.close();
@@ -742,6 +961,7 @@ try {
   const address = server.address();
   assert(address && typeof address === "object", "Mock API did not bind.");
   const apiOrigin = `http://127.0.0.1:${address.port}`;
+  let staticLifecycleChecked = false;
 
   for (const [index, entry] of MATRIX.entries()) {
     const fixture = join(
@@ -793,7 +1013,7 @@ try {
     );
     const verificationApiRoot = join(
       fixture,
-      entry.router === "pages" ? "pages" : "app",
+      entry.router === "pages" ? entry.pagesDir : entry.appDir,
       "api",
     );
     assert(
@@ -811,14 +1031,24 @@ try {
     );
     const componentExtension = entry.language === "ts" ? "tsx" : "jsx";
     const runtimeExtension = entry.language === "ts" ? "ts" : "js";
+    const runtimeRelativeRoot =
+      entry.appDir?.startsWith("src/") || entry.pagesDir?.startsWith("src/")
+        ? "src/volato"
+        : "volato";
+    const frameworkRelativeRoot = entry.pagesDir ?? entry.appDir;
+    const instrumentationRelativeRoot = frameworkRelativeRoot?.startsWith(
+      "src/",
+    )
+      ? "src"
+      : "";
     const routerFiles = [
       ...(entry.router !== "pages"
-        ? [`app/error.${componentExtension}`]
+        ? [`${entry.appDir}/error.${componentExtension}`]
         : []),
       ...(entry.router !== "app"
         ? [
-            `pages/_app.${componentExtension}`,
-            `pages/_error.${componentExtension}`,
+            `${entry.pagesDir}/_app.${componentExtension}`,
+            `${entry.pagesDir}/_error.${componentExtension}`,
           ]
         : []),
     ];
@@ -830,19 +1060,36 @@ try {
       ".env.local",
       ".gitignore",
       ...routerFiles,
-      `instrumentation.${runtimeExtension}`,
-      `volato/server.${runtimeExtension}`,
+      `${instrumentationRelativeRoot ? `${instrumentationRelativeRoot}/` : ""}instrumentation.${runtimeExtension}`,
+      `${runtimeRelativeRoot}/server.${runtimeExtension}`,
+      `${runtimeRelativeRoot}/withVolato.cjs`,
     ]) {
       assert(
         existsSync(join(fixture, required)),
         `${entry.label} setup did not create ${required}.`,
       );
     }
+    if (entry.existingInstrumentation) {
+      const instrumentationSource = readFileSync(
+        join(
+          fixture,
+          instrumentationRelativeRoot,
+          `instrumentation.${runtimeExtension}`,
+        ),
+        "utf8",
+      );
+      assert(
+        instrumentationSource.includes("existing-instrumentation-marker") &&
+          instrumentationSource.includes("onRequestError") &&
+          instrumentationSource.includes("volato/instrumentation"),
+        `${entry.label} did not preserve and compose existing instrumentation.`,
+      );
+    }
     assert(
       init.stdout.includes(
-        "Volato Errors is ready. Deploy these changes; the dashboard will surface the first production error when it arrives.",
+        "Volato Errors files are composed. Run the production build and applicable capture checks before deployment.",
       ),
-      `${entry.label} setup did not hand off to deployment.`,
+      `${entry.label} setup claimed readiness before production verification.`,
     );
     const envLocal = readFileSync(join(fixture, ".env.local"), "utf8");
     assert(
@@ -853,6 +1100,25 @@ try {
     assert(
       readFileSync(join(fixture, ".gitignore"), "utf8").includes(".env*.local"),
       `${entry.label} setup did not protect local credentials.`,
+    );
+    const configPath = join(
+      fixture,
+      entry.configKind === "commonjs"
+        ? "next.config.js"
+        : entry.configKind === "missing"
+          ? "next.config.mjs"
+          : "next.config.ts",
+    );
+    assert(
+      existsSync(configPath),
+      `${entry.label} setup did not leave an executable Next.js config.`,
+    );
+    const configSource = readFileSync(configPath, "utf8");
+    assert(
+      configSource.includes("withVolato.cjs") &&
+        (entry.configKind !== "commonjs" ||
+          configSource.includes("require(")),
+      `${entry.label} config did not compose the dependency-free build helper.`,
     );
     const manifest = JSON.parse(
       readFileSync(join(fixture, ".volato", "manifest.json"), "utf8"),
@@ -865,8 +1131,8 @@ try {
     );
     if (entry.language === "js") {
       const generatedTypescript = [
-        ...filesWithSuffix(join(fixture, "volato"), ".ts"),
-        ...filesWithSuffix(join(fixture, "volato"), ".tsx"),
+        ...filesWithSuffix(join(fixture, runtimeRelativeRoot), ".ts"),
+        ...filesWithSuffix(join(fixture, runtimeRelativeRoot), ".tsx"),
       ];
       assert(
         generatedTypescript.length === 0,
@@ -885,10 +1151,10 @@ try {
       );
       const browserEntries = [
         ...(entry.router !== "pages"
-          ? [join(fixture, "app", "layout.jsx")]
+          ? [join(fixture, entry.appDir, "layout.jsx")]
           : []),
         ...(entry.router !== "app"
-          ? [join(fixture, "pages", "_app.jsx")]
+          ? [join(fixture, entry.pagesDir, "_app.jsx")]
           : []),
       ];
       for (const browserEntry of browserEntries) {
@@ -961,8 +1227,9 @@ try {
       `${entry.label} build uploaded duplicate sourcemaps across webpack compilers.`,
     );
     assert(
-      existsSync(join(fixture, ".next", "standalone")),
-      `${entry.label} build did not assemble standalone output.`,
+      existsSync(join(fixture, ".next", "standalone")) ===
+        (entry.configKind !== "missing"),
+      `${entry.label} build changed the application's standalone topology.`,
     );
     const publicMaps = filesWithSuffix(
       join(fixture, ".next", "static"),
@@ -992,6 +1259,20 @@ try {
             selector: "#volato-app-browser-crash",
             windowMessage: "Volato App window witness",
             renderMessage: "Volato App browser render conformance",
+          });
+          await exerciseActionSurface(production, browser, entry, {
+            label: "thrown Server Action",
+            selector: "#volato-action-throw",
+            message: "Volato App Server Action throw conformance",
+            capturedVia: "on_request_error",
+            throws: true,
+          });
+          await exerciseActionSurface(production, browser, entry, {
+            label: "returned Server Action failure",
+            selector: "#volato-action-report",
+            message: "Volato App Server Action returned failure conformance",
+            capturedVia: "wrap_action",
+            throws: false,
           });
         }
         if (entry.router !== "app") {
@@ -1062,9 +1343,40 @@ try {
             "Cannot append headers after they are sent to the client",
           ],
         });
+      } else {
+        await exerciseServerSurface(production, entry, {
+          label: "Next.js 15 Edge middleware",
+          path: "/volato-middleware-crash",
+          message: "Volato Next.js 15 middleware conformance",
+          runtime: "middleware",
+          capturedVia: "wrap_middleware",
+          allowedSecondaryMessages: [
+            "Cannot append headers after they are sent to the client",
+          ],
+        });
       }
     } finally {
       await stopNextProduction(production.child);
+    }
+    if (!staticLifecycleChecked && entry.router !== "app") {
+      const beforeStaticEvents = state.testEvents.length;
+      const failedStaticBuild = await run("pnpm", ["build"], {
+        cwd: fixture,
+        env: { VOLATO_CONFORMANCE_STATIC_FAILURE: "1" },
+        allowFailure: true,
+      });
+      const staticOutput = `${failedStaticBuild.stdout}${failedStaticBuild.stderr}`;
+      assert(
+        failedStaticBuild.status !== 0 &&
+          staticOutput.includes("Volato Pages getStaticProps build conformance"),
+        `${entry.label} did not fail loudly for a getStaticProps build error.\n${staticOutput}`,
+      );
+      await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+      assert(
+        state.testEvents.length === beforeStaticEvents,
+        `${entry.label} misrepresented a build-time getStaticProps failure as a production event.`,
+      );
+      staticLifecycleChecked = true;
     }
     process.stdout.write(
       `✓ ${entry.label} ${entry.next}: authenticated init + production build\n`,

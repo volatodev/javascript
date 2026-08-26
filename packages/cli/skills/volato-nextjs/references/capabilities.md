@@ -29,6 +29,12 @@ Also verify:
   `wrapMiddleware`, so Edge events select the same sourcemaps as other runtimes;
 - Next.js 16 remains on its configured bundler and runs the generated browser
   map postbuild only after `next build` completes;
+- root and `src/` router layouts select the same instrumentation root as
+  Next.js; mixed-root hybrids are rejected on Next.js 16 before mutation;
+- ESM, TypeScript, CommonJS and initially absent config files all compose the
+  dependency-free build helper without changing standalone vs standard output;
+- `getStaticProps` remains a loud build failure, not a claimed production
+  capture event;
 - the ingest token is absent from browser output;
 - query-string secrets are redacted everywhere;
 - capture remains idempotent under React Strict Mode;

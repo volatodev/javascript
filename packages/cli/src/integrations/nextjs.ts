@@ -8,7 +8,10 @@ import {
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import type { ProjectShape } from "../commands/init/detect";
-import { NEXTJS_JAVASCRIPT_RUNTIME } from "../generated/nextjs-javascript-runtime";
+import {
+  NEXTJS_JAVASCRIPT_RUNTIME,
+  NEXTJS_WITH_VOLATO_COMMONJS_RUNTIME,
+} from "../generated/nextjs-javascript-runtime";
 import {
   patchEnvLocal,
   patchErrorBoundary,
@@ -95,6 +98,28 @@ function copyJavascriptRuntime(
     });
 }
 
+function runtimeBoundaryOutcome(
+  path: string | null,
+  wrapper: "wrapMiddleware" | "wrapProxy",
+): PatchOutcome | null {
+  if (!path) return null;
+  const source = readFileSync(path, "utf8");
+  const composed =
+    source.includes("volato/") &&
+    new RegExp(`\\b${wrapper}\\s*\\(`).test(source);
+  return composed
+    ? {
+        path,
+        status: "skipped",
+        detail: `${wrapper} is already composed`,
+      }
+    : {
+        path,
+        status: "manual",
+        detail: `existing runtime boundary must be composed with ${wrapper}`,
+      };
+}
+
 export function generateNextjsIntegration(
   options: GenerateNextjsOptions,
 ): GenerateNextjsResult {
@@ -132,6 +157,13 @@ export function generateNextjsIntegration(
           options.javascriptRuntime ?? NEXTJS_JAVASCRIPT_RUNTIME,
           runtimeRoot,
         );
+  const commonJsBuildHelper = join(runtimeRoot, "withVolato.cjs");
+  writeFileSync(
+    commonJsBuildHelper,
+    NEXTJS_WITH_VOLATO_COMMONJS_RUNTIME,
+    "utf8",
+  );
+  generatedFiles.push(commonJsBuildHelper);
   const runtimeExtension = options.project.language === "js" ? ".js" : "";
   const clientExtension = options.project.language === "js" ? ".jsx" : "";
 
@@ -174,7 +206,7 @@ export function generateNextjsIntegration(
           options.project.pagesAppPath,
           join(runtimeRoot, `client${clientExtension}`),
         ),
-        options.project.language,
+        /\.tsx?$/.test(options.project.pagesAppPath) ? "ts" : "js",
       ),
       patchPagesError(
         options.project.pagesErrorPath,
@@ -185,16 +217,24 @@ export function generateNextjsIntegration(
       ),
     );
   }
+  const middlewareOutcome = runtimeBoundaryOutcome(
+    options.project.middlewarePath,
+    "wrapMiddleware",
+  );
+  if (middlewareOutcome) outcomes.push(middlewareOutcome);
+  const proxyOutcome = runtimeBoundaryOutcome(
+    options.project.proxyPath,
+    "wrapProxy",
+  );
+  if (proxyOutcome) outcomes.push(proxyOutcome);
+  const configPath =
+    options.project.nextConfigPath ?? join(options.cwd, "next.config.mjs");
   outcomes.push(
     patchNextConfig(
-      options.project.nextConfigPath,
-      options.project.nextConfigPath
-        ? modulePath(
-            options.project.nextConfigPath,
-            join(runtimeRoot, `withVolato${runtimeExtension}`),
-          )
-        : "./volato/withVolato",
+      configPath,
+      modulePath(configPath, commonJsBuildHelper),
       options.project.nextMajor,
+      options.project.nextConfigPath === null,
     ),
     patchNextBuildScript(
       options.cwd,

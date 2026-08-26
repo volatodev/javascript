@@ -345,7 +345,7 @@ try {
     env: { VOLATO_API_URL: apiOrigin, VOLATO_TOKEN: authToken },
   });
   assert(
-    setup.stdout.includes("Volato Errors is ready") &&
+    setup.stdout.includes("Volato Errors files are composed") &&
       state.integrations.includes("errors-vite-react") &&
       state.integrations.includes("errors-node"),
     `setup did not install both adapters:\n${setup.stdout}\n${setup.stderr}`,

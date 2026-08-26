@@ -233,8 +233,10 @@ export function patchNextBuildScript(
  * compiles the instrumentation convention as application source regardless of
  * the package's Node module mode.
  *
- * If the file already exists with a Volato marker → skip; if it
- * exists without one → `manual` so the orchestrator warns the user.
+ * If the file already exists with a Volato marker → skip. A conventional
+ * register-only file can safely receive Volato's named re-export. Existing
+ * `onRequestError` ownership or wildcard re-exports remain manual because
+ * composing them requires application-specific ordering and failure policy.
  */
 export function patchInstrumentation(
   path: string,
@@ -250,10 +252,26 @@ export function patchInstrumentation(
     };
   }
   if (existing) {
+    if (
+      !/\bonRequestError\b/.test(existing) &&
+      !/^\s*export\s+\*/m.test(existing)
+    ) {
+      const prefix = existing.endsWith("\n") ? existing : `${existing}\n`;
+      writeFileSync(
+        path,
+        `${prefix}export { onRequestError } from "${modulePath}";\n`,
+        "utf8",
+      );
+      return {
+        path,
+        status: "updated",
+        detail: "preserved existing instrumentation and added onRequestError",
+      };
+    }
     return {
       path,
       status: "manual",
-      detail: `instrumentation file exists — re-export onRequestError from "${modulePath}" manually`,
+      detail: `instrumentation already owns or may re-export onRequestError — compose the generated handler from "${modulePath}" and await both handlers manually`,
     };
   }
 
@@ -346,6 +364,15 @@ function insertAfterLastImport(source: string, block: string): string {
   const after = source.slice(lastEnd);
   const sep = after.startsWith("\n") ? "\n" : "\n\n";
   return `${before}\n${block}${sep}${after.replace(/^\n+/, "")}`;
+}
+
+/** Keep a CommonJS directive prologue (notably `"use strict"`) effective. */
+function insertAfterCommonJsDirectives(source: string, block: string): string {
+  const prologue =
+    /^(?:\s*["'][^"'\r\n]+["'];?\s*\r?\n)*/.exec(source)?.[0] ?? "";
+  const after = source.slice(prologue.length);
+  const separator = after.startsWith("\n") ? "" : "\n";
+  return `${prologue}${block}${separator}${after}`;
 }
 
 /**
@@ -503,14 +530,15 @@ export const proxy = wrapProxy(async (request) => {
 }
 
 /**
- * Wrap the user's `next.config.{ts,js,mjs,cjs}` export with `withVolato()`.
+ * Wrap the user's `next.config.{ts,js,mjs}` export with `withVolato()`.
  * Idempotent — bails with `skipped` if `withVolato` is already imported.
  *
- * Strategy: locate `export default`, walk forward through the value
- * expression with balanced bracket counting until the statement
- * terminator (`;` or end-of-file), wrap that exact slice. Falls back to
- * `manual` for `module.exports = …` shapes, missing exports, or any
- * config the walker can't parse confidently.
+ * Strategy: locate `export default` or `module.exports =`, walk forward
+ * through the value expression with balanced bracket counting until the
+ * statement terminator (`;` or end-of-file), then wrap that exact slice.
+ * ESM config imports the generated helper; CommonJS config requires its
+ * dependency-free `.cjs` bundle. Anything the walker cannot parse confidently
+ * remains manual.
  *
  * The previous regex (`/export\s+default\s+([\s\S]+?)(;?\s*)$/`) was
  * non-greedy paired with `$`, which forces a match to EOF — eating any
@@ -521,6 +549,7 @@ export function patchNextConfig(
   path: string | null,
   modulePath = "./volato/withVolato",
   nextMajor?: number,
+  createIfMissing = false,
 ): PatchOutcome {
   if (!path) {
     return {
@@ -533,6 +562,24 @@ export function patchNextConfig(
 
   const original = readIfExists(path);
   if (original === null) {
+    if (createIfMissing) {
+      ensureDir(path);
+      const versionOptions =
+        nextMajor === undefined ? "" : `, { nextMajor: ${nextMajor} }`;
+      const helper = modulePath.endsWith(".cjs")
+        ? `import volatoBuild from "${modulePath}";\nconst { withVolato } = volatoBuild;\n`
+        : `import { withVolato } from "${modulePath}";\n`;
+      writeFileSync(
+        path,
+        `${helper}\nexport default withVolato({}${versionOptions});\n`,
+        "utf8",
+      );
+      return {
+        path,
+        status: "created",
+        detail: "created wrapped Next.js config",
+      };
+    }
     return {
       path,
       status: "manual",
@@ -543,17 +590,49 @@ export function patchNextConfig(
     return { path, status: "skipped", detail: "already wraps withVolato" };
   }
 
+  const commonJsLocation = findModuleExportsExpression(original);
+  if (commonJsLocation) {
+    if (!modulePath.endsWith(".cjs")) {
+      return {
+        path,
+        status: "manual",
+        detail:
+          "CommonJS next.config.js requires the generated withVolato.cjs helper",
+      };
+    }
+    const versionOptions =
+      nextMajor === undefined ? "" : `, { nextMajor: ${nextMajor} }`;
+    const wrapped = `module.exports = withVolato(${commonJsLocation.expression.trim()}${versionOptions})`;
+    const replaced =
+      original.slice(0, commonJsLocation.startIndex) +
+      wrapped +
+      original.slice(commonJsLocation.endIndex);
+    const requireLine = `const { withVolato } = require("${modulePath}");\n`;
+    writeFileSync(
+      path,
+      insertAfterCommonJsDirectives(replaced, requireLine),
+      "utf8",
+    );
+    return {
+      path,
+      status: "updated",
+      detail: "wrapped CommonJS module.exports",
+    };
+  }
+
   const located = findExportDefaultExpression(original);
   if (!located) {
     return {
       path,
       status: "manual",
       detail:
-        "no parseable `export default` — wrap your export manually with `withVolato(...)`",
+        "no parseable `export default` or `module.exports` — wrap your export manually with `withVolato(...)`",
     };
   }
 
-  const importLine = `import { withVolato } from "${modulePath}";\n`;
+  const importLine = modulePath.endsWith(".cjs")
+    ? `import volatoBuild from "${modulePath}";\nconst { withVolato } = volatoBuild;\n`
+    : `import { withVolato } from "${modulePath}";\n`;
   const versionOptions =
     nextMajor === undefined ? "" : `, { nextMajor: ${nextMajor} }`;
   const wrappedSlice = `export default withVolato(${located.expression.trim()}${versionOptions})`;
@@ -574,6 +653,27 @@ type ExportDefaultLocation = {
   endIndex: number;
   expression: string;
 };
+
+/** Reuse the balanced ESM walker for a line-level CommonJS assignment. */
+function findModuleExportsExpression(
+  source: string,
+): ExportDefaultLocation | null {
+  const match = /(?:^|\n)\s*module\.exports\s*=\s*/.exec(source);
+  if (!match) return null;
+  const startIndex = match.index + match[0].search(/module\.exports/);
+  const expressionStart = match.index + match[0].length;
+  const marker = "export default ";
+  const synthetic =
+    source.slice(0, startIndex) + marker + source.slice(expressionStart);
+  const located = findExportDefaultExpression(synthetic);
+  if (!located) return null;
+  const shift = marker.length - (expressionStart - startIndex);
+  return {
+    startIndex,
+    endIndex: located.endIndex - shift,
+    expression: located.expression,
+  };
+}
 
 /**
  * Characters that, as the LAST significant char of the expression

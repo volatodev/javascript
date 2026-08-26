@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { dirname, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { transform } from "esbuild";
+import { build, transform } from "esbuild";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(
@@ -107,6 +107,28 @@ for (const sourcePath of sourceFiles) {
   );
 }
 
+const commonJsBuild = await build({
+  entryPoints: [join(sourceRoot, "withVolato.ts")],
+  bundle: true,
+  format: "cjs",
+  platform: "node",
+  target: "node18",
+  write: false,
+  sourcemap: false,
+  legalComments: "inline",
+});
+const commonJsOutput = commonJsBuild.outputFiles[0]?.text;
+if (!commonJsOutput) {
+  throw new Error(
+    "Could not generate the dependency-free CommonJS build helper.",
+  );
+}
+// Next.js 15 transpiles a default import in next.config.ts to
+// `require(...).default`; native ESM imports of CommonJS expose the whole
+// namespace. Providing both shapes keeps one helper valid for TS, ESM and CJS
+// configs without runtime dependencies.
+const commonJsWithVolato = `${commonJsOutput}\nmodule.exports.default = module.exports;\n`;
+
 mkdirSync(dirname(target), { recursive: true });
 writeFileSync(
   target,
@@ -115,6 +137,9 @@ writeFileSync(
       runtime,
       null,
       2,
+    )};\n` +
+    `export const NEXTJS_WITH_VOLATO_COMMONJS_RUNTIME = ${JSON.stringify(
+      commonJsWithVolato,
     )};\n`,
   "utf8",
 );

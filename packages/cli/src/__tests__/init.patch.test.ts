@@ -132,6 +132,22 @@ describe("patchNextBuildScript", () => {
     expect(pkg.scripts.build).toBe("next build && node ./volato/postbuild.cjs");
     expect(pkg.scripts.build).not.toContain("--webpack");
   });
+
+  it("leaves a custom Next.js 16 build command as an explicit manual action", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      JSON.stringify({ scripts: { build: "turbo run build --filter=web" } }),
+    );
+
+    const out = patchNextBuildScript(cwd, 16);
+
+    expect(out.status).toBe("manual");
+    expect(out.detail).toContain("only after Next.js completes");
+    expect(
+      JSON.parse(readFileSync(join(cwd, "package.json"), "utf8")).scripts
+        .build,
+    ).toBe("turbo run build --filter=web");
+  });
 });
 
 describe("patchInstrumentation", () => {
@@ -171,14 +187,34 @@ describe("patchInstrumentation", () => {
     expect(out.status).toBe("skipped");
   });
 
-  it("returns `manual` when an unrelated instrumentation file exists", () => {
+  it("composes an existing register-only instrumentation file", () => {
     const path = join(cwd, "instrumentation.ts");
     writeFileSync(path, "export function register() { /* opentelemetry */ }\n");
 
     const out = patchInstrumentation(path, "ts");
 
-    expect(out.status).toBe("manual");
+    expect(out.status).toBe("updated");
     expect(readFileSync(path, "utf8")).toContain("opentelemetry");
+    expect(readFileSync(path, "utf8")).toContain(
+      'export { onRequestError } from "./volato/instrumentation"',
+    );
+  });
+
+  it("returns manual when instrumentation already owns onRequestError", () => {
+    const path = join(cwd, "instrumentation.ts");
+    writeFileSync(path, "export async function onRequestError() {}\n");
+
+    const out = patchInstrumentation(path, "ts");
+
+    expect(out.status).toBe("manual");
+    expect(readFileSync(path, "utf8")).not.toContain("volato/instrumentation");
+  });
+
+  it("returns manual for a wildcard instrumentation re-export", () => {
+    const path = join(cwd, "instrumentation.ts");
+    writeFileSync(path, 'export * from "./observability";\n');
+
+    expect(patchInstrumentation(path, "ts").status).toBe("manual");
   });
 });
 
@@ -418,6 +454,24 @@ describe("patchNextConfig", () => {
     );
   });
 
+  it("creates an ESM config around the dependency-free CommonJS helper", () => {
+    const path = join(cwd, "next.config.mjs");
+
+    const out = patchNextConfig(
+      path,
+      "./volato/withVolato.cjs",
+      16,
+      true,
+    );
+
+    expect(out.status).toBe("created");
+    const next = readFileSync(path, "utf8");
+    expect(next).toContain(
+      'import volatoBuild from "./volato/withVolato.cjs"',
+    );
+    expect(next).toContain("export default withVolato({}, { nextMajor: 16 })");
+  });
+
   it("is idempotent — second call is a no-op skip", () => {
     const path = join(cwd, "next.config.ts");
     writeFileSync(path, "export default { x: 1 };\n");
@@ -426,11 +480,24 @@ describe("patchNextConfig", () => {
     expect(out.status).toBe("skipped");
   });
 
-  it("returns manual on `module.exports = …` shape", () => {
+  it("wraps a CommonJS module.exports config with the CommonJS helper", () => {
     const path = join(cwd, "next.config.js");
-    writeFileSync(path, "module.exports = { x: 1 };\n");
-    const out = patchNextConfig(path);
-    expect(out.status).toBe("manual");
+    writeFileSync(
+      path,
+      '"use strict";\nconst base = { x: 1 };\nmodule.exports = base;\n',
+    );
+
+    const out = patchNextConfig(path, "./volato/withVolato.cjs", 15);
+
+    expect(out.status).toBe("updated");
+    const next = readFileSync(path, "utf8");
+    expect(next.startsWith('"use strict";')).toBe(true);
+    expect(next).toContain(
+      'const { withVolato } = require("./volato/withVolato.cjs")',
+    );
+    expect(next).toContain(
+      "module.exports = withVolato(base, { nextMajor: 15 })",
+    );
   });
 
   it("preserves an adjacent `export const runtime` after the default export", () => {

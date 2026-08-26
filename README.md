@@ -75,8 +75,9 @@ pnpm smoke:vite-node
 `pnpm smoke:nextjs` creates clean JavaScript and TypeScript Next.js 15 and 16
 App Router, Pages Router, and hybrid applications, connects each repository,
 initializes Errors, exercises router-specific browser and server failures,
-builds for production and requires real sourcemap uploads without a Volato
-runtime dependency.
+uses root and `src/` layouts plus ESM, TypeScript, CommonJS, missing-config,
+standalone and standard-server topologies, builds for production and requires
+real sourcemap uploads without a Volato runtime dependency.
 
 `pnpm smoke:vite-node` creates a clean full-stack fixture, installs both
 adapters through the packed CLI, builds Vite and Node, captures browser,

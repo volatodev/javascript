@@ -35,6 +35,12 @@ the browser maps that Turbopack finalizes later. For a custom build script,
 compose `node <generated-runtime>/postbuild.cjs` strictly after the successful
 Next.js build; never run it concurrently or replace the selected bundler.
 
+The detector mirrors Next's router precedence: root `app/` or `pages/` wins
+over the matching `src/` directory. Next.js 16 hybrid applications must keep
+both routers under the same root. The recipe creates `next.config.mjs` when no
+config exists, composes ESM/TypeScript config and CommonJS `next.config.js`, and
+does not treat unsupported `next.config.cjs` as a framework config.
+
 Read [references/capabilities.md](references/capabilities.md) for the automatic
 build-identity gate and runtime matrix. The user does not create or publish a
 Volato release: `withVolato()` derives the Git commit during the build and uses
@@ -59,6 +65,10 @@ it for both runtime events and sourcemap uploads.
   generated bootstrap around its single page render. The generated `_error`
   wrapper delegates the existing component and `getInitialProps`; server
   render, SSR, and API Route errors stay on the awaited `onRequestError` path.
+- Preserve existing `instrumentation.register`; append Volato's named handler
+  only when the file does not already own or wildcard-export `onRequestError`.
+- Treat an existing unwrapped middleware or proxy, an existing App error
+  boundary, and a custom Next.js 16 build command as incomplete manual work.
 - Upload browser and server sourcemaps during the production build, skip stale
   development artifacts, and remove `sourcesContent` before transit.
 - Browser capture sends directly to ingest by default. Add a same-origin tunnel
@@ -67,7 +77,8 @@ it for both runtime events and sourcemap uploads.
 
 ## Completion
 
-Declare the integration complete only after a synthetic event reaches ingest
-and a production build succeeds. If a project uses a capture surface that the
-recipe could not compose safely, leave a precise manual action instead of
-claiming full coverage.
+The CLI's “files are composed” result is not deployment readiness. Declare the
+integration complete only after a synthetic event reaches ingest, the
+production build succeeds, and every applicable capture surface used by the
+application is exercised. If a surface cannot be composed safely, leave a
+precise manual action instead of claiming full coverage.

@@ -2,7 +2,7 @@
  * Project detection for `volato init`. Walks a customer's
  * Next.js project tree and figures out where the layout lives
  * (`app/` vs `src/app/`), whether they're on TypeScript or
- * JavaScript, where their `next.config.{ts,js,mjs,cjs}` is, and
+ * JavaScript, where their `next.config.{ts,js,mjs}` is, and
  * whether they already have an `instrumentation.ts` / `middleware.ts`.
  *
  * Lives separately from `init.ts` and `patch.ts` so each rule is
@@ -30,7 +30,7 @@ export type ProjectShape = {
   middlewarePath: string | null;
   /** Next.js 16 Node-runtime request boundary (`proxy.ts` / `.js`). */
   proxyPath: string | null;
-  /** Absolute path to the existing next.config.{ts,mjs,js,cjs}, or null. */
+  /** Absolute path to the existing next.config.{ts,mjs,js}, or null. */
   nextConfigPath: string | null;
   /** Absolute path where the App Router render error boundary should live. */
   errorBoundaryPath: string | null;
@@ -102,7 +102,10 @@ function filesUnder(root: string): string[] {
 }
 
 function findPagesDirectory(cwd: string): PagesRouterLocation | null {
-  for (const location of ["src/pages", "pages"] as const) {
+  // Match Next.js's own `findDir`: a root router takes precedence over its
+  // `src/` counterpart. App and Pages precedence are independent; Next.js 15
+  // still accepts mixed hybrids while Next.js 16 rejects them below.
+  for (const location of ["pages", "src/pages"] as const) {
     const root = join(cwd, location);
     if (
       filesUnder(root).some(
@@ -177,7 +180,7 @@ export function detectProject(cwd: string): ProjectShape {
   }
 
   const appDir =
-    (["src/app", "app"] as const).find((location) =>
+    (["app", "src/app"] as const).find((location) =>
       findLayout(cwd, location),
     ) ?? null;
   const layout = appDir ? findLayout(cwd, appDir) : null;
@@ -185,6 +188,16 @@ export function detectProject(cwd: string): ProjectShape {
   if (!layout && !pagesDir) {
     throw new DetectionError(
       "No App Router app/layout.{tsx,jsx} or Pages Router pages/* entry was found.",
+    );
+  }
+  if (
+    nextMajor >= 16 &&
+    appDir &&
+    pagesDir &&
+    appDir.startsWith("src/") !== pagesDir.startsWith("src/")
+  ) {
+    throw new DetectionError(
+      "Next.js 16 requires `app` and `pages` under the same root (`./` or `src/`). Move one router before running Volato; no files were modified.",
     );
   }
 
@@ -196,7 +209,10 @@ export function detectProject(cwd: string): ProjectShape {
       ? "ts"
       : "js"
     : pagesLanguage(cwd, pagesDir!, existingPagesAppPath);
-  const sourceRoot = appDir === "src/app" || pagesDir === "src/pages";
+  // Next.js discovers instrumentation and middleware beside Pages Router when
+  // it exists, otherwise beside App Router (`pagesDir || appDir` internally).
+  const frameworkRoot = pagesDir ?? appDir!;
+  const sourceRoot = frameworkRoot.startsWith("src/");
   const instrumentationDir = sourceRoot ? join(cwd, "src") : cwd;
   const instrumentationPath = join(
     instrumentationDir,
@@ -213,19 +229,15 @@ export function detectProject(cwd: string): ProjectShape {
     : null;
 
   const middlewareCandidates = [
-    join(cwd, "middleware.ts"),
-    join(cwd, "middleware.js"),
-    join(cwd, "src", "middleware.ts"),
-    join(cwd, "src", "middleware.js"),
+    join(instrumentationDir, "middleware.ts"),
+    join(instrumentationDir, "middleware.js"),
   ];
   const middlewarePath =
     middlewareCandidates.find((p) => existsSync(p)) ?? null;
 
   const proxyCandidates = [
-    join(cwd, "proxy.ts"),
-    join(cwd, "proxy.js"),
-    join(cwd, "src", "proxy.ts"),
-    join(cwd, "src", "proxy.js"),
+    join(instrumentationDir, "proxy.ts"),
+    join(instrumentationDir, "proxy.js"),
   ];
   const proxyPath =
     nextMajor >= 16 ? proxyCandidates.find((p) => existsSync(p)) ?? null : null;
@@ -234,7 +246,6 @@ export function detectProject(cwd: string): ProjectShape {
     join(cwd, "next.config.ts"),
     join(cwd, "next.config.mjs"),
     join(cwd, "next.config.js"),
-    join(cwd, "next.config.cjs"),
   ];
   const nextConfigPath =
     nextConfigCandidates.find((p) => existsSync(p)) ?? null;

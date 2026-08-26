@@ -97,10 +97,11 @@ describe("volato errors init", () => {
       }),
     );
     const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
-    expect(output).toContain("Volato Errors is ready.");
+    expect(output).toContain("Volato Errors files are composed.");
     expect(output).toContain(
-      "Deploy these changes; the dashboard will surface the first production error when it arrives.",
+      "Run the production build and applicable capture checks before deployment.",
     );
+    expect(output).not.toContain("Volato Errors is ready.");
     expect(output).not.toContain("Fix the latest production error.");
   });
 
@@ -121,6 +122,30 @@ describe("volato errors init", () => {
     expect(output).toContain("wrapProxy");
     expect(output).toContain('from "./volato/server"');
     expect(output).not.toContain("wrapMiddleware");
+  });
+
+  it("does not report readiness while a runtime boundary needs manual composition", async () => {
+    generateNextjsIntegration.mockReturnValue({
+      runtimeRoot: join(cwd, "volato"),
+      generatedFiles: [join(cwd, "volato", "client.tsx")],
+      manifestPath: join(cwd, ".volato", "manifest.json"),
+      outcomes: [
+        {
+          path: join(cwd, "middleware.ts"),
+          status: "manual",
+          detail: "existing runtime boundary must be composed with wrapMiddleware",
+        },
+      ],
+    });
+
+    await expect(
+      runErrorsInit({ cwd, nonInteractive: true }),
+    ).rejects.toThrow(/setup is incomplete/i);
+
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toContain("Setup incomplete");
+    expect(output).not.toContain("Volato Errors files are composed");
+    expect(reportIntegrationInstalled).not.toHaveBeenCalled();
   });
 
   it("finishes supported Vite capture while announcing an unsupported Python backend", async () => {
@@ -156,7 +181,7 @@ describe("volato errors init", () => {
     expect(output).toMatch(
       /Python backend capture is not supported.*browser capture will be installed/i,
     );
-    expect(output).toContain("Volato Errors is ready.");
+    expect(output).toContain("Volato Errors files are composed.");
     expect(reportIntegrationInstalled).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
       "errors-vite-react",
