@@ -73,6 +73,60 @@ describe("detectErrorsStack", () => {
     expect(result.node).toBeUndefined();
   });
 
+  it.each([
+    [
+      "Webpack",
+      { react: "19.2.8", "react-dom": "19.2.8", webpack: "5.109.2" },
+      "webpack.config.cjs",
+      "module.exports = {};\n",
+      "webpack",
+    ],
+    [
+      "Rspack",
+      {
+        react: "19.2.8",
+        "react-dom": "19.2.8",
+        "@rspack/core": "2.2.0",
+        "@rspack/cli": "2.2.0",
+      },
+      "rspack.config.ts",
+      "export default {};\n",
+      "rspack",
+    ],
+  ])(
+    "detects React with the %s build adapter",
+    (_label, dependencies, configName, configSource, adapter) => {
+      writePackage(cwd, dependencies);
+      mkdirSync(join(cwd, "src"));
+      writeFileSync(join(cwd, "src", "main.tsx"), "createRoot(root).render(<App />);\n");
+      writeFileSync(join(cwd, configName), configSource);
+
+      expect(detectErrorsStack(cwd).browserReact).toMatchObject({
+        entryPath: join(cwd, "src", "main.tsx"),
+        buildConfigPath: join(cwd, configName),
+        buildAdapter: adapter,
+        language: "ts",
+      });
+    },
+  );
+
+  it("refuses ambiguous browser build targets before selecting an adapter", () => {
+    writePackage(cwd, {
+      react: "19.2.8",
+      "react-dom": "19.2.8",
+      vite: "8.2.2",
+      webpack: "5.109.2",
+    });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(join(cwd, "src", "main.tsx"), "createRoot(root).render(<App />);\n");
+    writeFileSync(join(cwd, "vite.config.ts"), "export default {};\n");
+    writeFileSync(join(cwd, "webpack.config.mjs"), "export default {};\n");
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(
+      /multiple browser build configurations.*no files were modified/i,
+    );
+  });
+
   it("refuses to apply the React recipe to a Vite + Vue project", () => {
     writePackage(cwd, { vite: "^7.1.1", vue: "^3.5.0" });
     mkdirSync(join(cwd, "src"));

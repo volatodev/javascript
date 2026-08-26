@@ -39,12 +39,13 @@ Headless / CI — skip \`login\` and set the token in the environment:
 instrument the app.
 
 \`volato errors init\` retrieves the linked project's credentials and generates
-the applicable independent adapters: Next.js 15/16 App Router or Pages Router, Vite + React
-browser capture, and Node.js runtime capture with Express HTTP context when
-Express is present. Vite alone never implies a Node server. No Volato runtime
+the applicable independent adapters: Next.js 15/16 App Router or Pages Router,
+React browser capture with Vite, Webpack, or Rspack, and Node.js runtime capture
+with Express HTTP context when Express is present. A browser build tool alone
+never implies a Node server. No Volato runtime
 dependency is added. Re-running is idempotent and refuses to overwrite locally
 edited generated files. \`--send-test-event\` is the built-in Next.js verifier;
-the Vite and Node skills define their production-build conformance scenarios.
+the browser and Node skills define their production-build conformance scenarios.
 
 Errors is the only public product. \`volato-errors\` owns the investigation job
 while the framework skills own capture integration. The CLI does not expose a

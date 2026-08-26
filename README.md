@@ -21,7 +21,8 @@ investigation and correction job;
 integrations. Generated application source emits only contract-declared data.
 
 Errors supports JavaScript and TypeScript Next.js 15/16 App Router, Pages
-Router, and hybrid App + Pages applications, plus Vite + React browser capture,
+Router, and hybrid App + Pages applications, plus React browser capture with
+Vite, Webpack, or Rspack,
 with independent Node.js runtime capture and Express HTTP context. A Vite
 frontend does not imply Node: a project may install the browser adapter, the
 Node adapter, or both.
@@ -31,9 +32,8 @@ Setup generates:
 ```text
 .agents/skills/        agent instructions
 .volato/manifest.json project link and per-integration generated-file integrity
-src/volato/            local capture runtime when src/app is used
+src/volato/            local capture runtime when src/app or React is used
 volato/                local capture runtime when app is used
-src/volato/            also hosts the Vite + React browser runtime
 src/volato-node/       Node runtime and Express adapter when detected
 ```
 

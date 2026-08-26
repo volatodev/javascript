@@ -21,6 +21,7 @@
     "eval:errors-setup-agent": "pnpm --filter @volatodev/cli build && node scripts/errors-setup-agent-eval.mjs",
     "matrix:errors": "node scripts/errors-runtime-matrix.mjs",
     "smoke:nextjs": "pnpm --filter @volatodev/cli build && node scripts/nextjs-conformance.mjs",
+    "smoke:browser-react": "pnpm --filter @volatodev/cli build && node scripts/browser-react-conformance.mjs",
     "smoke:vite-node": "pnpm --filter @volatodev/cli build && node scripts/vite-node-conformance.mjs",
     "smoke:published": "node scripts/package-smoke.mjs @volatodev/cli@beta",
     "release:check": "node scripts/release-check.mjs",

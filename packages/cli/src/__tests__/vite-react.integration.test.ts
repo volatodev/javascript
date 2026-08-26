@@ -10,7 +10,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { detectErrorsStack } from "../commands/init/detect-errors";
-import { generateViteReactIntegration } from "../integrations/vite-react";
+import {
+  generateBrowserReactIntegration,
+  generateViteReactIntegration,
+} from "../integrations/vite-react";
 import {
   ERRORS_VITE_REACT_INTEGRATION,
   linkProject,
@@ -76,6 +79,12 @@ describe("Vite + React generated integration", () => {
       'from "./volato/react"',
     );
     expect(readFileSync(project.entryPath, "utf8")).toContain(
+      'import { initVolatoBrowser } from "./volato/browser"',
+    );
+    expect(readFileSync(project.entryPath, "utf8")).toMatch(
+      /initVolatoBrowser\(\);[\s\S]*\.render\(/,
+    );
+    expect(readFileSync(project.entryPath, "utf8")).toContain(
       "<VolatoErrorBoundary>",
     );
     expect(readFileSync(project.entryPath, "utf8")).toContain(
@@ -94,7 +103,7 @@ describe("Vite + React generated integration", () => {
     const integration = readManifest(cwd)?.integrations[
       ERRORS_VITE_REACT_INTEGRATION
     ];
-    expect(integration?.recipe).toBe("errors-vite-react");
+    expect(integration?.recipe).toBe("errors-browser-react");
     expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
     expect(result.outcomes.every((outcome) => outcome.status !== "manual")).toBe(
       true,
@@ -196,5 +205,93 @@ describe("Vite + React generated integration", () => {
       }),
     );
     expect(readFileSync(join(cwd, "src", "main.tsx"), "utf8")).toBe(original);
+  });
+
+  it("generates and composes the CommonJS Webpack build adapter", () => {
+    const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+    delete pkg.dependencies.vite;
+    pkg.dependencies.webpack = "5.109.2";
+    writeFileSync(join(cwd, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+    rmSync(join(cwd, "vite.config.ts"));
+    writeFileSync(
+      join(cwd, "webpack.config.cjs"),
+      'module.exports = { mode: "production", entry: "./src/main.tsx" };\n',
+    );
+
+    const project = detectErrorsStack(cwd).browserReact!;
+    const result = generateBrowserReactIntegration({
+      cwd,
+      project,
+      dsn: "https://pk@api.volato.dev/project",
+      ingestToken: "server-only-token",
+    });
+
+    expect(project.buildAdapter).toBe("webpack");
+    expect(existsSync(join(cwd, "src", "volato", "webpack.cjs"))).toBe(true);
+    expect(readFileSync(project.buildConfigPath, "utf8")).toMatch(
+      /require\(["'].+webpack\.cjs["']\)/,
+    );
+    expect(readFileSync(project.buildConfigPath, "utf8")).toContain(
+      "withVolatoWebpack",
+    );
+    expect(readFileSync(join(cwd, ".env.local"), "utf8")).toContain(
+      "VOLATO_DSN=https://pk@api.volato.dev/project",
+    );
+    expect(result.outcomes.every((outcome) => outcome.status !== "manual")).toBe(
+      true,
+    );
+  });
+
+  it("generates and composes the TypeScript Rspack build adapter", () => {
+    const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+    delete pkg.dependencies.vite;
+    pkg.dependencies["@rspack/core"] = "2.2.0";
+    pkg.dependencies["@rspack/cli"] = "2.2.0";
+    writeFileSync(join(cwd, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+    rmSync(join(cwd, "vite.config.ts"));
+    writeFileSync(
+      join(cwd, "rspack.config.ts"),
+      'import { defineConfig } from "@rspack/cli";\nexport default defineConfig({});\n',
+    );
+
+    const project = detectErrorsStack(cwd).browserReact!;
+    const result = generateBrowserReactIntegration({
+      cwd,
+      project,
+      dsn: "https://pk@api.volato.dev/project",
+    });
+
+    expect(project.buildAdapter).toBe("rspack");
+    expect(existsSync(join(cwd, "src", "volato", "rspack.ts"))).toBe(true);
+    expect(existsSync(join(cwd, "src", "volato", "artifact.ts"))).toBe(true);
+    expect(readFileSync(project.buildConfigPath, "utf8")).toContain(
+      "withVolatoRspack",
+    );
+    expect(result.outcomes.every((outcome) => outcome.status !== "manual")).toBe(
+      true,
+    );
+  });
+
+  it("refuses a dynamic browser build config before mutating any file", () => {
+    const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+    delete pkg.dependencies.vite;
+    pkg.dependencies.webpack = "5.109.2";
+    writeFileSync(join(cwd, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+    rmSync(join(cwd, "vite.config.ts"));
+    const config = 'export default async () => ({ mode: "production" });\n';
+    writeFileSync(join(cwd, "webpack.config.mjs"), config);
+    const entry = readFileSync(join(cwd, "src", "main.tsx"), "utf8");
+
+    expect(() =>
+      generateBrowserReactIntegration({
+        cwd,
+        project: detectErrorsStack(cwd).browserReact!,
+        dsn: "https://pk@api.volato.dev/project",
+      }),
+    ).toThrowError(/dynamic Webpack config.*no files were modified/i);
+    expect(readFileSync(join(cwd, "webpack.config.mjs"), "utf8")).toBe(config);
+    expect(readFileSync(join(cwd, "src", "main.tsx"), "utf8")).toBe(entry);
+    expect(existsSync(join(cwd, ".env.local"))).toBe(false);
+    expect(existsSync(join(cwd, "src", "volato"))).toBe(false);
   });
 });

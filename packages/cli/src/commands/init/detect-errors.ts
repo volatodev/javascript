@@ -3,12 +3,19 @@ import { join } from "node:path";
 import { detectProject, type ProjectShape } from "./detect.js";
 
 export type SourceLanguage = "ts" | "js";
+export type BrowserBuildAdapter = "vite" | "webpack" | "rspack";
 
-export type ViteReactProjectShape = {
+export type BrowserReactProjectShape = {
   cwd: string;
   entryPath: string;
-  viteConfigPath: string;
+  buildConfigPath: string;
+  buildAdapter: BrowserBuildAdapter;
   language: SourceLanguage;
+};
+
+export type ViteReactProjectShape = BrowserReactProjectShape & {
+  buildAdapter: "vite";
+  viteConfigPath: string;
 };
 
 export type NodeProjectShape = {
@@ -21,6 +28,7 @@ export type NodeProjectShape = {
 export type ErrorsStackShape = {
   cwd: string;
   nextjs?: ProjectShape;
+  browserReact?: BrowserReactProjectShape;
   viteReact?: ViteReactProjectShape;
   node?: NodeProjectShape;
   notices: string[];
@@ -96,31 +104,91 @@ function languageOf(path: string): SourceLanguage {
   return /\.[cm]?tsx?$/.test(path) ? "ts" : "js";
 }
 
-function viteShape(cwd: string): ViteReactProjectShape | undefined {
-  const viteConfigPath = firstExisting(cwd, [
-    "vite.config.ts",
-    "vite.config.mts",
-    "vite.config.js",
-    "vite.config.mjs",
-  ]);
+const BROWSER_BUILD_ADAPTERS: Array<{
+  adapter: BrowserBuildAdapter;
+  label: string;
+  dependencies: string[];
+  configs: string[];
+}> = [
+  {
+    adapter: "vite",
+    label: "Vite",
+    dependencies: ["vite"],
+    configs: ["vite.config.ts", "vite.config.mts", "vite.config.js", "vite.config.mjs"],
+  },
+  {
+    adapter: "webpack",
+    label: "Webpack",
+    dependencies: ["webpack"],
+    configs: ["webpack.config.mjs", "webpack.config.cjs"],
+  },
+  {
+    adapter: "rspack",
+    label: "Rspack",
+    dependencies: ["@rspack/core", "@rspack/cli"],
+    configs: ["rspack.config.mjs", "rspack.config.ts"],
+  },
+];
+
+function browserShape(
+  cwd: string,
+  deps: Record<string, string>,
+): BrowserReactProjectShape | undefined {
+  const installed = BROWSER_BUILD_ADAPTERS.filter(({ dependencies }) =>
+    dependencies.some((dependency) => typeof deps[dependency] === "string"),
+  );
+  if (installed.length === 0) return undefined;
+  const configured = installed.flatMap((candidate) =>
+    candidate.configs
+      .filter((config) => existsSync(join(cwd, config)))
+      .map((config) => ({ ...candidate, config })),
+  );
+  if (configured.length > 1) {
+    throw new ErrorsStackDetectionError(
+      `Multiple browser build configurations were detected (${configured.map(({ config }) => config).join(", ")}). Select one application/build root explicitly; no files were modified.`,
+    );
+  }
+  const selected = configured[0];
+  if (!selected) {
+    if (installed.length > 1) {
+      throw new ErrorsStackDetectionError(
+        `Multiple browser build tools are installed (${installed.map(({ label }) => label).join(", ")}), but no supported configuration identifies the deployed target. Select one application/build root explicitly; no files were modified.`,
+      );
+    }
+    const candidate = installed[0]!;
+    throw new ErrorsStackDetectionError(
+      `${candidate.label} + React was detected, but Volato could not find a supported ${candidate.configs.join(" or ")}. No files were modified.`,
+    );
+  }
+  if (typeof deps.react !== "string") {
+    throw new ErrorsStackDetectionError(
+      `${selected.label} is supported only with React in this release. Other renderers were not modified.`,
+    );
+  }
   const entryPath = firstExisting(cwd, [
     "src/main.tsx",
     "src/main.jsx",
     "src/main.ts",
     "src/main.js",
   ]);
-  if (!viteConfigPath || !entryPath) {
+  if (!entryPath) {
     throw new ErrorsStackDetectionError(
-      "Vite + React was detected, but Volato could not find both vite.config.* and src/main.{tsx,jsx,ts,js}.",
+      `${selected.label} + React was detected, but Volato could not find src/main.{tsx,jsx,ts,js}. No files were modified.`,
     );
   }
-  return { cwd, entryPath, viteConfigPath, language: languageOf(entryPath) };
+  return {
+    cwd,
+    entryPath,
+    buildConfigPath: join(cwd, selected.config),
+    buildAdapter: selected.adapter,
+    language: languageOf(entryPath),
+  };
 }
 
 function nodeShape(
   cwd: string,
   deps: Record<string, string>,
-  hasVite: boolean,
+  hasBrowserBuild: boolean,
 ): NodeProjectShape | undefined {
   const entryPath = firstExisting(cwd, [
     "src/server.ts",
@@ -145,7 +213,7 @@ function nodeShape(
   // Vite's own Node-based build toolchain is not evidence of a deployed Node
   // runtime. A Vite app gets server capture only when a distinct server entry
   // exists (or Express is explicitly installed).
-  if (hasVite && !express && /src\/index\.[jt]s$/.test(entryPath)) {
+  if (hasBrowserBuild && !express && /src\/index\.[jt]s$/.test(entryPath)) {
     return undefined;
   }
   return { cwd, entryPath, express, language: languageOf(entryPath) };
@@ -173,7 +241,12 @@ function nestedPackageRoots(cwd: string, pkg: PackageJson): string[] {
 function looksSupported(root: string): boolean {
   try {
     const deps = dependencies(readPackageJson(root));
-    return Boolean(deps.next || deps.vite || deps.express);
+    return Boolean(
+      deps.next ||
+        deps.express ||
+        (deps.react &&
+          (deps.vite || deps.webpack || deps["@rspack/core"] || deps["@rspack/cli"])),
+    );
   } catch {
     return false;
   }
@@ -194,21 +267,21 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     return { cwd, nextjs: detectProject(cwd), notices: [] };
   }
 
-  const hasVite = typeof deps.vite === "string";
-  const hasReact = typeof deps.react === "string";
-  if (hasVite && !hasReact) {
-    throw new ErrorsStackDetectionError(
-      "Vite is supported only with React in this release. Vue, Svelte, and other Vite frameworks were not modified.",
-    );
-  }
-
-  const viteReact = hasVite && hasReact ? viteShape(cwd) : undefined;
-  const node = nodeShape(cwd, deps, hasVite);
+  const browserReact = browserShape(cwd, deps);
+  const viteReact =
+    browserReact?.buildAdapter === "vite"
+      ? {
+          ...browserReact,
+          buildAdapter: "vite" as const,
+          viteConfigPath: browserReact.buildConfigPath,
+        }
+      : undefined;
+  const node = nodeShape(cwd, deps, Boolean(browserReact));
   const unsupportedBackends = unsupportedBackendLabels(cwd);
   const unsupportedHttpFrameworks = UNSUPPORTED_HTTP_FRAMEWORKS.filter(
     ([dependency]) => typeof deps[dependency] === "string",
   );
-  if (!viteReact && !node) {
+  if (!browserReact && !node) {
     const unsupported = [
       ...unsupportedBackends.map((label) => `${label} backend`),
       ...unsupportedHttpFrameworks.map(([, label]) => `${label} HTTP`),
@@ -219,7 +292,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
       );
     }
     throw new ErrorsStackDetectionError(
-      "No supported Errors stack was detected. Supported targets are Next.js 15/16 App Router or Pages Router, Vite + React in the browser, and Node.js (with Express as the supported HTTP adapter).",
+      "No supported Errors stack was detected. Supported targets are Next.js 15/16, React in the browser with Vite, Webpack, or Rspack, and Node.js (with Express as the supported HTTP adapter).",
     );
   }
 
@@ -228,7 +301,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     notices.push(
       node
         ? `${label} backend capture is not supported; that backend was not modified.`
-        : `${label} backend capture is not supported; only Vite + React browser capture will be installed.`,
+        : `${label} backend capture is not supported; only React browser capture will be installed.`,
     );
   }
   for (const [, label] of unsupportedHttpFrameworks) {
@@ -238,5 +311,5 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
         : `${label} HTTP context is not supported and no conventional Node server entry was found; the server was not modified.`,
     );
   }
-  return { cwd, viteReact, node, notices };
+  return { cwd, browserReact, viteReact, node, notices };
 }

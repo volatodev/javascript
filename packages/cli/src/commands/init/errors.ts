@@ -29,7 +29,7 @@ import {
   type PatchStatus,
 } from "./patch";
 import { generateNextjsIntegration } from "../../integrations/nextjs";
-import { generateViteReactIntegration } from "../../integrations/vite-react.js";
+import { generateBrowserReactIntegration } from "../../integrations/vite-react.js";
 import { generateNodeIntegration } from "../../integrations/node.js";
 import { linkedProject } from "../../integrations/manifest.js";
 import {
@@ -122,18 +122,18 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       },
     );
   } else {
-    if (stack.viteReact) {
-      const generated = generateViteReactIntegration({
+    if (stack.browserReact) {
+      const generated = generateBrowserReactIntegration({
         cwd,
         dsn: setup.dsn,
         ingestToken: setup.ingestToken,
-        project: stack.viteReact,
+        project: stack.browserReact,
       });
       outcomes.push(
         {
           path: generated.runtimeRoot,
           status: "created",
-          detail: `${generated.generatedFiles.length} local Vite + React browser files`,
+          detail: `${generated.generatedFiles.length} local ${stack.browserReact.buildAdapter} + React browser files`,
         },
         ...generated.outcomes,
         {
@@ -170,7 +170,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       path: cwd,
       status: "manual",
       detail:
-        "--send-test-event is currently a Next.js-only verifier; run the Vite browser and Node/Express conformance scenarios from their integration skills",
+        "--send-test-event is currently a Next.js-only verifier; run the browser and Node/Express conformance scenarios from their integration skills",
     });
   }
 
@@ -184,7 +184,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
     if (stack.nextjs) {
       await reportIntegrationInstalled(projectLink.id, "errors-nextjs");
     }
-    if (stack.viteReact) {
+    if (stack.browserReact) {
       await reportIntegrationInstalled(projectLink.id, "errors-vite-react");
     }
     if (stack.node) {
@@ -223,7 +223,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
   } else {
     printPortableNextSteps(
       cwd,
-      Boolean(stack.viteReact),
+      Boolean(stack.browserReact),
       Boolean(stack.node),
       manualOutcomes.length === 0,
     );

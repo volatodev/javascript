@@ -193,7 +193,7 @@ const errors = program
 
 errors
   .command("init")
-  .description("Install detected Next.js, Vite + React, and Node Errors adapters")
+  .description("Install detected Next.js, Browser + React, and Node Errors adapters")
   .option("--yes", "apply safe setup defaults without prompts")
   .option(
     "--send-test-event",

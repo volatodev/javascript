@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { transform } from "esbuild";
+import { build, transform } from "esbuild";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(
@@ -21,7 +21,10 @@ const target = join(
 const sources = [
   ["browser.ts", "browser.js", "ts"],
   ["react.tsx", "react.jsx", "tsx"],
+  ["artifact.ts", "artifact.js", "ts"],
   ["vite.ts", "vite.js", "ts"],
+  ["webpack.ts", "webpack.mjs", "ts"],
+  ["rspack.ts", "rspack.mjs", "ts"],
 ];
 
 const runtime = {};
@@ -38,8 +41,32 @@ for (const [sourceName, outputName, loader] of sources) {
       sourcemap: false,
     },
   );
-  runtime[outputName] = transformed.code;
+  runtime[outputName] = outputName.endsWith(".mjs")
+    ? transformed.code.replaceAll('"./artifact"', '"./artifact.mjs"')
+    : transformed.code;
 }
+
+runtime["artifact.mjs"] = runtime["artifact.js"];
+runtime["vite.mjs"] = runtime["vite.js"].replaceAll(
+  '"./artifact"',
+  '"./artifact.mjs"',
+);
+const webpackCommonJs = await build({
+  entryPoints: [join(sourceRoot, "webpack.ts")],
+  bundle: true,
+  format: "cjs",
+  platform: "node",
+  target: "node22",
+  external: ["webpack"],
+  write: false,
+  sourcemap: false,
+  legalComments: "inline",
+});
+const webpackCommonJsSource = webpackCommonJs.outputFiles[0]?.text;
+if (!webpackCommonJsSource) {
+  throw new Error("Could not generate the CommonJS Webpack build adapter.");
+}
+runtime["webpack.cjs"] = webpackCommonJsSource;
 
 mkdirSync(dirname(target), { recursive: true });
 writeFileSync(

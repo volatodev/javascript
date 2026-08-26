@@ -16,10 +16,11 @@ data path. Do not invent capture code from scratch.
    repository and installs the bundled skills; it must not modify application
    source or write runtime credentials.
 3. Select each applicable integration independently. For Next.js error
-   capture, follow `volato-nextjs`. For Vite + React browser capture, follow
-   `volato-vite-react`. For a deployed Node runtime, follow `volato-node`;
+   capture, follow `volato-nextjs`. For React browser capture with Vite,
+   Webpack, or Rspack, follow `volato-vite-react`. For a deployed Node runtime,
+   follow `volato-node`;
    Express is the only supported HTTP adapter. One repository may apply both
-   Vite + React and Node. Run `volato errors init` once to generate the selected
+   browser + React and Node. Run `volato errors init` once to generate the selected
    Errors adapters. Stop with a clear unsupported or partial-coverage result
    when no adapter applies.
 4. Review every file change reported by the selected integration before
