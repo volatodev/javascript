@@ -70,7 +70,8 @@ it for both runtime events and sourcemap uploads.
 - Treat an existing unwrapped middleware or proxy, an existing App error
   boundary, and a custom Next.js 16 build command as incomplete manual work.
 - Upload browser and server sourcemaps during the production build, skip stale
-  development artifacts, and remove `sourcesContent` before transit.
+  development artifacts, follow each chunk's external `sourceMappingURL`, and
+  remove `sourcesContent` before transit.
 - Browser capture sends directly to ingest by default. Add a same-origin tunnel
   only when the application explicitly needs it, then use the generated
   `createTunnelHandler()` with strict DSN, body-size, and timeout controls.
@@ -80,5 +81,6 @@ it for both runtime events and sourcemap uploads.
 The CLI's “files are composed” result is not deployment readiness. Declare the
 integration complete only after a synthetic event reaches ingest, the
 production build succeeds, and every applicable capture surface used by the
-application is exercised. If a surface cannot be composed safely, leave a
-precise manual action instead of claiming full coverage.
+application is exercised with a repository-relative source pointer. If a
+surface cannot be composed safely, leave a precise manual action instead of
+claiming full coverage.

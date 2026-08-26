@@ -77,7 +77,8 @@ App Router, Pages Router, and hybrid applications, connects each repository,
 initializes Errors, exercises router-specific browser and server failures,
 uses root and `src/` layouts plus ESM, TypeScript, CommonJS, missing-config,
 standalone and standard-server topologies, builds for production and requires
-real sourcemap uploads without a Volato runtime dependency.
+privacy-cleaned sourcemap uploads plus exact source-file/line resolution for
+every exercised production surface, without a Volato runtime dependency.
 
 `pnpm smoke:vite-node` creates a clean full-stack fixture, installs both
 adapters through the packed CLI, builds Vite and Node, captures browser,

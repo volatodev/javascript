@@ -29,6 +29,8 @@ Also verify:
   `wrapMiddleware`, so Edge events select the same sourcemaps as other runtimes;
 - Next.js 16 remains on its configured bundler and runs the generated browser
   map postbuild only after `next build` completes;
+- a Turbopack chunk whose external map has a different artifact name is keyed
+  by the runtime chunk named in its `sourceMappingURL`;
 - root and `src/` router layouts select the same instrumentation root as
   Next.js; mixed-root hybrids are rejected on Next.js 16 before mutation;
 - ESM, TypeScript, CommonJS and initially absent config files all compose the
@@ -41,4 +43,4 @@ Also verify:
 - stale `.next/dev` maps are not uploaded by a production build;
 - sourcemaps arrive without `sourcesContent`;
 - browser and server production stacks resolve to repository-relative source
-  locations.
+  locations and exact causal lines for every exercised surface.

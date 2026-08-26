@@ -102,6 +102,59 @@ function* walkJsMapFiles(root: string): Iterable<string> {
   }
 }
 
+function* walkJavaScriptFiles(root: string): Iterable<string> {
+  let entries: string[];
+  try {
+    entries = readdirSync(root);
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const full = join(root, entry);
+    let s;
+    try {
+      s = statSync(full);
+    } catch {
+      continue;
+    }
+    if (s.isDirectory()) {
+      if (SKIP_DIRS.has(entry)) continue;
+      yield* walkJavaScriptFiles(full);
+    } else if (s.isFile() && /\.[cm]?js$/.test(full)) {
+      yield full;
+    }
+  }
+}
+
+type SourceMapUpload = {
+  mapPath: string;
+  jsRelative: string;
+};
+
+function referencedSourceMap(jsPath: string, source: string): string | null {
+  const pattern =
+    /(?:\/\/[#@]\s*sourceMappingURL=([^\s]+)|\/\*[#@]\s*sourceMappingURL=([^*\s]+)\s*\*\/)/g;
+  let reference: string | undefined;
+  for (const match of source.matchAll(pattern)) {
+    reference = match[1] ?? match[2] ?? reference;
+  }
+  if (
+    !reference ||
+    reference.startsWith("/") ||
+    /^[a-zA-Z][a-zA-Z+.-]*:/.test(reference)
+  ) {
+    return null;
+  }
+  try {
+    return resolve(
+      dirname(jsPath),
+      decodeURIComponent(reference.replace(/[?#].*$/, "")),
+    );
+  } catch {
+    return null;
+  }
+}
+
 function isPublicBrowserMap(outputRoot: string, mapPath: string): boolean {
   const outputRelative = relative(outputRoot, mapPath).split(sep).join("/");
   return outputRelative.startsWith("static/");
@@ -251,7 +304,7 @@ function uploadOncePerBuild(args: {
   fetchImpl: typeof fetch;
   warn: (msg: string) => void;
 }): Promise<UploadOutcome> {
-  const uploadKey = `${args.endpoint}\0${args.release}\0${args.mapPath}`;
+  const uploadKey = `${args.endpoint}\0${args.release}\0${args.mapPath}\0${args.jsRelative}`;
   const existing = buildUploadOutcomes.get(uploadKey);
   if (existing) return existing;
 
@@ -288,6 +341,44 @@ async function withConcurrency<T, R>(
   );
   await Promise.all(lanes);
   return out;
+}
+
+async function sourceMapUploads(
+  outputRoot: string,
+  cwd: string,
+  maps: readonly string[],
+): Promise<SourceMapUpload[]> {
+  const knownMaps = new Set(maps.map((mapPath) => resolve(mapPath)));
+  const referencingJavaScript = new Map<string, Set<string>>();
+  await withConcurrency(
+    [...walkJavaScriptFiles(outputRoot)],
+    UPLOAD_CONCURRENCY,
+    async (jsPath) => {
+      let source: string;
+      try {
+        source = await readFile(jsPath, "utf8");
+      } catch {
+        return;
+      }
+      const mapPath = referencedSourceMap(jsPath, source);
+      if (!mapPath || !knownMaps.has(mapPath)) return;
+      const references = referencingJavaScript.get(mapPath) ?? new Set();
+      references.add(jsPath);
+      referencingJavaScript.set(mapPath, references);
+    },
+  );
+
+  return maps.flatMap((mapPath) => {
+    const references = referencingJavaScript.get(resolve(mapPath));
+    const javaScriptPaths =
+      references && references.size > 0
+        ? [...references]
+        : [mapPath.replace(/\.map$/, "")];
+    return javaScriptPaths.map((jsPath) => ({
+      mapPath,
+      jsRelative: relative(cwd, jsPath).split(sep).join("/"),
+    }));
+  });
 }
 
 /**
@@ -406,38 +497,47 @@ export class __VolatoSourceMapsPlugin {
       return;
     }
 
+    const uploads = await sourceMapUploads(outputRoot, cwd, maps);
     const outcomes = await withConcurrency(
-      maps,
+      uploads,
       UPLOAD_CONCURRENCY,
-      async (mapPath) => {
-        const jsRelative = relative(cwd, mapPath)
-          .split(sep)
-          .join("/")
-          .replace(/\.map$/, "");
-        const outcome = await uploadOncePerBuild({
-          mapPath,
-          jsRelative,
+      async (upload) =>
+        uploadOncePerBuild({
+          mapPath: upload.mapPath,
+          jsRelative: upload.jsRelative,
           release,
           repositoryPrefix,
           endpoint: endpoint!,
           token,
           fetchImpl,
           warn,
-        });
-        if (
-          hide &&
-          isPublicBrowserMap(outputRoot, mapPath) &&
-          (outcome === "uploaded" || outcome === "updated")
-        ) {
-          try {
-            await unlink(mapPath);
-          } catch {
-            // best-effort
-          }
-        }
-        return outcome;
-      },
+        }),
     );
+
+    if (hide) {
+      const successfulMaps = maps.filter((mapPath) => {
+        const related = uploads.flatMap((upload, index) =>
+          upload.mapPath === mapPath ? [outcomes[index]!] : [],
+        );
+        return (
+          related.length > 0 &&
+          related.every(
+            (outcome) => outcome === "uploaded" || outcome === "updated",
+          )
+        );
+      });
+      await Promise.all(
+        successfulMaps
+          .filter((mapPath) => isPublicBrowserMap(outputRoot, mapPath))
+          .map(async (mapPath) => {
+            try {
+              await unlink(mapPath);
+            } catch {
+              // best-effort
+            }
+          }),
+      );
+    }
 
     const failed = outcomes.filter((o) => o === "failed").length;
     if (failed > 0) {
@@ -700,10 +800,10 @@ export function withVolato(
         typeof config.then === "function"
       ) {
         return Promise.resolve(config).then((resolvedConfig) =>
-          withVolato(resolvedConfig, options),
+          withVolato(resolvedConfig as NextConfigLike, options),
         );
       }
-      return withVolato(config, options);
+      return withVolato(config as NextConfigLike, options);
     };
   }
 

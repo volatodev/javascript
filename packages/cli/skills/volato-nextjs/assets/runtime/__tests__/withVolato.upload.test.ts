@@ -488,6 +488,36 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it("keys a Turbopack map by the runtime chunk that references it", async () => {
+    const root = mkdtempSync(join(tmpdir(), "volato-turbopack-build-"));
+    const chunks = join(root, "static", "chunks");
+    mkdirSync(chunks, { recursive: true });
+    writeFileSync(join(chunks, "3_lt8c23k8fkx.js.map"), SAMPLE_MAP);
+    writeFileSync(
+      join(chunks, "0lqwad9xw01cd.js"),
+      'throw new Error("boom");\n//# sourceMappingURL=3_lt8c23k8fkx.js.map\n',
+    );
+    const fetchImpl = vi.fn(async () =>
+      new Response(null, { status: 201 }),
+    ) as unknown as typeof fetch;
+
+    const plugin = new __VolatoSourceMapsPlugin(
+      { hideSourceMaps: false },
+      { fetchImpl, cwd: root },
+    );
+    const { compiler, trigger } = makeFakeCompiler(root);
+    plugin.apply(compiler);
+    await trigger();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    const request = fetchImpl.mock.calls[0]?.[1] as RequestInit;
+    const form = request.body as FormData;
+    expect(form.get("filename_hash")).toBe("0lqwad9xw01cd");
+    expect(form.get("display_path")).toBe(
+      "static/chunks/0lqwad9xw01cd.js",
+    );
+  });
+
   it("does not upload stale maps left by next dev", async () => {
     const { root } = makeBuildDir();
     const devChunks = join(root, "dev", "server", "chunks");

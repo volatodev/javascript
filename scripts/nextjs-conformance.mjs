@@ -13,7 +13,9 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { chromium } from "playwright";
+import { projectFramePath } from "../packages/cli/skills/volato-nextjs/assets/runtime/protocol.ts";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = mkdtempSync(join(tmpdir(), "volato-nextjs-conformance-"));
@@ -298,7 +300,14 @@ export default function AppBrowserCrash() {
     document.documentElement.dataset.volatoFixtureHydrated = "app";
   }, []);
   if (crash) throw new Error("Volato App browser render conformance");
-  return <button id="volato-app-browser-crash" onClick={() => setCrash(true)}>Crash</button>;
+  return (
+    <main>
+      <button id="volato-app-window-crash" onClick={() => setTimeout(() => {
+        throw new Error("Volato App window witness");
+      }, 0)}>Window crash</button>
+      <button id="volato-app-browser-crash" onClick={() => setCrash(true)}>Render crash</button>
+    </main>
+  );
 }
 `,
     );
@@ -457,7 +466,14 @@ export default function BrowserCrash() {
     document.documentElement.dataset.volatoFixtureHydrated = "true";
   }, []);
   if (crash) throw new Error("Volato Pages browser render conformance");
-  return <button id="volato-browser-crash" onClick={() => setCrash(true)}>Crash</button>;
+  return (
+    <main>
+      <button id="volato-pages-window-crash" onClick={() => setTimeout(() => {
+        throw new Error("Volato Pages window witness");
+      }, 0)}>Window crash</button>
+      <button id="volato-browser-crash" onClick={() => setCrash(true)}>Render crash</button>
+    </main>
+  );
 }
 `,
     );
@@ -622,7 +638,7 @@ async function startNextProduction(root) {
     }
     try {
       const response = await fetch(origin);
-      if (response.ok) return { child, origin, logs: () => logs };
+      if (response.ok) return { child, origin, root, logs: () => logs };
     } catch {
       // Server is still starting.
     }
@@ -650,6 +666,96 @@ async function waitForEventCount(count, logs, label) {
   throw new Error(`${label} timed out waiting for ingest.\n${logs()}`);
 }
 
+const STACK_FRAME_PARENS = /at\s+.*?\((.+):(\d+):(\d+)\)$/;
+const STACK_FRAME_BARE = /at\s+([^\s]+):(\d+):(\d+)/;
+
+function stackFrames(stack) {
+  if (typeof stack !== "string") return [];
+  return stack.split("\n").flatMap((line) => {
+    const match = STACK_FRAME_PARENS.exec(line) ?? STACK_FRAME_BARE.exec(line);
+    if (!match?.[1] || !match[2] || !match[3]) return [];
+    return [
+      {
+        path: match[1],
+        line: Number(match[2]),
+        column: Number(match[3]),
+      },
+    ];
+  });
+}
+
+function normalizedSourceSuffix(source) {
+  let value = source.trim().replaceAll("\\", "/").replace(/[?#].*$/, "");
+  if (value.startsWith("file://")) value = value.slice("file://".length);
+  if (value.startsWith("webpack://")) {
+    value = value.slice("webpack://".length).replace(/^\/+/, "");
+    const moduleMarker = value.indexOf("/./");
+    if (moduleMarker >= 0) value = value.slice(moduleMarker + 3);
+  }
+  return value.replace(/^\.\//, "").replace(/^\/+/, "");
+}
+
+function sourcePathMatches(source, expectedPath) {
+  const normalized = normalizedSourceSuffix(source);
+  return normalized === expectedPath || normalized.endsWith(`/${expectedPath}`);
+}
+
+function expectedSourceLine(root, expectation) {
+  const source = readFileSync(join(root, expectation.path), "utf8");
+  const lines = source.split("\n");
+  const matches = lines.flatMap((line, index) =>
+    line.includes(expectation.marker) ? [index + 1] : [],
+  );
+  assert(
+    matches.length === 1,
+    `${expectation.path} must contain one source marker ${expectation.marker}.`,
+  );
+  return matches[0];
+}
+
+function assertEventSource(event, root, entry, label, expectation) {
+  const expectedLine = expectedSourceLine(root, expectation);
+  const frames = stackFrames(event.stack);
+  assert(frames.length > 0, `${entry.label} ${label} has no parseable stack.`);
+
+  for (const frame of frames) {
+    if (
+      sourcePathMatches(frame.path, expectation.path) &&
+      frame.line === expectedLine
+    ) {
+      state.sourceChecks += 1;
+      state.directSourceChecks += 1;
+      return;
+    }
+
+    const key = projectFramePath(frame.path);
+    if (!key || typeof event.release !== "string") continue;
+    const uploaded = state.sourceMapByKey.get(
+      `${event.release}:${key.filename_hash}`,
+    );
+    if (!uploaded) continue;
+    const original = originalPositionFor(uploaded.consumer, {
+      line: frame.line,
+      column: frame.column,
+    });
+    if (
+      original.source &&
+      original.line === expectedLine &&
+      sourcePathMatches(original.source, expectation.path)
+    ) {
+      state.sourceChecks += 1;
+      state.mappedSourceChecks += 1;
+      return;
+    }
+  }
+
+  throw new Error(
+    `${entry.label} ${label} did not resolve to ${expectation.path}:${expectedLine}.\n` +
+      `Stack:\n${String(event.stack)}\n` +
+      `Uploaded maps:\n${state.sourcemapDisplayPaths.join("\n")}`,
+  );
+}
+
 async function exerciseBrowserSurface(production, browser, entry, surface) {
   const page = await browser.newPage();
   try {
@@ -662,12 +768,7 @@ async function exerciseBrowserSurface(production, browser, entry, surface) {
     );
 
     const beforeWindowEvents = state.testEvents.length;
-    await page.evaluate((message) => {
-      const error = new Error(message);
-      window.dispatchEvent(
-        new ErrorEvent("error", { error, message: error.message }),
-      );
-    }, surface.windowMessage);
+    await page.locator(surface.windowSelector).click();
     await waitForEventCount(
       beforeWindowEvents + 1,
       production.logs,
@@ -686,6 +787,17 @@ async function exerciseBrowserSurface(production, browser, entry, surface) {
       `${entry.label} ${surface.label} window witness used an unexpected capture path: ${JSON.stringify(
         windowEvent,
       )}`,
+    );
+    assert(
+      !JSON.stringify(windowEvent).includes("browser-secret"),
+      `${entry.label} ${surface.label} window witness leaked query values.`,
+    );
+    assertEventSource(
+      windowEvent,
+      production.root,
+      entry,
+      `${surface.label} window witness`,
+      surface.windowSource,
     );
 
     const beforeRenderEvents = state.testEvents.length;
@@ -712,6 +824,13 @@ async function exerciseBrowserSurface(production, browser, entry, surface) {
     assert(
       !JSON.stringify(renderEvent).includes("browser-secret"),
       `${entry.label} ${surface.label} browser render leaked query values.`,
+    );
+    assertEventSource(
+      renderEvent,
+      production.root,
+      entry,
+      `${surface.label} browser render`,
+      surface.renderSource,
     );
   } finally {
     await page.close();
@@ -756,6 +875,13 @@ async function exerciseActionSurface(production, browser, entry, surface) {
     assert(
       !JSON.stringify(event).includes("action-secret"),
       `${entry.label} ${surface.label} leaked query values.`,
+    );
+    assertEventSource(
+      event,
+      production.root,
+      entry,
+      surface.label,
+      surface.source,
     );
   } finally {
     await page.close();
@@ -816,6 +942,13 @@ async function exerciseServerSurface(production, entry, surface) {
     !serialized.includes("server-secret") && !serialized.includes("session="),
     `${entry.label} ${surface.path} leaked query or cookie values.`,
   );
+  assertEventSource(
+    event,
+    production.root,
+    entry,
+    surface.label,
+    surface.source,
+  );
 }
 
 const state = {
@@ -824,11 +957,11 @@ const state = {
   sourcemaps: 0,
   sourcemapKeys: [],
   sourcemapDisplayPaths: [],
+  sourceMapByKey: new Map(),
+  sourceChecks: 0,
+  directSourceChecks: 0,
+  mappedSourceChecks: 0,
 };
-
-function multipartField(body, name) {
-  return body.match(new RegExp(`name="${name}"\\r\\n\\r\\n([^\\r\\n]+)`))?.[1];
-}
 
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -926,24 +1059,54 @@ const server = createServer((req, res) => {
     const chunks = [];
     req.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     req.on("end", () => {
-      const body = Buffer.concat(chunks).toString("utf8");
-      const release = multipartField(body, "release");
-      const filenameHash = multipartField(body, "filename_hash");
-      const displayPath = multipartField(body, "display_path");
-      if (!release || !filenameHash) {
-        res.writeHead(400, { "content-type": "application/json" });
-        res.end(JSON.stringify({ error: "invalid_multipart" }));
-        return;
-      }
-      const key = `${release}:${filenameHash}`;
-      const duplicate = state.sourcemapKeys.includes(key);
-      state.sourcemaps += 1;
-      state.sourcemapKeys.push(key);
-      if (displayPath) state.sourcemapDisplayPaths.push(displayPath);
-      res.writeHead(duplicate ? 200 : 201, {
-        "content-type": "application/json",
-      });
-      res.end(JSON.stringify({ stored: true }));
+      void (async () => {
+        try {
+          const contentType = req.headers["content-type"];
+          if (typeof contentType !== "string") {
+            throw new Error("missing multipart content type");
+          }
+          const form = await new Response(Buffer.concat(chunks), {
+            headers: { "content-type": contentType },
+          }).formData();
+          const release = form.get("release");
+          const filenameHash = form.get("filename_hash");
+          const displayPath = form.get("display_path");
+          const mapFile = form.get("map");
+          if (
+            typeof release !== "string" ||
+            typeof filenameHash !== "string" ||
+            typeof displayPath !== "string" ||
+            !mapFile ||
+            typeof mapFile === "string"
+          ) {
+            throw new Error("invalid multipart fields");
+          }
+          const map = JSON.parse(await mapFile.text());
+          if ("sourcesContent" in map) {
+            throw new Error("uploaded sourcemap retained sourcesContent");
+          }
+          const key = `${release}:${filenameHash}`;
+          const duplicate = state.sourceMapByKey.has(key);
+          state.sourcemaps += 1;
+          state.sourcemapKeys.push(key);
+          state.sourcemapDisplayPaths.push(displayPath);
+          state.sourceMapByKey.set(key, {
+            consumer: new TraceMap(map),
+            displayPath,
+          });
+          res.writeHead(duplicate ? 200 : 201, {
+            "content-type": "application/json",
+          });
+          res.end(JSON.stringify({ stored: true }));
+        } catch (error) {
+          res.writeHead(400, { "content-type": "application/json" });
+          res.end(
+            JSON.stringify({
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          );
+        }
+      })();
     });
     return;
   }
@@ -968,7 +1131,10 @@ try {
       scratch,
       `next-${entry.next}-${entry.router}-${entry.language}`,
     );
-    const projectId = `00000000-0000-4000-8000-00000000000${index + 1}`;
+    const projectId = `00000000-0000-4000-8000-${String(index + 1).padStart(
+      12,
+      "0",
+    )}`;
     writeFixture(fixture, entry);
 
     await run("pnpm", ["install", "--ignore-scripts"], { cwd: fixture });
@@ -1247,6 +1413,8 @@ try {
       filesWithSuffix(join(fixture, ".next", "server"), ".js.map").length > 0,
       `${entry.label} build removed private server sourcemaps before standalone assembly.`,
     );
+    const beforeSourceChecks = state.sourceChecks;
+    const beforeMappedSourceChecks = state.mappedSourceChecks;
     const production = await startNextProduction(fixture);
     try {
       const browser = await chromium.launch({ headless: true });
@@ -1257,8 +1425,18 @@ try {
             path: "/app-browser-crash",
             hydrationMarker: "app",
             selector: "#volato-app-browser-crash",
+            windowSelector: "#volato-app-window-crash",
             windowMessage: "Volato App window witness",
             renderMessage: "Volato App browser render conformance",
+            windowSource: {
+              path: `${entry.appDir}/app-browser-crash/page.${componentExtension}`,
+              marker: 'throw new Error("Volato App window witness")',
+            },
+            renderSource: {
+              path: `${entry.appDir}/app-browser-crash/page.${componentExtension}`,
+              marker:
+                'throw new Error("Volato App browser render conformance")',
+            },
           });
           await exerciseActionSurface(production, browser, entry, {
             label: "thrown Server Action",
@@ -1266,6 +1444,11 @@ try {
             message: "Volato App Server Action throw conformance",
             capturedVia: "on_request_error",
             throws: true,
+            source: {
+              path: `${entry.appDir}/app-action/page.${componentExtension}`,
+              marker:
+                'throw new Error("Volato App Server Action throw conformance")',
+            },
           });
           await exerciseActionSurface(production, browser, entry, {
             label: "returned Server Action failure",
@@ -1273,6 +1456,11 @@ try {
             message: "Volato App Server Action returned failure conformance",
             capturedVia: "wrap_action",
             throws: false,
+            source: {
+              path: `${entry.appDir}/app-action/page.${componentExtension}`,
+              marker:
+                'new Error("Volato App Server Action returned failure conformance")',
+            },
           });
         }
         if (entry.router !== "app") {
@@ -1281,8 +1469,18 @@ try {
             path: "/browser-crash",
             hydrationMarker: "true",
             selector: "#volato-browser-crash",
+            windowSelector: "#volato-pages-window-crash",
             windowMessage: "Volato Pages window witness",
             renderMessage: "Volato Pages browser render conformance",
+            windowSource: {
+              path: `${entry.pagesDir}/browser-crash.${componentExtension}`,
+              marker: 'throw new Error("Volato Pages window witness")',
+            },
+            renderSource: {
+              path: `${entry.pagesDir}/browser-crash.${componentExtension}`,
+              marker:
+                'throw new Error("Volato Pages browser render conformance")',
+            },
           });
         }
       } finally {
@@ -1297,6 +1495,11 @@ try {
             message: "Volato App server render conformance",
             runtime: "rsc",
             capturedVia: "on_request_error",
+            source: {
+              path: `${entry.appDir}/app-server-crash/page.${componentExtension}`,
+              marker:
+                'throw new Error("Volato App server render conformance")',
+            },
           },
           {
             label: "App Route Handler",
@@ -1304,6 +1507,11 @@ try {
             message: "Volato App Route Handler conformance",
             runtime: "route_handler",
             capturedVia: "wrap_route",
+            source: {
+              path: `${entry.appDir}/api/app-crash/route.${runtimeExtension}`,
+              marker:
+                'throw new Error("Volato App Route Handler conformance")',
+            },
           },
         ]) {
           await exerciseServerSurface(production, entry, surface);
@@ -1317,6 +1525,10 @@ try {
             message: "Volato Pages SSR conformance",
             runtime: "pages_render",
             capturedVia: "on_request_error",
+            source: {
+              path: `${entry.pagesDir}/ssr-crash.${componentExtension}`,
+              marker: 'throw new Error("Volato Pages SSR conformance")',
+            },
           },
           {
             label: "Pages API Route",
@@ -1324,6 +1536,10 @@ try {
             message: "Volato Pages API conformance",
             runtime: "route_handler",
             capturedVia: "on_request_error",
+            source: {
+              path: `${entry.pagesDir}/api/crash.${runtimeExtension}`,
+              marker: 'throw new Error("Volato Pages API conformance")',
+            },
           },
         ]) {
           await exerciseServerSurface(production, entry, surface);
@@ -1342,6 +1558,10 @@ try {
           allowedSecondaryMessages: [
             "Cannot append headers after they are sent to the client",
           ],
+          source: {
+            path: `${instrumentationRelativeRoot ? `${instrumentationRelativeRoot}/` : ""}proxy.${runtimeExtension}`,
+            marker: 'throw new Error("Volato Next.js 16 proxy conformance")',
+          },
         });
       } else {
         await exerciseServerSurface(production, entry, {
@@ -1353,8 +1573,27 @@ try {
           allowedSecondaryMessages: [
             "Cannot append headers after they are sent to the client",
           ],
+          source: {
+            path: `${instrumentationRelativeRoot ? `${instrumentationRelativeRoot}/` : ""}middleware.${runtimeExtension}`,
+            marker:
+              'throw new Error("Volato Next.js 15 middleware conformance")',
+          },
         });
       }
+      const expectedSourceChecks =
+        (entry.router === "pages" ? 0 : 6) +
+        (entry.router === "app" ? 0 : 4) +
+        1;
+      assert(
+        state.sourceChecks - beforeSourceChecks === expectedSourceChecks,
+        `${entry.label} verified ${
+          state.sourceChecks - beforeSourceChecks
+        } source pointers instead of ${expectedSourceChecks}.`,
+      );
+      assert(
+        state.mappedSourceChecks > beforeMappedSourceChecks,
+        `${entry.label} did not resolve any production frame through an uploaded sourcemap.`,
+      );
     } finally {
       await stopNextProduction(production.child);
     }
