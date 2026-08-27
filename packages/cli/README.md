@@ -48,7 +48,10 @@ conflict. Review it, then run `volato skills install --force` to replace the
 bundled files and remove the retired `monitor-product-usage` and
 `volato-product` directories.
 
-Every command prints agent-ready markdown by default. Pass `--json` for the structured payload, scriptable exit codes for the rest (`3` auth, `4` not-found, `5` rate-limited).
+Commands with a `--json` option return agent-ready markdown by default and the
+structured payload when that option is present. Setup, authentication, skill installation, and this reference use command-specific terminal output. All
+commands preserve scriptable failure classes (`3` auth, `4` not-found, `5`
+rate-limited).
 
 Authenticated `volato init --project` verifies the project, installs the setup
 skills and records a neutral project link in `.volato/manifest.json`. It does
@@ -97,9 +100,11 @@ new appearance, impact or raw event growth, and request a privacy-filtered,
 bounded sample. The JSON is designed for temporary local `jq`/Node composition;
 Volato does not execute arbitrary investigation code on customer data.
 
-## Self-hosting
+## Development endpoint override
 
-The API base defaults to `https://api.volato.dev` and is overridable for self-hosted deployments via `VOLATO_API_URL`.
+The API base defaults to `https://api.volato.dev`. Set `VOLATO_API_URL` only
+when development or conformance checks need a custom API endpoint; it does not
+represent a separately supported hosting product.
 
 ## License
 

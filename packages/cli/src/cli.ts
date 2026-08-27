@@ -20,10 +20,9 @@
  *   volato releases compare [head]    — compare a release to its predecessor
  *   volato projects list              — list readable projects
  *   volato projects origins set       — replace a browser-origin allowlist
- * Every command accepts --json for the structured payload instead of
- * the default markdown. The markdown is agent-ready (the same string
- * the REST API serves under `markdown`); agents shell to `volato` and
- * print it directly.
+ * Commands that expose --json return the structured payload instead of their
+ * default agent-ready markdown. Setup, authentication, skill installation and
+ * reference commands keep command-specific terminal output.
  */
 import { Command } from "commander";
 import { runInit } from "./commands/init/init.js";

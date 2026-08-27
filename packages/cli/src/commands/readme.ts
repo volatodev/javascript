@@ -128,9 +128,9 @@ that status mutation explicit.
 
 ## Output
 
-Every command prints agent-ready markdown by default. Pass --json
-to get the structured payload instead. Both forms are stable
-contracts.
+Commands with a \`--json\` option return agent-ready markdown by default and
+the structured payload when that option is present. Setup, authentication, skill installation, and this reference use command-specific terminal output.
+Both documented API-backed forms are stable contracts.
 
 Paginated reads return \`nextCursor\` in JSON. Pass that value unchanged to
 \`--cursor\` to continue; cursors are scoped to the same filters and ordering.
