@@ -17,12 +17,15 @@ import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { runtimeMatrix } from "./errors-runtime-matrix.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const scratch = mkdtempSync(join(tmpdir(), "volato-express-"));
+const requestedFamily =
+  process.argv.find((argument) => argument.startsWith("--family="))?.slice(9) ??
+  "express";
+const scratch = mkdtempSync(join(tmpdir(), `volato-${requestedFamily}-`));
 const projectId = "00000000-0000-4000-8000-0000000001c1";
 const authToken = "express-conformance-auth";
 const ingestToken = "express-conformance-ingest";
 const cliSpec = process.env.VOLATO_CLI_SPEC;
-const cells = runtimeMatrix.cells.filter((cell) => cell.family === "express");
+const cells = runtimeMatrix.cells.filter((cell) => cell.family === requestedFamily);
 const runningChildren = new Set();
 
 function assert(condition, message) {
@@ -93,7 +96,7 @@ function installPackagedCli() {
 }
 
 function installExactNode(version) {
-  const root = join(scratch, "node-runtime");
+  const root = join(scratch, `node-${version}`);
   mkdirSync(root, { recursive: true });
   writeFileSync(
     join(root, "package.json"),
@@ -109,7 +112,7 @@ function installExactNode(version) {
   assert(
     execFileSync(binary, ["--version"], { encoding: "utf8" }).trim() ===
       `v${version}`,
-    `Express conformance did not use Node ${version}`,
+    `${requestedFamily} conformance did not use Node ${version}`,
   );
   return binary;
 }
@@ -121,7 +124,10 @@ function packageJson(cell) {
     private: true,
     type: cell.module === "esm" ? "module" : "commonjs",
     scripts: isTypeScript ? { build: "tsc --sourceMap" } : {},
-    dependencies: { express: cell.express },
+    dependencies:
+      cell.family === "fastify"
+        ? { fastify: cell.fastify }
+        : { express: cell.express },
     ...(isTypeScript
       ? {
           devDependencies: {
@@ -174,6 +180,76 @@ app.use((${typed("error")}, ${typed("_req")}, ${typed("res")}, ${typed("next")})
 });`;
 }
 
+function fastifyRoutes(cell, typeScript) {
+  const typed = (name) => (typeScript ? `${name}: any` : name);
+  return `app.addHook("preHandler", async (${typed("request")}, ${typed("reply")}) => {
+  if (request.routeOptions.url !== "/hook/:userId") return;
+  reply.code(417);
+  throw new Error("hook ${cell.id}");
+});
+app.post("/users/:userId", (${typed("_request")}, ${typed("reply")}) => {
+  reply.code(422);
+  throw new Error("sync ${cell.id}");
+});
+app.get("/async/:userId", async (${typed("_request")}, ${typed("reply")}) => {
+  reply.code(409);
+  await Promise.resolve();
+  throw new Error("async ${cell.id}");
+});
+app.get("/hook/:userId", async () => ({ unreachable: true }));
+app.get("/health", async (${typed("_request")}, ${typed("reply")}) => {
+  reply.code(204);
+  return undefined;
+});
+app.setErrorHandler((${typed("error")}, ${typed("_request")}, ${typed("reply")}) => {
+  reply.code(418).send({ owner: "application", message: error.message });
+});`;
+}
+
+function fastifyImport(cell) {
+  return cell.module === "esm"
+    ? 'import Fastify from "fastify";'
+    : 'const Fastify = require("fastify");';
+}
+
+function fastifyExport(cell) {
+  return cell.module === "esm" ? "export default app;" : "module.exports = app;";
+}
+
+function fastifyServerImport(cell) {
+  return cell.module === "esm"
+    ? 'import app from "./app.js";'
+    : 'const app = require("./app");';
+}
+
+function fastifyListen() {
+  return `app.listen({ port: 0, host: "127.0.0.1" }).then(() => {
+  const address = app.server.address();
+  if (address && typeof address === "object") console.log("READY:" + address.port);
+});
+process.on("SIGTERM", () => { void app.close(); });`;
+}
+
+function writeFastifyFixture(root, cell) {
+  const extension = cell.language === "ts" ? "ts" : "js";
+  const creation = 'const app = Fastify({ requestIdHeader: "x-request-id" });';
+  if (cell.topology === "same-file") {
+    writeFileSync(
+      join(root, "src", `server.${extension}`),
+      `${fastifyImport(cell)}\n${creation}\n${fastifyRoutes(cell, cell.language === "ts")}\n${fastifyListen()}\n`,
+    );
+    return;
+  }
+  writeFileSync(
+    join(root, "src", `app.${extension}`),
+    `${fastifyImport(cell)}\n${creation}\n${fastifyRoutes(cell, cell.language === "ts")}\n${fastifyExport(cell)}\n`,
+  );
+  writeFileSync(
+    join(root, "src", `server.${extension}`),
+    `${fastifyServerImport(cell)}\n${fastifyListen()}\n`,
+  );
+}
+
 function writeFixture(root, cell) {
   mkdirSync(join(root, "src"), { recursive: true });
   writeFileSync(
@@ -181,7 +257,9 @@ function writeFixture(root, cell) {
     `${JSON.stringify(packageJson(cell), null, 2)}\n`,
   );
   const isTypeScript = cell.language === "ts";
-  if (cell.topology === "same-file") {
+  if (cell.family === "fastify") {
+    writeFastifyFixture(root, cell);
+  } else if (cell.topology === "same-file") {
     const source = `import express from "express";
 const app = express();
 ${routes(cell, true)}
@@ -303,7 +381,11 @@ function assertSourceResolution(cell, fixture, appRelative, event, surface) {
   assert(expectedLine > 0, `${cell.id} has no ${surface} causal line`);
   const outputPath =
     cell.language === "ts"
-      ? join(fixture, "dist", "server.js")
+      ? join(
+          fixture,
+          "dist",
+          appRelative.replace(/^src\//, "").replace(/\.ts$/, ".js"),
+        )
       : sourcePath;
   const frame = new RegExp(
     `${escapeRegExp(outputPath)}:(\\d+):(\\d+)`,
@@ -402,8 +484,9 @@ async function assertRouteCapture(cell, fixture, port, appRelative, surface) {
   const before = state.events.length;
   const requestId = `request-safe-${cell.id}`;
   const isSync = surface === "sync";
+  const isHook = surface === "hook";
   const response = await fetch(
-    `http://127.0.0.1:${port}/api/${isSync ? "users" : "async"}/private-user?token=query-secret`,
+    `http://127.0.0.1:${port}/${cell.family === "fastify" ? "" : "api/"}${isSync ? "users" : isHook ? "hook" : "async"}/private-user?token=query-secret`,
     {
       method: isSync ? "POST" : "GET",
       headers: {
@@ -429,11 +512,12 @@ async function assertRouteCapture(cell, fixture, port, appRelative, surface) {
   assert(events.length === 1, `${cell.id} ${surface} emitted ${events.length} events`);
   const event = events[0];
   assert(
-    event.runtime === "node" &&
-      event.capturedVia === "express" &&
+      event.runtime === "node" &&
+      event.capturedVia === (cell.family === "fastify" ? "fastify" : "express") &&
       event.method === (isSync ? "POST" : "GET") &&
-      event.route === (isSync ? "/users/:userId" : "/async/:userId") &&
-      event.status === (isSync ? 422 : 409) &&
+      event.route ===
+        (isSync ? "/users/:userId" : isHook ? "/hook/:userId" : "/async/:userId") &&
+      event.status === (isSync ? 422 : isHook ? 417 : 409) &&
       event.requestId === requestId,
     `${cell.id} ${surface} context failed: ${JSON.stringify(event)}`,
   );
@@ -463,23 +547,40 @@ async function conformCell(cell, context) {
   });
   assert(
     !setup.stdout.includes("manual") &&
-      state.integrations.slice(integrationCount).includes("errors-node"),
+      state.integrations
+        .slice(integrationCount)
+        .includes(
+          cell.family === "fastify" ? "errors-node-fastify" : "errors-node",
+        ),
     `${cell.id} setup was incomplete:\n${setup.stdout}\n${setup.stderr}`,
   );
   assert(
     !readFileSync(join(fixture, "package.json"), "utf8").includes("@volatodev"),
     `${cell.id} gained a Volato runtime dependency`,
   );
+  const extension = cell.language === "ts" ? "ts" : "js";
   const appRelative =
-    cell.topology === "same-file" ? "src/server.ts" : "src/app.js";
+    cell.topology === "same-file"
+      ? `src/server.${extension}`
+      : `src/app.${extension}`;
   const appSource = readFileSync(join(fixture, appRelative), "utf8");
-  assert(
-    appSource.indexOf('app.use("/api", router)') <
-      appSource.indexOf("app.use(volatoExpressErrorHandler())") &&
-      appSource.indexOf("app.use(volatoExpressErrorHandler())") <
-        appSource.lastIndexOf("app.use((error"),
-    `${cell.id} mounted capture outside the route/error-handler boundary`,
-  );
+  if (cell.family === "fastify") {
+    assert(
+      appSource.indexOf("const app = Fastify") <
+        appSource.indexOf('app.addHook("onError", volatoFastifyErrorHook())') &&
+        appSource.indexOf('app.addHook("onError", volatoFastifyErrorHook())') <
+          appSource.indexOf("app.setErrorHandler"),
+      `${cell.id} registered capture outside the Fastify root/error-handler boundary`,
+    );
+  } else {
+    assert(
+      appSource.indexOf('app.use("/api", router)') <
+        appSource.indexOf("app.use(volatoExpressErrorHandler())") &&
+        appSource.indexOf("app.use(volatoExpressErrorHandler())") <
+          appSource.lastIndexOf("app.use((error"),
+      `${cell.id} mounted capture outside the route/error-handler boundary`,
+    );
+  }
 
   const release = `conformance-${cell.id}`;
   const mapsBefore = state.maps.length;
@@ -524,26 +625,29 @@ async function conformCell(cell, context) {
     const port = await waitForServer(child);
     await assertRouteCapture(cell, fixture, port, appRelative, "sync");
     await assertRouteCapture(cell, fixture, port, appRelative, "async");
-
-    const headersBefore = state.events.length;
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:${port}/api/headers/private-user?token=query-secret`,
-        { signal: AbortSignal.timeout(5_000) },
+    if (cell.family === "fastify") {
+      await assertRouteCapture(cell, fixture, port, appRelative, "hook");
+    } else {
+      const headersBefore = state.events.length;
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:${port}/api/headers/private-user?token=query-secret`,
+          { signal: AbortSignal.timeout(5_000) },
+        );
+        await response.text();
+      } catch {
+        // Express' default handler closes an already-started response. The
+        // transport-level failure is the application/framework behavior being
+        // preserved here.
+      }
+      const headersEvents = state.events.slice(headersBefore);
+      assert(
+        headersEvents.length === 1 &&
+          headersEvents[0].message === `headers ${cell.id}` &&
+          headersEvents[0].route === "/headers/:userId",
+        `${cell.id} headers-sent propagation changed or duplicated capture`,
       );
-      await response.text();
-    } catch {
-      // Express' default handler closes an already-started response. The
-      // transport-level failure is the application/framework behavior being
-      // preserved here.
     }
-    const headersEvents = state.events.slice(headersBefore);
-    assert(
-      headersEvents.length === 1 &&
-        headersEvents[0].message === `headers ${cell.id}` &&
-        headersEvents[0].route === "/headers/:userId",
-      `${cell.id} headers-sent propagation changed or duplicated capture`,
-    );
     const health = await fetch(`http://127.0.0.1:${port}/health`);
     assert(health.status === 204, `${cell.id} did not survive handled route errors`);
   } finally {
@@ -554,7 +658,11 @@ async function conformCell(cell, context) {
 }
 
 try {
-  assert(cells.length === 4, `expected 4 Express cells, got ${cells.length}`);
+  const expectedCells = requestedFamily === "fastify" ? 16 : 4;
+  assert(
+    cells.length === expectedCells,
+    `expected ${expectedCells} ${requestedFamily} cells, got ${cells.length}`,
+  );
   await new Promise((resolveListen, rejectListen) => {
     api.once("error", rejectListen);
     api.listen(0, "127.0.0.1", resolveListen);
@@ -564,12 +672,22 @@ try {
   const apiOrigin = `http://127.0.0.1:${address.port}`;
   const dsn = `http://public@127.0.0.1:${address.port}/${projectId}`;
   const cli = installPackagedCli();
-  const node = installExactNode(runtimeMatrix.versions.node[1]);
+  const nodes = new Map(
+    [...new Set(cells.map((cell) => cell.node))].map((version) => [
+      version,
+      installExactNode(version),
+    ]),
+  );
   for (const cell of cells) {
-    await conformCell(cell, { apiOrigin, dsn, cli, node });
+    await conformCell(cell, {
+      apiOrigin,
+      dsn,
+      cli,
+      node: nodes.get(cell.node),
+    });
   }
   process.stdout.write(
-    `✓ ${cells.length} Express cells passed topology, propagation, response ownership, privacy, maps/direct source, and exact source resolution\n`,
+    `✓ ${cells.length} ${requestedFamily} cells passed topology, propagation, response ownership, privacy, maps/direct source, and exact source resolution\n`,
   );
 } finally {
   for (const child of runningChildren) child.kill("SIGKILL");
