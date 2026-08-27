@@ -25,6 +25,7 @@
     "smoke:browser-renderers": "pnpm --filter @volatodev/cli build && node scripts/browser-react-conformance.mjs --family=browser-vue,browser-svelte",
     "smoke:express": "pnpm --filter @volatodev/cli build && node scripts/express-conformance.mjs",
     "smoke:fastify": "pnpm --filter @volatodev/cli build && node scripts/express-conformance.mjs --family=fastify",
+    "smoke:nest": "pnpm --filter @volatodev/cli build && node scripts/nest-conformance.mjs",
     "smoke:node-long-lived": "pnpm --filter @volatodev/cli build && node scripts/node-long-lived-conformance.mjs",
     "smoke:node-invocation": "pnpm --filter @volatodev/cli build && node scripts/node-invocation-conformance.mjs",
     "smoke:vite-node": "pnpm --filter @volatodev/cli build && node scripts/vite-node-conformance.mjs",
