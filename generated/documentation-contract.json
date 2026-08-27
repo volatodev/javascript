@@ -1,0 +1,5926 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": {
+    "cli": "packages/cli/src/cli.ts",
+    "reads": "packages/read-client/src/contracts.ts",
+    "support": "scripts/errors-runtime-matrix.mjs"
+  },
+  "cli": {
+    "name": "volato",
+    "version": "0.1.0-beta.18",
+    "description": "Volato Errors — production evidence for coding agents. Run `volato readme` for the full surface.",
+    "options": [
+      {
+        "flags": "-v, --version",
+        "short": "-v",
+        "long": "--version",
+        "description": "print the volato CLI version",
+        "required": false,
+        "optional": false,
+        "variadic": false,
+        "mandatory": false,
+        "choices": null,
+        "defaultValue": null
+      },
+      {
+        "flags": "-h, --help",
+        "short": "-h",
+        "long": "--help",
+        "description": "display help for command",
+        "required": false,
+        "optional": false,
+        "variadic": false,
+        "mandatory": false,
+        "choices": null,
+        "defaultValue": null
+      }
+    ],
+    "commands": [
+      {
+        "path": [
+          "volato",
+          "init"
+        ],
+        "aliases": [],
+        "description": "Link this repository to a Volato project",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "--project <id>",
+            "short": null,
+            "long": "--project",
+            "description": "Volato project id",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--yes",
+            "short": null,
+            "long": "--yes",
+            "description": "require non-interactive setup",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "skills"
+        ],
+        "aliases": [],
+        "description": "Install the agent skills carried by this CLI",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "skills",
+          "install"
+        ],
+        "aliases": [],
+        "description": "Install Volato operational and framework skills for AI agents",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "--target <directory>",
+            "short": null,
+            "long": "--target",
+            "description": "project-relative agent skills directory",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": ".agents/skills"
+          },
+          {
+            "flags": "--force",
+            "short": null,
+            "long": "--force",
+            "description": "replace differing installed skill files",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "login"
+        ],
+        "aliases": [],
+        "description": "Authenticate the CLI (browser code flow, or pass a token)",
+        "arguments": [
+          {
+            "name": "token",
+            "description": "workspace token (omit for the browser code flow)",
+            "required": false,
+            "variadic": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ],
+        "options": [
+          {
+            "flags": "--stdin",
+            "short": null,
+            "long": "--stdin",
+            "description": "read the token from stdin (CI: echo \"$VOLATO_TOKEN\" | volato login --stdin)",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "whoami"
+        ],
+        "aliases": [],
+        "description": "Confirm a token is loaded",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "logout"
+        ],
+        "aliases": [],
+        "description": "Remove the stored workspace token",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "readme"
+        ],
+        "aliases": [],
+        "description": "Print the full command surface (markdown — agents read this)",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "projects"
+        ],
+        "aliases": [],
+        "description": "Configure projects through the authenticated CLI",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "projects",
+          "list"
+        ],
+        "aliases": [],
+        "description": "List active projects readable by the current workspace",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-l, --limit <n>",
+            "short": "-l",
+            "long": "--limit",
+            "description": "max projects to return (1-100, default 50)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--cursor <cursor>",
+            "short": null,
+            "long": "--cursor",
+            "description": "continue from a previous nextCursor",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "projects",
+          "origins"
+        ],
+        "aliases": [],
+        "description": "Manage browser origins allowed to submit events",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "projects",
+          "origins",
+          "set"
+        ],
+        "aliases": [],
+        "description": "Replace or clear a project's browser-origin allowlist",
+        "arguments": [
+          {
+            "name": "project-id",
+            "description": "project id",
+            "required": true,
+            "variadic": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "name": "origins",
+            "description": "complete list of allowed http(s) origins",
+            "required": false,
+            "variadic": true,
+            "choices": null,
+            "defaultValue": null
+          }
+        ],
+        "options": [
+          {
+            "flags": "--clear",
+            "short": null,
+            "long": "--clear",
+            "description": "clear the restriction and accept browser events from any origin",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "errors"
+        ],
+        "aliases": [],
+        "description": "Install capture and operate production errors",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "errors",
+          "init"
+        ],
+        "aliases": [],
+        "description": "Install detected Next.js, Browser + React, and Node Errors adapters",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "--yes",
+            "short": null,
+            "long": "--yes",
+            "description": "apply safe setup defaults without prompts",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--send-test-event",
+            "short": null,
+            "long": "--send-test-event",
+            "description": "send a synthetic error through the generated Next.js application path",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "errors",
+          "list"
+        ],
+        "aliases": [],
+        "description": "List error groups across your workspace",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-s, --status <status>",
+            "short": "-s",
+            "long": "--status",
+            "description": "filter: unresolved (default), resolved, ignored, all",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-r, --release <release>",
+            "short": "-r",
+            "long": "--release",
+            "description": "scope to a release tag or commit SHA",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--baseline-release <release>",
+            "short": null,
+            "long": "--baseline-release",
+            "description": "comparison baseline used by --sort growth (auto-detected when omitted)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-e, --environment <environment>",
+            "short": "-e",
+            "long": "--environment",
+            "description": "scope environment (default: production)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-q, --query <substring>",
+            "short": "-q",
+            "long": "--query",
+            "description": "case-insensitive match on error message",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--fingerprint <substring>",
+            "short": null,
+            "long": "--fingerprint",
+            "description": "case-insensitive fingerprint match",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--runtime <runtime>",
+            "short": null,
+            "long": "--runtime",
+            "description": "scope runtime: browser, node, client, rsc, pages_render, server_action, route_handler, middleware",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--route <route>",
+            "short": null,
+            "long": "--route",
+            "description": "scope to an exact normalized route",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--first-seen-after <iso>",
+            "short": null,
+            "long": "--first-seen-after",
+            "description": "group first seen at or after ISO timestamp",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--first-seen-before <iso>",
+            "short": null,
+            "long": "--first-seen-before",
+            "description": "group first seen at or before ISO timestamp",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--last-seen-after <iso>",
+            "short": null,
+            "long": "--last-seen-after",
+            "description": "group last seen at or after ISO timestamp",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--last-seen-before <iso>",
+            "short": null,
+            "long": "--last-seen-before",
+            "description": "group last seen at or before ISO timestamp",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--min-events <n>",
+            "short": null,
+            "long": "--min-events",
+            "description": "minimum matching events",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--min-users <n>",
+            "short": null,
+            "long": "--min-users",
+            "description": "minimum distinct affected user ids",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--sort <ranking>",
+            "short": null,
+            "long": "--sort",
+            "description": "ranking: recent (default), new, users, events, growth",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-p, --project-id <id>",
+            "short": "-p",
+            "long": "--project-id",
+            "description": "scope to a single project",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-l, --limit <n>",
+            "short": "-l",
+            "long": "--limit",
+            "description": "max groups to return (1-100, default 50)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--cursor <cursor>",
+            "short": null,
+            "long": "--cursor",
+            "description": "continue from a previous nextCursor",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "errors",
+          "samples"
+        ],
+        "aliases": [],
+        "description": "Read a bounded set of privacy-filtered event samples",
+        "arguments": [
+          {
+            "name": "id",
+            "description": "error group id",
+            "required": true,
+            "variadic": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ],
+        "options": [
+          {
+            "flags": "-p, --project-id <id>",
+            "short": "-p",
+            "long": "--project-id",
+            "description": "scope to a single project",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-e, --environment <environment>",
+            "short": "-e",
+            "long": "--environment",
+            "description": "scope environment (default: production)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-r, --release <release>",
+            "short": "-r",
+            "long": "--release",
+            "description": "scope to a release",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--runtime <runtime>",
+            "short": null,
+            "long": "--runtime",
+            "description": "scope to a runtime",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--route <route>",
+            "short": null,
+            "long": "--route",
+            "description": "scope to an exact normalized route",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--strategy <strategy>",
+            "short": null,
+            "long": "--strategy",
+            "description": "sample role: all (default), recent, representative, variations",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-l, --limit <n>",
+            "short": "-l",
+            "long": "--limit",
+            "description": "max samples to return (1-10, default 5)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "errors",
+          "show"
+        ],
+        "aliases": [],
+        "description": "One-call fix context for an error group",
+        "arguments": [
+          {
+            "name": "id",
+            "description": "error group id (omit to get the most recent unresolved group)",
+            "required": false,
+            "variadic": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ],
+        "options": [
+          {
+            "flags": "-p, --project-id <id>",
+            "short": "-p",
+            "long": "--project-id",
+            "description": "scope to a single project",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-e, --environment <environment>",
+            "short": "-e",
+            "long": "--environment",
+            "description": "scope environment (default: production)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "errors",
+          "resolve"
+        ],
+        "aliases": [],
+        "description": "Mark an error group as resolved",
+        "arguments": [
+          {
+            "name": "id",
+            "description": "error group id",
+            "required": true,
+            "variadic": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ],
+        "options": [
+          {
+            "flags": "-n, --note <text>",
+            "short": "-n",
+            "long": "--note",
+            "description": "audit note (e.g. 'fixed in PR #123')",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": true,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "errors",
+          "reopen"
+        ],
+        "aliases": [],
+        "description": "Reopen a previously-resolved group (prior notes preserved)",
+        "arguments": [
+          {
+            "name": "id",
+            "description": "error group id",
+            "required": true,
+            "variadic": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ],
+        "options": [
+          {
+            "flags": "-n, --note <text>",
+            "short": "-n",
+            "long": "--note",
+            "description": "why it came back",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": true,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "errors",
+          "ignore"
+        ],
+        "aliases": [],
+        "description": "Mark an error group as ignored (noise)",
+        "arguments": [
+          {
+            "name": "id",
+            "description": "error group id",
+            "required": true,
+            "variadic": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ],
+        "options": [
+          {
+            "flags": "-n, --note <text>",
+            "short": "-n",
+            "long": "--note",
+            "description": "why it's noise",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": true,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "releases"
+        ],
+        "aliases": [],
+        "description": "Read captured releases and compare their error groups",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "releases",
+          "list"
+        ],
+        "aliases": [],
+        "description": "List captured releases, newest first",
+        "arguments": [],
+        "options": [
+          {
+            "flags": "-p, --project-id <id>",
+            "short": "-p",
+            "long": "--project-id",
+            "description": "scope to a single project",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-e, --environment <environment>",
+            "short": "-e",
+            "long": "--environment",
+            "description": "scope environment (default: production)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--runtime <runtime>",
+            "short": null,
+            "long": "--runtime",
+            "description": "scope to a runtime",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-l, --limit <n>",
+            "short": "-l",
+            "long": "--limit",
+            "description": "max releases to return (1-100, default 20)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--cursor <cursor>",
+            "short": null,
+            "long": "--cursor",
+            "description": "continue from a previous nextCursor",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
+          "releases",
+          "compare"
+        ],
+        "aliases": [],
+        "description": "Compare a release to a base or its captured predecessor",
+        "arguments": [
+          {
+            "name": "head",
+            "description": "head release (default: latest captured release)",
+            "required": false,
+            "variadic": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ],
+        "options": [
+          {
+            "flags": "--base <release>",
+            "short": null,
+            "long": "--base",
+            "description": "baseline release (default: captured predecessor)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-p, --project-id <id>",
+            "short": "-p",
+            "long": "--project-id",
+            "description": "scope to a single project",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-e, --environment <environment>",
+            "short": "-e",
+            "long": "--environment",
+            "description": "scope environment (default: production)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--runtime <runtime>",
+            "short": null,
+            "long": "--runtime",
+            "description": "scope to a runtime",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-l, --limit <n>",
+            "short": "-l",
+            "long": "--limit",
+            "description": "max changed groups to return (1-100, default 20)",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--cursor <cursor>",
+            "short": null,
+            "long": "--cursor",
+            "description": "continue from a previous nextCursor",
+            "required": true,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured payload instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      }
+    ]
+  },
+  "reads": {
+    "listProjects": {
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "limit": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          }
+        }
+      },
+      "resultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "ok"
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "active": {
+                  "type": "boolean"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "lastEventAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "active",
+                "createdAt",
+                "lastEventAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "projects",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "example": {
+        "kind": "ok",
+        "projects": [
+          {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "name": "Checkout",
+            "active": true,
+            "createdAt": "2026-08-27T10:00:00.000Z",
+            "lastEventAt": "2026-08-27T10:00:00.000Z"
+          }
+        ],
+        "nextCursor": null
+      }
+    },
+    "getErrorContext": {
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "environment": {
+            "default": "production",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          }
+        }
+      },
+      "resultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "group": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              "events": {
+                "maxItems": 3,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "commitTransition": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "resolvedFrame": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "resolutionState": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "history": {
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "affectedUsers": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "similarResolved": {
+                "maxItems": 3,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "required": [
+              "group",
+              "events",
+              "commitTransition",
+              "resolvedFrame",
+              "resolutionState",
+              "history",
+              "affectedUsers",
+              "similarResolved"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "example": {
+        "group": {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "message": "Controlled failure"
+        },
+        "events": [],
+        "commitTransition": null,
+        "resolvedFrame": null,
+        "resolutionState": null,
+        "history": [],
+        "affectedUsers": null,
+        "similarResolved": []
+      }
+    },
+    "searchErrorGroups": {
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "status": {
+            "default": "unresolved",
+            "type": "string",
+            "enum": [
+              "unresolved",
+              "resolved",
+              "ignored",
+              "all"
+            ]
+          },
+          "release": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "baselineRelease": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "environment": {
+            "default": "production",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "fingerprint": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "client",
+              "browser",
+              "node",
+              "rsc",
+              "server_action",
+              "route_handler",
+              "middleware"
+            ]
+          },
+          "route": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "firstSeenAfter": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "firstSeenBefore": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "lastSeenAfter": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "lastSeenBefore": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "minEvents": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "minUsers": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "sort": {
+            "default": "recent",
+            "type": "string",
+            "enum": [
+              "recent",
+              "new",
+              "users",
+              "events",
+              "growth"
+            ]
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "limit": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          }
+        }
+      },
+      "resultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "ok"
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "projectId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "projectName": {
+                      "type": "string"
+                    },
+                    "fingerprint": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "severity": {
+                      "type": "string",
+                      "enum": [
+                        "error",
+                        "warning"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "unresolved",
+                        "resolved",
+                        "ignored"
+                      ]
+                    },
+                    "eventCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "matchingEventCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "affectedUserCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "firstSeen": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "lastSeen": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "firstMatchedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "lastMatchedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "runtimes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "routes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "releases": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "baselineEventCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "growthDelta": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "growthRatio": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "projectId",
+                    "projectName",
+                    "fingerprint",
+                    "message",
+                    "severity",
+                    "status",
+                    "eventCount",
+                    "matchingEventCount",
+                    "affectedUserCount",
+                    "firstSeen",
+                    "lastSeen",
+                    "firstMatchedAt",
+                    "lastMatchedAt",
+                    "runtimes",
+                    "routes",
+                    "releases",
+                    "baselineEventCount",
+                    "growthDelta",
+                    "growthRatio"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "nextCursor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "query": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "kind",
+              "rows",
+              "nextCursor",
+              "query"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "release_unknown"
+              },
+              "nextCursor": {
+                "type": "null"
+              },
+              "query": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "kind",
+              "nextCursor",
+              "query"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "no_match"
+              },
+              "eventsForRelease": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "nextCursor": {
+                "type": "null"
+              },
+              "query": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "kind",
+              "eventsForRelease",
+              "nextCursor",
+              "query"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "example": {
+        "kind": "ok",
+        "rows": [],
+        "nextCursor": null,
+        "query": {}
+      }
+    },
+    "getErrorSamples": {
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "environment": {
+            "default": "production",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "release": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "client",
+              "browser",
+              "node",
+              "rsc",
+              "server_action",
+              "route_handler",
+              "middleware"
+            ]
+          },
+          "route": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "strategy": {
+            "default": "all",
+            "type": "string",
+            "enum": [
+              "all",
+              "recent",
+              "representative",
+              "variations"
+            ]
+          },
+          "limit": {
+            "default": 5,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "resultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "ok"
+          },
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "projectId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "message": {
+                "type": "string"
+              },
+              "fingerprint": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "projectId",
+              "message",
+              "fingerprint"
+            ],
+            "additionalProperties": false
+          },
+          "samples": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          },
+          "scan": {
+            "type": "object",
+            "properties": {
+              "candidatesConsidered": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "candidateLimit": {
+                "type": "number",
+                "const": 200
+              }
+            },
+            "required": [
+              "candidatesConsidered",
+              "candidateLimit"
+            ],
+            "additionalProperties": false
+          },
+          "query": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "privacy": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "group",
+          "samples",
+          "scan",
+          "query",
+          "privacy"
+        ],
+        "additionalProperties": false
+      },
+      "example": {
+        "kind": "ok",
+        "group": {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "projectId": "11111111-1111-4111-8111-111111111111",
+          "message": "Controlled failure",
+          "fingerprint": "controlled-failure"
+        },
+        "samples": [],
+        "scan": {
+          "candidatesConsidered": 0,
+          "candidateLimit": 200
+        },
+        "query": {},
+        "privacy": "Privacy-filtered bounded samples."
+      }
+    },
+    "listReleases": {
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "environment": {
+            "default": "production",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "client",
+              "browser",
+              "node",
+              "rsc",
+              "server_action",
+              "route_handler",
+              "middleware"
+            ]
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          }
+        }
+      },
+      "resultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "ok"
+          },
+          "releases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "release": {
+                  "type": "string"
+                },
+                "commitShas": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "projectIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "runtimes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "eventCount": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "groupCount": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "firstSeen": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "lastSeen": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "release",
+                "commitShas",
+                "projectIds",
+                "runtimes",
+                "eventCount",
+                "groupCount",
+                "firstSeen",
+                "lastSeen"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "release": {
+                    "type": "string"
+                  },
+                  "commitShas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "projectIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "runtimes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "eventCount": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "groupCount": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "firstSeen": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "lastSeen": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "release",
+                  "commitShas",
+                  "projectIds",
+                  "runtimes",
+                  "eventCount",
+                  "groupCount",
+                  "firstSeen",
+                  "lastSeen"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "release": {
+                    "type": "string"
+                  },
+                  "commitShas": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "projectIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    }
+                  },
+                  "runtimes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "eventCount": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "groupCount": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "firstSeen": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "lastSeen": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "release",
+                  "commitShas",
+                  "projectIds",
+                  "runtimes",
+                  "eventCount",
+                  "groupCount",
+                  "firstSeen",
+                  "lastSeen"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "query": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "kind",
+          "releases",
+          "latest",
+          "previous",
+          "nextCursor",
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "example": {
+        "kind": "ok",
+        "releases": [
+          {
+            "release": "release-abc123",
+            "commitShas": [
+              "abc123"
+            ],
+            "projectIds": [
+              "11111111-1111-4111-8111-111111111111"
+            ],
+            "runtimes": [
+              "node"
+            ],
+            "eventCount": 1,
+            "groupCount": 1,
+            "firstSeen": "2026-08-27T10:00:00.000Z",
+            "lastSeen": "2026-08-27T10:00:00.000Z"
+          }
+        ],
+        "latest": {
+          "release": "release-abc123",
+          "commitShas": [
+            "abc123"
+          ],
+          "projectIds": [
+            "11111111-1111-4111-8111-111111111111"
+          ],
+          "runtimes": [
+            "node"
+          ],
+          "eventCount": 1,
+          "groupCount": 1,
+          "firstSeen": "2026-08-27T10:00:00.000Z",
+          "lastSeen": "2026-08-27T10:00:00.000Z"
+        },
+        "previous": null,
+        "nextCursor": null,
+        "query": {}
+      }
+    },
+    "compareReleases": {
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "environment": {
+            "default": "production",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "runtime": {
+            "type": "string",
+            "enum": [
+              "client",
+              "browser",
+              "node",
+              "rsc",
+              "server_action",
+              "route_handler",
+              "middleware"
+            ]
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "head": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "base": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      },
+      "resultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "anyOf": [
+          {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "ok"
+                  },
+                  "head": {
+                    "type": "object",
+                    "properties": {
+                      "release": {
+                        "type": "string"
+                      },
+                      "commitShas": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "projectIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      },
+                      "runtimes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "eventCount": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "groupCount": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "firstSeen": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      "lastSeen": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      }
+                    },
+                    "required": [
+                      "release",
+                      "commitShas",
+                      "projectIds",
+                      "runtimes",
+                      "eventCount",
+                      "groupCount",
+                      "firstSeen",
+                      "lastSeen"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "base": {
+                    "type": "object",
+                    "properties": {
+                      "release": {
+                        "type": "string"
+                      },
+                      "commitShas": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "projectIds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      },
+                      "runtimes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "eventCount": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "groupCount": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "firstSeen": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      "lastSeen": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      }
+                    },
+                    "required": [
+                      "release",
+                      "commitShas",
+                      "projectIds",
+                      "runtimes",
+                      "eventCount",
+                      "groupCount",
+                      "firstSeen",
+                      "lastSeen"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "summary": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "changes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "nextCursor": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "query": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "kind",
+                  "head",
+                  "base",
+                  "summary",
+                  "changes",
+                  "nextCursor",
+                  "query"
+                ],
+                "additionalProperties": {}
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "no_releases"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": {}
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "previous_release_unavailable"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": {}
+          }
+        ]
+      },
+      "example": {
+        "kind": "ok",
+        "head": {
+          "release": "release-abc123",
+          "commitShas": [
+            "abc123"
+          ],
+          "projectIds": [
+            "11111111-1111-4111-8111-111111111111"
+          ],
+          "runtimes": [
+            "node"
+          ],
+          "eventCount": 1,
+          "groupCount": 1,
+          "firstSeen": "2026-08-27T10:00:00.000Z",
+          "lastSeen": "2026-08-27T10:00:00.000Z"
+        },
+        "base": {
+          "release": "release-before",
+          "commitShas": [
+            "abc123"
+          ],
+          "projectIds": [
+            "11111111-1111-4111-8111-111111111111"
+          ],
+          "runtimes": [
+            "node"
+          ],
+          "eventCount": 1,
+          "groupCount": 1,
+          "firstSeen": "2026-08-27T10:00:00.000Z",
+          "lastSeen": "2026-08-27T10:00:00.000Z"
+        },
+        "summary": {
+          "new": 0,
+          "aggravated": 0,
+          "fixed": 0
+        },
+        "changes": [],
+        "nextCursor": null,
+        "query": {}
+      }
+    }
+  },
+  "support": {
+    "frozenAt": "2026-08-27",
+    "totalCells": 108,
+    "families": {
+      "browser-react": 28,
+      "node-long-lived": 24,
+      "express": 4,
+      "node-invocation": 16,
+      "browser-vue": 6,
+      "browser-svelte": 6,
+      "fastify": 16,
+      "nest-http": 8
+    },
+    "versions": {
+      "node": [
+        "22.23.2",
+        "24.19.0"
+      ],
+      "react": [
+        "18.3.1",
+        "19.2.8"
+      ],
+      "vite": [
+        "6.4.3",
+        "7.3.6",
+        "8.2.2"
+      ],
+      "webpack": [
+        "5.109.2"
+      ],
+      "webpackCli": [
+        "7.2.2"
+      ],
+      "rspack": [
+        "2.2.0"
+      ],
+      "express": [
+        "4.22.2",
+        "5.2.1"
+      ],
+      "vue": [
+        "3.5.42"
+      ],
+      "viteVuePlugin": [
+        "6.0.8"
+      ],
+      "svelte": [
+        "5.56.10"
+      ],
+      "viteSveltePlugin": {
+        "6": "6.2.4",
+        "7": "6.2.4",
+        "8": "7.3.0"
+      },
+      "fastify": [
+        "5.12.1"
+      ],
+      "nest": [
+        "11.2.3",
+        "12.0.1"
+      ],
+      "nestCli": [
+        "11.0.24"
+      ],
+      "nestExpress": {
+        "11": "5.2.1",
+        "12": "5.2.1"
+      },
+      "nestFastify": {
+        "11": "5.11.3",
+        "12": "5.12.1"
+      },
+      "typescript": [
+        "5.9.3"
+      ]
+    },
+    "gates": [
+      "exact-detection",
+      "deterministic-installation",
+      "promised-capture",
+      "bounded-privacy",
+      "lifecycle-correctness",
+      "source-correctness",
+      "version-conformance",
+      "agent-recovery-canary"
+    ],
+    "cells": [
+      {
+        "id": "browser.vite6.react18.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "6.4.3",
+        "react": "18.3.1",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite6.react18.js",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "6.4.3",
+        "react": "18.3.1",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite7.react18.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "7.3.6",
+        "react": "18.3.1",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite7.react18.js",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "7.3.6",
+        "react": "18.3.1",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite8.react18.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "8.2.2",
+        "react": "18.3.1",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite8.react18.js",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "8.2.2",
+        "react": "18.3.1",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.webpack5.react18.ts.esm",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "webpack",
+        "adapterVersion": "5.109.2",
+        "react": "18.3.1",
+        "language": "ts",
+        "config": "webpack.config.mjs",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.webpack5.react18.ts.cjs",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "webpack",
+        "adapterVersion": "5.109.2",
+        "react": "18.3.1",
+        "language": "ts",
+        "config": "webpack.config.cjs",
+        "module": "cjs",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.rspack2.react18.ts.esm",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "rspack",
+        "adapterVersion": "2.2.0",
+        "react": "18.3.1",
+        "language": "ts",
+        "config": "rspack.config.mjs",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.rspack2.react18.ts.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "rspack",
+        "adapterVersion": "2.2.0",
+        "react": "18.3.1",
+        "language": "ts",
+        "config": "rspack.config.ts",
+        "module": "ts",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.webpack5.react18.js.esm",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "webpack",
+        "adapterVersion": "5.109.2",
+        "react": "18.3.1",
+        "language": "js",
+        "config": "webpack.config.mjs",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.webpack5.react18.js.cjs",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "webpack",
+        "adapterVersion": "5.109.2",
+        "react": "18.3.1",
+        "language": "js",
+        "config": "webpack.config.cjs",
+        "module": "cjs",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.rspack2.react18.js.esm",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "rspack",
+        "adapterVersion": "2.2.0",
+        "react": "18.3.1",
+        "language": "js",
+        "config": "rspack.config.mjs",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.rspack2.react18.js.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "rspack",
+        "adapterVersion": "2.2.0",
+        "react": "18.3.1",
+        "language": "js",
+        "config": "rspack.config.ts",
+        "module": "ts",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite6.react19.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "6.4.3",
+        "react": "19.2.8",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite6.react19.js",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "6.4.3",
+        "react": "19.2.8",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite7.react19.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "7.3.6",
+        "react": "19.2.8",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite7.react19.js",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "7.3.6",
+        "react": "19.2.8",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite8.react19.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "8.2.2",
+        "react": "19.2.8",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite8.react19.js",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "vite",
+        "adapterVersion": "8.2.2",
+        "react": "19.2.8",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.webpack5.react19.ts.esm",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "webpack",
+        "adapterVersion": "5.109.2",
+        "react": "19.2.8",
+        "language": "ts",
+        "config": "webpack.config.mjs",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.webpack5.react19.ts.cjs",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "webpack",
+        "adapterVersion": "5.109.2",
+        "react": "19.2.8",
+        "language": "ts",
+        "config": "webpack.config.cjs",
+        "module": "cjs",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.rspack2.react19.ts.esm",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "rspack",
+        "adapterVersion": "2.2.0",
+        "react": "19.2.8",
+        "language": "ts",
+        "config": "rspack.config.mjs",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.rspack2.react19.ts.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "rspack",
+        "adapterVersion": "2.2.0",
+        "react": "19.2.8",
+        "language": "ts",
+        "config": "rspack.config.ts",
+        "module": "ts",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.webpack5.react19.js.esm",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "webpack",
+        "adapterVersion": "5.109.2",
+        "react": "19.2.8",
+        "language": "js",
+        "config": "webpack.config.mjs",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.webpack5.react19.js.cjs",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "webpack",
+        "adapterVersion": "5.109.2",
+        "react": "19.2.8",
+        "language": "js",
+        "config": "webpack.config.cjs",
+        "module": "cjs",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.rspack2.react19.js.esm",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "rspack",
+        "adapterVersion": "2.2.0",
+        "react": "19.2.8",
+        "language": "js",
+        "config": "rspack.config.mjs",
+        "module": "esm",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.rspack2.react19.js.ts",
+        "wave": "1B",
+        "family": "browser-react",
+        "adapter": "rspack",
+        "adapterVersion": "2.2.0",
+        "react": "19.2.8",
+        "language": "js",
+        "config": "rspack.config.ts",
+        "module": "ts",
+        "rootTopology": "clean-create-root",
+        "outputTopology": "contenthash-and-custom-public-path",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "render"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.server.ts.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "esm",
+        "processShape": "server",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.job.ts.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "esm",
+        "processShape": "job",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.script.ts.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "esm",
+        "processShape": "script",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.server.ts.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "processShape": "server",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.job.ts.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "processShape": "job",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.script.ts.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "processShape": "script",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.server.js.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "esm",
+        "processShape": "server",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.job.js.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "esm",
+        "processShape": "job",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.script.js.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "esm",
+        "processShape": "script",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.server.js.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "cjs",
+        "processShape": "server",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.job.js.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "cjs",
+        "processShape": "job",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node22.script.js.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "cjs",
+        "processShape": "script",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.server.ts.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "esm",
+        "processShape": "server",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.job.ts.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "esm",
+        "processShape": "job",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.script.ts.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "esm",
+        "processShape": "script",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.server.ts.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "processShape": "server",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.job.ts.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "processShape": "job",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.script.ts.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "processShape": "script",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.server.js.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "esm",
+        "processShape": "server",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.job.js.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "esm",
+        "processShape": "job",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.script.js.esm",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "esm",
+        "processShape": "script",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.server.js.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "cjs",
+        "processShape": "server",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.job.js.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "cjs",
+        "processShape": "job",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "node24.script.js.cjs",
+        "wave": "1C",
+        "family": "node-long-lived",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "cjs",
+        "processShape": "script",
+        "artifact": "direct-source",
+        "capture": [
+          "manual",
+          "uncaught-exception",
+          "unhandled-rejection"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "express4.same-file",
+        "wave": "1C",
+        "family": "express",
+        "express": "4.22.2",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "esm",
+        "topology": "same-file",
+        "asyncPropagation": "explicit-next",
+        "capture": [
+          "sync-route",
+          "framework-propagated-async"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "express4.split-bootstrap",
+        "wave": "1C",
+        "family": "express",
+        "express": "4.22.2",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "cjs",
+        "topology": "split-bootstrap",
+        "asyncPropagation": "explicit-next",
+        "capture": [
+          "sync-route",
+          "framework-propagated-async"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "express5.same-file",
+        "wave": "1C",
+        "family": "express",
+        "express": "5.2.1",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "esm",
+        "topology": "same-file",
+        "asyncPropagation": "returned-promise",
+        "capture": [
+          "sync-route",
+          "framework-propagated-async"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "express5.split-bootstrap",
+        "wave": "1C",
+        "family": "express",
+        "express": "5.2.1",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "cjs",
+        "topology": "split-bootstrap",
+        "asyncPropagation": "returned-promise",
+        "capture": [
+          "sync-route",
+          "framework-propagated-async"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node22.async-handler.ts.esm",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "esm",
+        "handlerShape": "async-handler",
+        "artifact": "tsc-sourcemap",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node22.node-http-handler.ts.esm",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "esm",
+        "handlerShape": "node-http-handler",
+        "artifact": "tsc-sourcemap",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node22.async-handler.ts.cjs",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "handlerShape": "async-handler",
+        "artifact": "tsc-sourcemap",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node22.node-http-handler.ts.cjs",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "handlerShape": "node-http-handler",
+        "artifact": "tsc-sourcemap",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node22.async-handler.js.esm",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "esm",
+        "handlerShape": "async-handler",
+        "artifact": "direct-source",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node22.node-http-handler.js.esm",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "esm",
+        "handlerShape": "node-http-handler",
+        "artifact": "direct-source",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node22.async-handler.js.cjs",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "cjs",
+        "handlerShape": "async-handler",
+        "artifact": "direct-source",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node22.node-http-handler.js.cjs",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "cjs",
+        "handlerShape": "node-http-handler",
+        "artifact": "direct-source",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node24.async-handler.ts.esm",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "esm",
+        "handlerShape": "async-handler",
+        "artifact": "tsc-sourcemap",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node24.node-http-handler.ts.esm",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "esm",
+        "handlerShape": "node-http-handler",
+        "artifact": "tsc-sourcemap",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node24.async-handler.ts.cjs",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "handlerShape": "async-handler",
+        "artifact": "tsc-sourcemap",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node24.node-http-handler.ts.cjs",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "handlerShape": "node-http-handler",
+        "artifact": "tsc-sourcemap",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node24.async-handler.js.esm",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "esm",
+        "handlerShape": "async-handler",
+        "artifact": "direct-source",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node24.node-http-handler.js.esm",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "esm",
+        "handlerShape": "node-http-handler",
+        "artifact": "direct-source",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node24.async-handler.js.cjs",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "cjs",
+        "handlerShape": "async-handler",
+        "artifact": "direct-source",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "invocation.node24.node-http-handler.js.cjs",
+        "wave": "1D",
+        "family": "node-invocation",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "cjs",
+        "handlerShape": "node-http-handler",
+        "artifact": "direct-source",
+        "lifecycle": [
+          "cold",
+          "warm",
+          "concurrent-warm"
+        ],
+        "capture": [
+          "throw",
+          "rejection"
+        ],
+        "flushTimeoutMs": 2000,
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite6.vue3.ts",
+        "wave": "2A",
+        "family": "browser-vue",
+        "adapter": "vite",
+        "adapterVersion": "6.4.3",
+        "adapterPluginVersion": "6.0.8",
+        "vue": "3.5.42",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-create-app",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite6.vue3.js",
+        "wave": "2A",
+        "family": "browser-vue",
+        "adapter": "vite",
+        "adapterVersion": "6.4.3",
+        "adapterPluginVersion": "6.0.8",
+        "vue": "3.5.42",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-create-app",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite7.vue3.ts",
+        "wave": "2A",
+        "family": "browser-vue",
+        "adapter": "vite",
+        "adapterVersion": "7.3.6",
+        "adapterPluginVersion": "6.0.8",
+        "vue": "3.5.42",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-create-app",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite7.vue3.js",
+        "wave": "2A",
+        "family": "browser-vue",
+        "adapter": "vite",
+        "adapterVersion": "7.3.6",
+        "adapterPluginVersion": "6.0.8",
+        "vue": "3.5.42",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-create-app",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite8.vue3.ts",
+        "wave": "2A",
+        "family": "browser-vue",
+        "adapter": "vite",
+        "adapterVersion": "8.2.2",
+        "adapterPluginVersion": "6.0.8",
+        "vue": "3.5.42",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-create-app",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite8.vue3.js",
+        "wave": "2A",
+        "family": "browser-vue",
+        "adapter": "vite",
+        "adapterVersion": "8.2.2",
+        "adapterPluginVersion": "6.0.8",
+        "vue": "3.5.42",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-create-app",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite6.svelte5.ts",
+        "wave": "2A",
+        "family": "browser-svelte",
+        "adapter": "vite",
+        "adapterVersion": "6.4.3",
+        "adapterPluginVersion": "6.2.4",
+        "svelte": "5.56.10",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-mount",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "svelte-boundary"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite6.svelte5.js",
+        "wave": "2A",
+        "family": "browser-svelte",
+        "adapter": "vite",
+        "adapterVersion": "6.4.3",
+        "adapterPluginVersion": "6.2.4",
+        "svelte": "5.56.10",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-mount",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "svelte-boundary"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite7.svelte5.ts",
+        "wave": "2A",
+        "family": "browser-svelte",
+        "adapter": "vite",
+        "adapterVersion": "7.3.6",
+        "adapterPluginVersion": "6.2.4",
+        "svelte": "5.56.10",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-mount",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "svelte-boundary"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite7.svelte5.js",
+        "wave": "2A",
+        "family": "browser-svelte",
+        "adapter": "vite",
+        "adapterVersion": "7.3.6",
+        "adapterPluginVersion": "6.2.4",
+        "svelte": "5.56.10",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-mount",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "svelte-boundary"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite8.svelte5.ts",
+        "wave": "2A",
+        "family": "browser-svelte",
+        "adapter": "vite",
+        "adapterVersion": "8.2.2",
+        "adapterPluginVersion": "7.3.0",
+        "svelte": "5.56.10",
+        "language": "ts",
+        "config": "vite.config.ts",
+        "module": "esm",
+        "rootTopology": "clean-mount",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "svelte-boundary"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "browser.vite8.svelte5.js",
+        "wave": "2A",
+        "family": "browser-svelte",
+        "adapter": "vite",
+        "adapterVersion": "8.2.2",
+        "adapterPluginVersion": "7.3.0",
+        "svelte": "5.56.10",
+        "language": "js",
+        "config": "vite.config.js",
+        "module": "esm",
+        "rootTopology": "clean-mount",
+        "outputTopology": "default-and-custom-base",
+        "capture": [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "svelte-boundary"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node22.ts.esm.same-file",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "esm",
+        "topology": "same-file",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node22.ts.esm.split-bootstrap",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "esm",
+        "topology": "split-bootstrap",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node22.ts.cjs.same-file",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "same-file",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node22.ts.cjs.split-bootstrap",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "split-bootstrap",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node22.js.esm.same-file",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "esm",
+        "topology": "same-file",
+        "artifact": "direct-source",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node22.js.esm.split-bootstrap",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "esm",
+        "topology": "split-bootstrap",
+        "artifact": "direct-source",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node22.js.cjs.same-file",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "cjs",
+        "topology": "same-file",
+        "artifact": "direct-source",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node22.js.cjs.split-bootstrap",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "22.23.2",
+        "language": "js",
+        "module": "cjs",
+        "topology": "split-bootstrap",
+        "artifact": "direct-source",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node24.ts.esm.same-file",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "esm",
+        "topology": "same-file",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node24.ts.esm.split-bootstrap",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "esm",
+        "topology": "split-bootstrap",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node24.ts.cjs.same-file",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "same-file",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node24.ts.cjs.split-bootstrap",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "split-bootstrap",
+        "artifact": "tsc-sourcemap",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node24.js.esm.same-file",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "esm",
+        "topology": "same-file",
+        "artifact": "direct-source",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node24.js.esm.split-bootstrap",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "esm",
+        "topology": "split-bootstrap",
+        "artifact": "direct-source",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node24.js.cjs.same-file",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "cjs",
+        "topology": "same-file",
+        "artifact": "direct-source",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastify5.node24.js.cjs.split-bootstrap",
+        "wave": "2B",
+        "family": "fastify",
+        "fastify": "5.12.1",
+        "node": "24.19.0",
+        "language": "js",
+        "module": "cjs",
+        "topology": "split-bootstrap",
+        "artifact": "direct-source",
+        "capture": [
+          "sync-route",
+          "async-route",
+          "lifecycle-hook"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nest11.node22.express",
+        "wave": "2B",
+        "family": "nest-http",
+        "nest": "11.2.3",
+        "nestCli": "11.0.24",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "conventional-main",
+        "transport": "express",
+        "transportVersion": "5.2.1",
+        "artifact": "nest-cli-sourcemap",
+        "capture": [
+          "controller",
+          "guard",
+          "pipe",
+          "interceptor"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nest11.node22.fastify",
+        "wave": "2B",
+        "family": "nest-http",
+        "nest": "11.2.3",
+        "nestCli": "11.0.24",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "conventional-main",
+        "transport": "fastify",
+        "transportVersion": "5.11.3",
+        "artifact": "nest-cli-sourcemap",
+        "capture": [
+          "controller",
+          "guard",
+          "pipe",
+          "interceptor"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nest11.node24.express",
+        "wave": "2B",
+        "family": "nest-http",
+        "nest": "11.2.3",
+        "nestCli": "11.0.24",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "conventional-main",
+        "transport": "express",
+        "transportVersion": "5.2.1",
+        "artifact": "nest-cli-sourcemap",
+        "capture": [
+          "controller",
+          "guard",
+          "pipe",
+          "interceptor"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nest11.node24.fastify",
+        "wave": "2B",
+        "family": "nest-http",
+        "nest": "11.2.3",
+        "nestCli": "11.0.24",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "conventional-main",
+        "transport": "fastify",
+        "transportVersion": "5.11.3",
+        "artifact": "nest-cli-sourcemap",
+        "capture": [
+          "controller",
+          "guard",
+          "pipe",
+          "interceptor"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nest12.node22.express",
+        "wave": "2B",
+        "family": "nest-http",
+        "nest": "12.0.1",
+        "nestCli": "11.0.24",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "conventional-main",
+        "transport": "express",
+        "transportVersion": "5.2.1",
+        "artifact": "nest-cli-sourcemap",
+        "capture": [
+          "controller",
+          "guard",
+          "pipe",
+          "interceptor"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nest12.node22.fastify",
+        "wave": "2B",
+        "family": "nest-http",
+        "nest": "12.0.1",
+        "nestCli": "11.0.24",
+        "node": "22.23.2",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "conventional-main",
+        "transport": "fastify",
+        "transportVersion": "5.12.1",
+        "artifact": "nest-cli-sourcemap",
+        "capture": [
+          "controller",
+          "guard",
+          "pipe",
+          "interceptor"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nest12.node24.express",
+        "wave": "2B",
+        "family": "nest-http",
+        "nest": "12.0.1",
+        "nestCli": "11.0.24",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "conventional-main",
+        "transport": "express",
+        "transportVersion": "5.2.1",
+        "artifact": "nest-cli-sourcemap",
+        "capture": [
+          "controller",
+          "guard",
+          "pipe",
+          "interceptor"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nest12.node24.fastify",
+        "wave": "2B",
+        "family": "nest-http",
+        "nest": "12.0.1",
+        "nestCli": "11.0.24",
+        "node": "24.19.0",
+        "language": "ts",
+        "module": "cjs",
+        "topology": "conventional-main",
+        "transport": "fastify",
+        "transportVersion": "5.12.1",
+        "artifact": "nest-cli-sourcemap",
+        "capture": [
+          "controller",
+          "guard",
+          "pipe",
+          "interceptor"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      }
+    ],
+    "refusals": [
+      {
+        "id": "browser.non-react-renderer",
+        "reason": "Angular, vanilla-browser and other renderers require their own adapter gates."
+      },
+      {
+        "id": "browser.dynamic-build-config",
+        "reason": "Dynamic, promised or multi-configuration build exports require one precise manual composition and are not mutated automatically."
+      },
+      {
+        "id": "browser.ambiguous-root-or-boundary",
+        "reason": "Multiple roots or an existing React boundary require one precise manual composition before setup can be ready."
+      },
+      {
+        "id": "node.ambiguous-entry",
+        "reason": "Multiple conventional process entries require an explicit application entry and are not modified."
+      },
+      {
+        "id": "node.unknown-build-output",
+        "reason": "Unknown output directories require a reviewed postbuild uploader command."
+      },
+      {
+        "id": "invocation.callback",
+        "reason": "Callback-style invocation completion is outside the promise."
+      },
+      {
+        "id": "invocation.streaming",
+        "reason": "Streaming response completion is outside the promise."
+      },
+      {
+        "id": "invocation.sync",
+        "reason": "Only promise-returning asynchronous handlers are wrapped automatically."
+      },
+      {
+        "id": "provider-presets",
+        "reason": "AWS Lambda, Vercel, Netlify, Google Cloud and Azure remain candidate presets until each lifecycle is independently conformed."
+      },
+      {
+        "id": "vue.ssr-or-ambiguous-root",
+        "reason": "Vue SSR, Nuxt, multiple roots and dynamic createApp composition are outside the Vite client promise."
+      },
+      {
+        "id": "svelte.ssr-or-ambiguous-root",
+        "reason": "SvelteKit, SSR, hydration, multiple roots and dynamic mount composition are outside the Vite client promise."
+      },
+      {
+        "id": "fastify.v4-or-ambiguous-instance",
+        "reason": "Fastify 4 is end-of-life and multiple or dynamic Fastify instances are not mutated automatically."
+      },
+      {
+        "id": "fastify.unsupported-lifecycle",
+        "reason": "WebSockets, HTTP/2-specific behaviour, streaming, SSE and serverless completion require separate lifecycle gates."
+      },
+      {
+        "id": "nest.pre-v11-or-non-http",
+        "reason": "Nest versions before 11 and GraphQL, gateways, microservices, hybrid or standalone application contexts are outside the HTTP promise."
+      },
+      {
+        "id": "nest.ambiguous-filter-or-application",
+        "reason": "Multiple applications, custom HTTP adapters and non-composable exception filters require an exact manual outcome before any mutation."
+      }
+    ]
+  }
+}

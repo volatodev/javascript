@@ -432,8 +432,16 @@ releases
     },
   );
 
-program.parseAsync(process.argv).catch((err: unknown) => {
-  const message = err instanceof Error ? err.message : String(err);
-  printLocalError(message);
-  process.exit(err instanceof CliError ? err.exitCode : 1);
-});
+export const cliProgram = program;
+
+export async function runCli(argv: string[] = process.argv): Promise<void> {
+  await cliProgram.parseAsync(argv);
+}
+
+if (typeof require !== "undefined" && require.main === module) {
+  void runCli().catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    printLocalError(message);
+    process.exit(err instanceof CliError ? err.exitCode : 1);
+  });
+}

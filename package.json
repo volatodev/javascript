@@ -11,6 +11,8 @@
   "author": "Wrenchy SASU",
   "scripts": {
     "build": "turbo run build",
+    "docs:generate": "pnpm --filter @volatodev/cli build",
+    "docs:check": "pnpm --filter @volatodev/cli docs:check",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
