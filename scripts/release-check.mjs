@@ -9,6 +9,7 @@ const packageRoot = join(repositoryRoot, "packages", "cli");
 const npmCache = mkdtempSync(join(tmpdir(), "volato-release-check-npm-"));
 
 const checks = [
+  ["pnpm", ["docs:verify"], repositoryRoot],
   ["pnpm", ["lint"], repositoryRoot],
   ["pnpm", ["typecheck"], repositoryRoot],
   ["pnpm", ["test"], repositoryRoot],
