@@ -253,4 +253,43 @@ describe("volato errors init", () => {
     const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
     expect(output).toContain("Vue render error");
   });
+
+  it("installs and reports a conventional Vite + Svelte application", async () => {
+    rmSync(join(cwd, "app"), { recursive: true, force: true });
+    rmSync(join(cwd, "next.config.ts"), { force: true });
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "svelte-fixture",
+        type: "module",
+        dependencies: {
+          svelte: "5.56.10",
+          vite: "8.2.2",
+          "@sveltejs/vite-plugin-svelte": "7.3.0",
+        },
+      })}\n`,
+    );
+    mkdirSync(join(cwd, "src"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "main.js"),
+      'import { mount } from "svelte";\nimport App from "./App.svelte";\nconst app = mount(App, { target: document.body });\nexport default app;\n',
+    );
+    writeFileSync(join(cwd, "src", "App.svelte"), "<main>Ready</main>\n");
+    writeFileSync(
+      join(cwd, "vite.config.js"),
+      'import { defineConfig } from "vite";\nexport default defineConfig({});\n',
+    );
+
+    await runErrorsInit({ cwd, nonInteractive: true });
+
+    expect(reportIntegrationInstalled).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "errors-browser-svelte",
+    );
+    expect(readFileSync(join(cwd, "src", "App.svelte"), "utf8")).toContain(
+      "<svelte:boundary",
+    );
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toContain("Svelte render error");
+  });
 });

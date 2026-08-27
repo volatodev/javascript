@@ -35,9 +35,11 @@ export type BrowserRendererRecipe = {
   runtime: { ts: string; js: string };
   patchEntry: (options: {
     project: BrowserProjectShape;
+    runtimeRoot: string;
     rendererModule: string;
     browserModule: string;
   }) => PatchOutcome[];
+  validate?: (project: BrowserProjectShape) => void;
 };
 
 function assetsRoot(): string {
@@ -265,6 +267,7 @@ export function generateBrowserIntegration(
   }
 
   assertStaticBuildConfig(options.project);
+  renderer.validate?.(options.project);
 
   const sourceRoot = options.sourceRoot ?? assetsRoot();
   if (!existsSync(sourceRoot)) {
@@ -296,6 +299,7 @@ export function generateBrowserIntegration(
     ),
     ...renderer.patchEntry({
       project: options.project,
+      runtimeRoot,
       rendererModule: browserModulePath(
         options.project.entryPath,
         join(runtimeRoot, renderer.runtime.ts.replace(/\.[^.]+$/, "")),

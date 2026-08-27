@@ -88,6 +88,7 @@ try {
     "skills/_shared/errors-browser/browser.ts",
     "skills/_shared/errors-browser/react.tsx",
     "skills/_shared/errors-browser/vue.ts",
+    "skills/_shared/errors-browser/svelte.ts",
     "skills/_shared/errors-browser/artifact.ts",
     "skills/_shared/errors-browser/vite.ts",
     "skills/_shared/errors-browser/webpack.ts",

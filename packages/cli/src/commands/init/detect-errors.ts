@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { detectProject, type ProjectShape } from "./detect.js";
 
 export type SourceLanguage = "ts" | "js";
@@ -32,6 +32,13 @@ export type ViteVueProjectShape = BrowserProjectShape & {
   appVariable: string;
 };
 
+export type ViteSvelteProjectShape = BrowserProjectShape & {
+  buildAdapter: "vite";
+  viteConfigPath: string;
+  rootComponentPath: string;
+  rootComponentVariable: string;
+};
+
 export type NodeProjectShape = {
   cwd: string;
   entryPath: string;
@@ -59,6 +66,7 @@ export type ErrorsStackShape = {
   browserReact?: BrowserReactProjectShape;
   viteReact?: ViteReactProjectShape;
   browserVue?: ViteVueProjectShape;
+  browserSvelte?: ViteSvelteProjectShape;
   node?: NodeProjectShape;
   nodeInvocation?: NodeInvocationProjectShape;
   notices: string[];
@@ -216,6 +224,7 @@ function browserShapes(
 ): {
   browserReact?: BrowserReactProjectShape;
   browserVue?: ViteVueProjectShape;
+  browserSvelte?: ViteSvelteProjectShape;
 } {
   const build = browserBuildShape(cwd, deps);
   if (!build) return {};
@@ -280,6 +289,92 @@ function browserShapes(
         buildAdapter: "vite",
         viteConfigPath: build.buildConfigPath,
         appVariable,
+      },
+    };
+  }
+
+  if (renderers[0] === "svelte") {
+    if (build.buildAdapter !== "vite") {
+      throw new ErrorsStackDetectionError(
+        `Svelte 5 browser capture currently requires Vite; ${build.buildAdapter} was not modified.`,
+      );
+    }
+    if (dependencyMajor(deps.svelte!) !== 5) {
+      throw new ErrorsStackDetectionError(
+        "Svelte 4 browser capture is not supported; no files were modified.",
+      );
+    }
+    if (typeof deps["@sveltejs/kit"] === "string") {
+      throw new ErrorsStackDetectionError(
+        "SvelteKit and Svelte SSR capture are not supported by the Vite + Svelte SPA recipe; no files were modified.",
+      );
+    }
+    const source = readFileSync(build.entryPath, "utf8");
+    if (/\bhydrate\s*\(/.test(source)) {
+      throw new ErrorsStackDetectionError(
+        "Svelte hydrate is not supported by the Vite + Svelte SPA recipe; no files were modified.",
+      );
+    }
+    const mountCalls = source.match(/\bmount\s*\(/g) ?? [];
+    const rootImport =
+      /import\s+([A-Za-z_$][\w$]*)\s+from\s+["']([^"']+\.svelte)["']/.exec(
+        source,
+      );
+    const rootVariable = rootImport?.[1];
+    if (
+      mountCalls.length !== 1 ||
+      !rootVariable ||
+      !new RegExp(`\\bmount\\s*\\(\\s*${rootVariable.replace(/[$]/g, "\\$")}\\b`).test(
+        source,
+      )
+    ) {
+      throw new ErrorsStackDetectionError(
+        "Vite + Svelte setup requires exactly one static mount of one imported .svelte root; no files were modified.",
+      );
+    }
+    const rootComponentPath = resolve(dirname(build.entryPath), rootImport[2]!);
+    if (!existsSync(rootComponentPath)) {
+      throw new ErrorsStackDetectionError(
+        `The Svelte root ${rootImport[2]} does not exist; no files were modified.`,
+      );
+    }
+    const rootSource = readFileSync(rootComponentPath, "utf8");
+    if (
+      /<svelte:boundary\b/.test(rootSource) &&
+      !rootSource.includes("captureVolatoSvelteError")
+    ) {
+      throw new ErrorsStackDetectionError(
+        "An existing Svelte boundary requires explicit fallback/reset composition; no files were modified.",
+      );
+    }
+    if (/<svelte:(?:head|window|body|document|options)\b/.test(rootSource)) {
+      throw new ErrorsStackDetectionError(
+        "A root-level Svelte special element requires explicit boundary placement; no files were modified.",
+      );
+    }
+    const leadingScripts = /^(?:\s*<script\b[^>]*>[\s\S]*?<\/script>\s*)*/.exec(
+      rootSource,
+    )?.[0] ?? "";
+    const afterScripts = rootSource.slice(leadingScripts.length);
+    const trailingStyles = /(?:\s*<style\b[^>]*>[\s\S]*?<\/style>\s*)*$/.exec(
+      afterScripts,
+    )?.[0] ?? "";
+    const markup = afterScripts.slice(
+      0,
+      afterScripts.length - trailingStyles.length,
+    );
+    if (!markup.trim() || /<(?:script|style)\b/.test(markup)) {
+      throw new ErrorsStackDetectionError(
+        "The Svelte root must keep instance/module scripts before markup and styles after markup for deterministic boundary composition; no files were modified.",
+      );
+    }
+    return {
+      browserSvelte: {
+        ...build,
+        buildAdapter: "vite",
+        viteConfigPath: build.buildConfigPath,
+        rootComponentPath,
+        rootComponentVariable: rootVariable,
       },
     };
   }
@@ -621,7 +716,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     return { cwd, nextjs: detectProject(cwd), notices: [] };
   }
 
-  const { browserReact, browserVue } = browserShapes(cwd, deps);
+  const { browserReact, browserVue, browserSvelte } = browserShapes(cwd, deps);
   const viteReact =
     browserReact?.buildAdapter === "vite"
       ? {
@@ -630,13 +725,24 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
           viteConfigPath: browserReact.buildConfigPath,
         }
       : undefined;
-  const node = nodeShape(cwd, pkg, deps, Boolean(browserReact || browserVue));
+  const node = nodeShape(
+    cwd,
+    pkg,
+    deps,
+    Boolean(browserReact || browserVue || browserSvelte),
+  );
   const nodeInvocation = nodeInvocationShape(cwd, pkg);
   const unsupportedBackends = unsupportedBackendLabels(cwd);
   const unsupportedHttpFrameworks = UNSUPPORTED_HTTP_FRAMEWORKS.filter(
     ([dependency]) => typeof deps[dependency] === "string",
   );
-  if (!browserReact && !browserVue && !node && !nodeInvocation) {
+  if (
+    !browserReact &&
+    !browserVue &&
+    !browserSvelte &&
+    !node &&
+    !nodeInvocation
+  ) {
     const unsupported = [
       ...unsupportedBackends.map((label) => `${label} backend`),
       ...unsupportedHttpFrameworks.map(([, label]) => `${label} HTTP`),
@@ -676,6 +782,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     browserReact,
     viteReact,
     browserVue,
+    browserSvelte,
     node,
     nodeInvocation,
     notices,

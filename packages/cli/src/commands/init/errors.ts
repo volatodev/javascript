@@ -31,6 +31,7 @@ import {
 import { generateNextjsIntegration } from "../../integrations/nextjs";
 import { generateBrowserReactIntegration } from "../../integrations/vite-react.js";
 import { generateViteVueIntegration } from "../../integrations/vite-vue.js";
+import { generateViteSvelteIntegration } from "../../integrations/vite-svelte.js";
 import { generateNodeIntegration } from "../../integrations/node.js";
 import { generateNodeInvocationIntegration } from "../../integrations/node-invocation.js";
 import { linkedProject } from "../../integrations/manifest.js";
@@ -166,6 +167,27 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         },
       );
     }
+    if (stack.browserSvelte) {
+      const generated = generateViteSvelteIntegration({
+        cwd,
+        dsn: setup.dsn,
+        ingestToken: setup.ingestToken,
+        project: stack.browserSvelte,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Vite + Svelte browser files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
     if (stack.node) {
       const generated = generateNodeIntegration({
         cwd,
@@ -234,6 +256,12 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
     if (stack.browserVue) {
       await reportIntegrationInstalled(projectLink.id, "errors-browser-vue");
     }
+    if (stack.browserSvelte) {
+      await reportIntegrationInstalled(
+        projectLink.id,
+        "errors-browser-svelte",
+      );
+    }
     if (stack.node) {
       await reportIntegrationInstalled(projectLink.id, "errors-node");
     }
@@ -276,7 +304,13 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
   } else {
     printPortableNextSteps(
       cwd,
-      stack.browserReact ? "React" : stack.browserVue ? "Vue" : null,
+      stack.browserReact
+        ? "React"
+        : stack.browserVue
+          ? "Vue"
+          : stack.browserSvelte
+            ? "Svelte"
+            : null,
       Boolean(stack.node),
       Boolean(stack.nodeInvocation),
       manualOutcomes.length === 0,

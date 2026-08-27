@@ -88,6 +88,54 @@ describe("detectErrorsStack", () => {
     expect(() => detectErrorsStack(cwd)).toThrowError(expected);
   });
 
+  it("detects one conventional Vite + Svelte 5 application", () => {
+    writePackage(cwd, {
+      vite: "8.2.2",
+      svelte: "5.56.10",
+      "@sveltejs/vite-plugin-svelte": "7.3.0",
+    });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "main.js"),
+      'import { mount } from "svelte";\nimport App from "./App.svelte";\nconst app = mount(App, { target: document.getElementById("app") });\nexport default app;\n',
+    );
+    writeFileSync(join(cwd, "src", "App.svelte"), "<main>Ready</main>\n");
+    writeFileSync(join(cwd, "vite.config.js"), "export default defineConfig({});\n");
+
+    expect(detectErrorsStack(cwd).browserSvelte).toMatchObject({
+      entryPath: join(cwd, "src", "main.js"),
+      rootComponentPath: join(cwd, "src", "App.svelte"),
+      rootComponentVariable: "App",
+      buildAdapter: "vite",
+      language: "js",
+    });
+  });
+
+  it.each([
+    ["Svelte 4", { svelte: "4.2.20" }, 'mount(App, { target })', "<main />", /Svelte 4.*not supported/i],
+    ["SvelteKit", { svelte: "5.56.10", "@sveltejs/kit": "2.48.5" }, 'mount(App, { target })', "<main />", /SvelteKit.*not supported/i],
+    ["hydrate", { svelte: "5.56.10" }, 'hydrate(App, { target })', "<main />", /hydrate.*not supported/i],
+    ["existing boundary", { svelte: "5.56.10" }, 'mount(App, { target })', "<svelte:boundary><Widget /></svelte:boundary>", /existing Svelte boundary.*no files were modified/i],
+  ])(
+    "refuses %s before selecting the Svelte recipe",
+    (_label, renderer, mountSource, appSource, expected) => {
+      writePackage(cwd, {
+        vite: "8.2.2",
+        "@sveltejs/vite-plugin-svelte": "7.3.0",
+        ...renderer,
+      });
+      mkdirSync(join(cwd, "src"));
+      writeFileSync(
+        join(cwd, "src", "main.js"),
+        `import { mount, hydrate } from "svelte";\nimport App from "./App.svelte";\n${mountSource};\n`,
+      );
+      writeFileSync(join(cwd, "src", "App.svelte"), `${appSource}\n`);
+      writeFileSync(join(cwd, "vite.config.js"), "export default defineConfig({});\n");
+
+      expect(() => detectErrorsStack(cwd)).toThrowError(expected);
+    },
+  );
+
   it("refuses multiple conventional invocation entries", () => {
     writePackage(cwd, {}, { type: "module" });
     mkdirSync(join(cwd, "src"));

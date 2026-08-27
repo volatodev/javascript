@@ -21,6 +21,7 @@ const sources = [
   ["browser.ts", "browser.js", "ts"],
   ["react.tsx", "react.jsx", "tsx"],
   ["vue.ts", "vue.js", "ts"],
+  ["svelte.ts", "svelte.js", "ts"],
   ["artifact.ts", "artifact.js", "ts"],
   ["vite.ts", "vite.js", "ts"],
   ["webpack.ts", "webpack.mjs", "ts"],
