@@ -1,5 +1,17 @@
 # @volatodev/cli
 
+## 0.1.0-beta.19
+
+### Minor Changes
+
+- Expand dependency-free Errors setup to the complete 108-cell JavaScript
+  matrix: Next.js 15/16 App/Pages/hybrid, React with Vite/Webpack/Rspack,
+  Vite + Vue 3, Vite + Svelte 5, long-lived Node.js, Express 4/5, Fastify 5,
+  NestJS 11/12 HTTP and provider-neutral Node invocation lifecycles.
+- Derive the public CLI/read contract from Commander and Zod, keep status
+  mutations explicit, and strengthen setup/recovery guidance around privacy,
+  source resolution and deployed recovery evidence.
+
 ## 0.1.0-beta.18
 
 ### Patch Changes

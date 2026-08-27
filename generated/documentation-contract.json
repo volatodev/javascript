@@ -7,7 +7,7 @@
   },
   "cli": {
     "name": "volato",
-    "version": "0.1.0-beta.18",
+    "version": "0.1.0-beta.19",
     "description": "Volato Errors — production evidence for coding agents. Run `volato readme` for the full surface.",
     "options": [
       {
