@@ -31,6 +31,7 @@ import {
 import { generateNextjsIntegration } from "../../integrations/nextjs";
 import { generateBrowserReactIntegration } from "../../integrations/vite-react.js";
 import { generateNodeIntegration } from "../../integrations/node.js";
+import { generateNodeInvocationIntegration } from "../../integrations/node-invocation.js";
 import { linkedProject } from "../../integrations/manifest.js";
 import {
   fetchProjectSetup,
@@ -164,6 +165,27 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         },
       );
     }
+    if (stack.nodeInvocation) {
+      const generated = generateNodeInvocationIntegration({
+        cwd,
+        dsn: setup.dsn,
+        ingestToken: setup.ingestToken,
+        project: stack.nodeInvocation,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Node invocation files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
   }
   if (options.sendTestEvent && !stack.nextjs) {
     outcomes.push({
@@ -189,6 +211,12 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
     }
     if (stack.node) {
       await reportIntegrationInstalled(projectLink.id, "errors-node");
+    }
+    if (stack.nodeInvocation) {
+      await reportIntegrationInstalled(
+        projectLink.id,
+        "errors-node-invocation",
+      );
     }
   }
 
@@ -225,6 +253,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       cwd,
       Boolean(stack.browserReact),
       Boolean(stack.node),
+      Boolean(stack.nodeInvocation),
       manualOutcomes.length === 0,
     );
   }
@@ -300,6 +329,7 @@ function printPortableNextSteps(
   cwd: string,
   hasBrowser: boolean,
   hasNode: boolean,
+  hasNodeInvocation: boolean,
   complete: boolean,
 ): void {
   process.stdout.write(`${pc.bold("Next steps")}\n`);
@@ -322,6 +352,14 @@ function printPortableNextSteps(
       `  ${pc.dim(`${step}.`)} Set ${pc.cyan(
         "VOLATO_RELEASE",
       )} to the deployed Git SHA and exercise a controlled Node/Express error.\n`,
+    );
+    step += 1;
+  }
+  if (hasNodeInvocation) {
+    process.stdout.write(
+      `  ${pc.dim(`${step}.`)} Set ${pc.cyan(
+        "VOLATO_RELEASE",
+      )} to the deployed Git SHA and exercise one controlled Node invocation failure.\n`,
     );
     step += 1;
   }

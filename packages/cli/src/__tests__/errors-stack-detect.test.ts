@@ -31,6 +31,100 @@ afterEach(() => {
 
 describe("detectErrorsStack", () => {
   it.each([
+    [
+      "async handler",
+      "src/handler.ts",
+      "module",
+      'export const handler = async (input: unknown) => ({ input });\n',
+      "async-handler",
+      "ts",
+      "esm",
+    ],
+    [
+      "Node HTTP handler",
+      "handler.js",
+      "commonjs",
+      'exports.handler = async (req, res) => { res.end("ok"); };\n',
+      "node-http-handler",
+      "js",
+      "cjs",
+    ],
+  ] as const)(
+    "detects one provider-neutral %s",
+    (_label, entry, packageType, source, handlerShape, language, module) => {
+      writePackage(cwd, {}, { type: packageType });
+      mkdirSync(join(cwd, "src"), { recursive: true });
+      writeFileSync(join(cwd, entry), source);
+
+      expect(detectErrorsStack(cwd).nodeInvocation).toMatchObject({
+        handlerPath: join(cwd, entry),
+        handlerShape,
+        language,
+        module,
+      });
+    },
+  );
+
+  it.each([
+    [
+      "callback",
+      "exports.handler = (event, context, callback) => callback(null, event);\n",
+      /callback-style.*outside the promise.*no files were modified/i,
+    ],
+    [
+      "synchronous",
+      "exports.handler = (event) => ({ event });\n",
+      /synchronous.*promise-returning asynchronous handler.*no files were modified/i,
+    ],
+    [
+      "streaming",
+      "exports.handler = async (_req, res) => { res.write('chunk'); res.end(); };\n",
+      /streaming response completion.*outside the promise.*no files were modified/i,
+    ],
+  ])("refuses a %s invocation before mutation", (_label, source, expected) => {
+    writePackage(cwd, {}, { type: "commonjs" });
+    writeFileSync(join(cwd, "handler.js"), source);
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(expected);
+  });
+
+  it("refuses multiple conventional invocation entries", () => {
+    writePackage(cwd, {}, { type: "module" });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "handler.ts"),
+      "export const handler = async () => 'src';\n",
+    );
+    writeFileSync(
+      join(cwd, "handler.ts"),
+      "export const handler = async () => 'root';\n",
+    );
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(
+      /multiple conventional Node invocation entries.*no files were modified/i,
+    );
+  });
+
+  it.each([
+    [
+      "async-handler",
+      'import { withVolatoInvocation } from "./volato-invocation/invocation.js";\nconst volatoOriginalHandler = async (input) => input;\nexport const handler = withVolatoInvocation(volatoOriginalHandler, { functionName: "handler" });\n',
+    ],
+    [
+      "node-http-handler",
+      'const { withVolatoInvocation } = require("./volato-invocation/invocation.cjs");\nconst volatoOriginalHandler = async (req, res) => res.end();\nexports.handler = withVolatoInvocation(volatoOriginalHandler, { functionName: "handler", http: true });\n',
+    ],
+  ] as const)(
+    "redetects a generated %s composition for convergent setup",
+    (handlerShape, source) => {
+      writePackage(cwd, {}, { type: handlerShape === "async-handler" ? "module" : "commonjs" });
+      writeFileSync(join(cwd, "handler.js"), source);
+
+      expect(detectErrorsStack(cwd).nodeInvocation).toMatchObject({ handlerShape });
+    },
+  );
+
+  it.each([
     ["server", "src/server.ts", "module", "ts", "esm"],
     ["job", "src/job.js", "commonjs", "js", "cjs"],
     ["script", "src/index.ts", "commonjs", "ts", "cjs"],

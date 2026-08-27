@@ -7,6 +7,9 @@ export type BrowserBuildAdapter = "vite" | "webpack" | "rspack";
 export type NodeModuleFormat = "esm" | "cjs";
 export type NodeProcessShape = "server" | "job" | "script";
 export type ExpressTopology = "same-file" | "split-bootstrap";
+export type NodeInvocationHandlerShape =
+  | "async-handler"
+  | "node-http-handler";
 
 export type BrowserReactProjectShape = {
   cwd: string;
@@ -34,12 +37,21 @@ export type NodeProjectShape = {
   expressUnsupportedReason?: string;
 };
 
+export type NodeInvocationProjectShape = {
+  cwd: string;
+  handlerPath: string;
+  handlerShape: NodeInvocationHandlerShape;
+  language: SourceLanguage;
+  module: NodeModuleFormat;
+};
+
 export type ErrorsStackShape = {
   cwd: string;
   nextjs?: ProjectShape;
   browserReact?: BrowserReactProjectShape;
   viteReact?: ViteReactProjectShape;
   node?: NodeProjectShape;
+  nodeInvocation?: NodeInvocationProjectShape;
   notices: string[];
 };
 
@@ -273,6 +285,138 @@ function nodeShape(
   };
 }
 
+function handlerParameters(source: string): string[] | null {
+  const arrow =
+    /(?:export\s+const\s+handler(?:\s*:[^=\n]+)?\s*=|(?:module\.)?exports\.handler\s*=)\s*(async\s+)?(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*=>/m.exec(
+      source,
+    );
+  if (arrow) {
+    return (arrow[2] ?? arrow[3] ?? "")
+      .split(",")
+      .map((parameter) => parameter.trim())
+      .filter(Boolean);
+  }
+  const declaration =
+    /export\s+(async\s+)?function\s+handler\s*\(([^)]*)\)/m.exec(source);
+  if (!declaration) return null;
+  return declaration[2]!
+    .split(",")
+    .map((parameter) => parameter.trim())
+    .filter(Boolean);
+}
+
+function generatedHandlerParameters(source: string): string[] | null {
+  const arrow =
+    /const\s+volatoOriginalHandler(?:\s*:[^=\n]+)?\s*=\s*async\s*(?:function\s*)?(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*(?:=>|\{)/m.exec(
+      source,
+    );
+  if (arrow) {
+    return (arrow[1] ?? arrow[2] ?? "")
+      .split(",")
+      .map((parameter) => parameter.trim())
+      .filter(Boolean);
+  }
+  const declaration =
+    /async\s+function\s+volatoOriginalHandler\s*\(([^)]*)\)/m.exec(source);
+  return declaration
+    ? declaration[1]!
+        .split(",")
+        .map((parameter) => parameter.trim())
+        .filter(Boolean)
+    : null;
+}
+
+function parameterName(parameter: string): string {
+  return parameter
+    .replace(/^\.\.\./, "")
+    .split(/[?:=]/, 1)[0]!
+    .trim()
+    .replace(/^\{.*$/, "")
+    .replace(/^\[.*$/, "");
+}
+
+function nodeInvocationShape(
+  cwd: string,
+  pkg: PackageJson,
+): NodeInvocationProjectShape | undefined {
+  const candidates = [
+    "src/handler.ts",
+    "src/handler.js",
+    "handler.ts",
+    "handler.js",
+  ].filter((path) => existsSync(join(cwd, path)));
+  if (candidates.length > 1) {
+    throw new ErrorsStackDetectionError(
+      `Multiple conventional Node invocation entries were detected (${candidates.join(", ")}). Select one handler entry explicitly; no files were modified.`,
+    );
+  }
+  const selected = candidates[0];
+  if (!selected) return undefined;
+
+  const handlerPath = join(cwd, selected);
+  const source = readFileSync(handlerPath, "utf8");
+  if (
+    /\b(?:ReadableStream|ServerResponse\.prototype\.write)\b/.test(source) ||
+    /\b(?:res|response)\.write\s*\(/.test(source) ||
+    /\.pipe(?:To)?\s*\(/.test(source)
+  ) {
+    throw new ErrorsStackDetectionError(
+      `Streaming response completion is outside the promise contract at ${selected}; no files were modified.`,
+    );
+  }
+  const generated =
+    source.includes("withVolatoInvocation") &&
+    /(?:export\s+const|(?:module\.)?exports\.)\s*handler\s*=\s*withVolatoInvocation\s*\(\s*volatoOriginalHandler\b/m.test(
+      source,
+    );
+  const parameters = generated
+    ? generatedHandlerParameters(source)
+    : handlerParameters(source);
+  if (!parameters) {
+    throw new ErrorsStackDetectionError(
+      `A conventional Node invocation entry was detected at ${selected}, but one exported handler could not be identified. No files were modified.`,
+    );
+  }
+  const parameterNames = parameters.map(parameterName);
+  if (
+    parameterNames.some((name) => /^(?:callback|cb|done)$/i.test(name)) ||
+    parameters.length >= 3
+  ) {
+    throw new ErrorsStackDetectionError(
+      `Callback-style invocation completion is outside the promise contract at ${selected}; no files were modified.`,
+    );
+  }
+  const asynchronous =
+    generated ||
+    /(?:export\s+const\s+handler(?:\s*:[^=\n]+)?\s*=|(?:module\.)?exports\.handler\s*=)\s*async\b/m.test(
+      source,
+    ) ||
+    /export\s+async\s+function\s+handler\s*\(/m.test(source);
+  if (!asynchronous) {
+    throw new ErrorsStackDetectionError(
+      `A synchronous invocation handler was detected at ${selected}; only a promise-returning asynchronous handler can be wrapped automatically, and no files were modified.`,
+    );
+  }
+
+  const first = parameterNames[0] ?? "";
+  const second = parameterNames[1] ?? "";
+  const handlerShape = generated
+    ? /withVolatoInvocation\s*\([^)]*\bhttp\s*:\s*true/m.test(source)
+      ? "node-http-handler"
+      : "async-handler"
+    : /^(?:_?req(?:uest)?)$/i.test(first) &&
+        /^(?:_?res(?:ponse)?)$/i.test(second)
+      ? "node-http-handler"
+      : "async-handler";
+  return {
+    cwd,
+    handlerPath,
+    handlerShape,
+    language: languageOf(handlerPath),
+    module: pkg.type === "module" ? "esm" : "cjs",
+  };
+}
+
 type ExpressDetection =
   | {
       supported: true;
@@ -367,6 +511,9 @@ function looksSupported(root: string): boolean {
     return Boolean(
       deps.next ||
         deps.express ||
+        ["src/handler.ts", "src/handler.js", "handler.ts", "handler.js"].some(
+          (path) => existsSync(join(root, path)),
+        ) ||
         (deps.react &&
           (deps.vite || deps.webpack || deps["@rspack/core"] || deps["@rspack/cli"])),
     );
@@ -400,11 +547,12 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
         }
       : undefined;
   const node = nodeShape(cwd, pkg, deps, Boolean(browserReact));
+  const nodeInvocation = nodeInvocationShape(cwd, pkg);
   const unsupportedBackends = unsupportedBackendLabels(cwd);
   const unsupportedHttpFrameworks = UNSUPPORTED_HTTP_FRAMEWORKS.filter(
     ([dependency]) => typeof deps[dependency] === "string",
   );
-  if (!browserReact && !node) {
+  if (!browserReact && !node && !nodeInvocation) {
     const unsupported = [
       ...unsupportedBackends.map((label) => `${label} backend`),
       ...unsupportedHttpFrameworks.map(([, label]) => `${label} HTTP`),
@@ -415,7 +563,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
       );
     }
     throw new ErrorsStackDetectionError(
-      "No supported Errors stack was detected. Supported targets are Next.js 15/16, React in the browser with Vite, Webpack, or Rspack, and Node.js (with Express as the supported HTTP adapter).",
+      "No supported Errors stack was detected. Supported targets are Next.js 15/16, React in the browser with Vite, Webpack, or Rspack, long-lived Node.js (with Express as the supported HTTP adapter), and provider-neutral asynchronous Node invocation handlers.",
     );
   }
 
@@ -439,5 +587,5 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
       `${node.expressUnsupportedReason}; generic Node process capture will be installed without Express HTTP context.`,
     );
   }
-  return { cwd, browserReact, viteReact, node, notices };
+  return { cwd, browserReact, viteReact, node, nodeInvocation, notices };
 }

@@ -45,6 +45,11 @@ const runtime = {
     '"./node.js"',
     '"./node.cjs"',
   ),
+  "invocation.js": await transpile("invocation.ts", "esm"),
+  "invocation.cjs": (await transpile("invocation.ts", "cjs")).replaceAll(
+    '"./node.js"',
+    '"./node.cjs"',
+  ),
 };
 
 mkdirSync(dirname(target), { recursive: true });

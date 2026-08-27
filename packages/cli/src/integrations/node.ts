@@ -259,10 +259,10 @@ function patchExpressApp(
   ];
 }
 
-function patchBuildScript(
+export function patchNodeBuildScript(
   cwd: string,
   runtimeRoot: string,
-  project: NodeProjectShape,
+  project: Pick<NodeProjectShape, "language">,
 ): PatchOutcome {
   const path = join(cwd, "package.json");
   const pkg = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
@@ -426,7 +426,7 @@ export function generateNodeIntegration(
     ),
     ...patchNodeEntry(options.project, runtimeRoot),
     ...patchExpressApp(options.project, runtimeRoot),
-    patchBuildScript(options.cwd, runtimeRoot, options.project),
+    patchNodeBuildScript(options.cwd, runtimeRoot, options.project),
   ];
   const integration = createGeneratedIntegration(options.cwd, {
     recipe: options.project.express ? "errors-node-express" : "errors-node",

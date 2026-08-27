@@ -1,9 +1,15 @@
 export type NodeCaptureContext = {
-  capturedVia?: "manual" | "uncaught_exception" | "unhandled_rejection" | "express";
+  capturedVia?:
+    | "manual"
+    | "uncaught_exception"
+    | "unhandled_rejection"
+    | "express"
+    | "invocation";
   method?: string;
   route?: string;
   status?: number;
   requestId?: string;
+  functionName?: string;
 };
 
 export type NodeConfig = {
@@ -98,6 +104,9 @@ export async function captureNodeException(
     route: context.route?.slice(0, 4_096),
     status: context.status,
     requestId: context.requestId?.slice(0, 256),
+    contexts: context.functionName
+      ? { function: { name: context.functionName.slice(0, 256) } }
+      : undefined,
   };
   try {
     const response = await fetch(ingestUrl(activeConfig.dsn), {

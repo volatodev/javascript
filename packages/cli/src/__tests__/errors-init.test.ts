@@ -188,4 +188,31 @@ describe("volato errors init", () => {
     );
     expect(generateNextjsIntegration).not.toHaveBeenCalled();
   });
+
+  it("installs and reports a provider-neutral Node invocation", async () => {
+    rmSync(join(cwd, "app"), { recursive: true, force: true });
+    rmSync(join(cwd, "next.config.ts"), { force: true });
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({ name: "fixture", type: "module" }, null, 2)}\n`,
+    );
+    mkdirSync(join(cwd, "src"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "handler.js"),
+      "export const handler = async (input) => ({ input });\n",
+    );
+
+    await runErrorsInit({ cwd, nonInteractive: true });
+
+    expect(reportIntegrationInstalled).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "errors-node-invocation",
+    );
+    expect(readFileSync(join(cwd, "src", "handler.js"), "utf8")).toContain(
+      "withVolatoInvocation",
+    );
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toContain("Node invocation");
+    expect(output).toContain("production build and applicable capture checks");
+  });
 });
