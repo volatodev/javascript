@@ -34,6 +34,7 @@ import { generateViteVueIntegration } from "../../integrations/vite-vue.js";
 import { generateViteSvelteIntegration } from "../../integrations/vite-svelte.js";
 import { generateNodeIntegration } from "../../integrations/node.js";
 import { generateFastifyIntegration } from "../../integrations/fastify.js";
+import { generateNestIntegration } from "../../integrations/nest.js";
 import { generateNodeInvocationIntegration } from "../../integrations/node-invocation.js";
 import { linkedProject } from "../../integrations/manifest.js";
 import {
@@ -231,6 +232,27 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         },
       );
     }
+    if (stack.nest) {
+      const generated = generateNestIntegration({
+        cwd,
+        dsn: setup.dsn,
+        ingestToken: setup.ingestToken,
+        project: stack.nest,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Node + NestJS ${stack.nest.transport} runtime files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
     if (stack.nodeInvocation) {
       const generated = generateNodeInvocationIntegration({
         cwd,
@@ -290,6 +312,9 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
     if (stack.fastify) {
       await reportIntegrationInstalled(projectLink.id, "errors-node-fastify");
     }
+    if (stack.nest) {
+      await reportIntegrationInstalled(projectLink.id, "errors-node-nestjs");
+    }
     if (stack.nodeInvocation) {
       await reportIntegrationInstalled(
         projectLink.id,
@@ -336,7 +361,13 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
           : stack.browserSvelte
             ? "Svelte"
             : null,
-      stack.fastify ? "Fastify" : stack.node ? "Node/Express" : null,
+      stack.nest
+        ? "NestJS"
+        : stack.fastify
+          ? "Fastify"
+          : stack.node
+            ? "Node/Express"
+            : null,
       Boolean(stack.nodeInvocation),
       manualOutcomes.length === 0,
     );

@@ -60,7 +60,10 @@ export function writeNodeRuntimeFiles(
   sourceRoot: string,
   targetRoot: string,
   project: NodeProjectShape,
-  runtimeNames: Array<"node" | "express" | "fastify"> = ["node", "express"],
+  runtimeNames: Array<"node" | "express" | "fastify" | "nestjs"> = [
+    "node",
+    "express",
+  ],
 ): string[] {
   const extension =
     project.language === "ts"
@@ -89,7 +92,7 @@ export function writeNodeRuntimeFiles(
 export function nodeRuntimeModulePath(
   project: NodeProjectShape,
   runtimeRoot: string,
-  name: "node" | "express" | "fastify",
+  name: "node" | "express" | "fastify" | "nestjs",
   fromPath = project.entryPath,
 ): string {
   const extension =
@@ -296,7 +299,7 @@ export function patchNodeBuildScript(
   if (build.includes("upload-sourcemaps.mjs")) {
     return { path, status: "skipped", detail: "Node sourcemap upload already follows build" };
   }
-  if (!/source-?map/i.test(build)) {
+  if (!/source-?map/i.test(build) && !hasConfiguredSourceMap(cwd, build)) {
     return {
       path,
       status: "manual",
@@ -369,6 +372,10 @@ function detectBuildOutputDirectory(cwd: string, build: string): string | null {
 
   if (/(?:^|\s)tsup(?:\s|$)/.test(build)) return "dist";
 
+  if (/(?:^|\s)nest\s+build(?:\s|$)/.test(build)) {
+    return configuredTypeScriptOption(cwd, "outDir") ?? "dist";
+  }
+
   if (/(?:^|\s)tsc(?:\s|$)/.test(build)) {
     const configMatch = /(?:--project|-p)(?:=|\s+)(['"]?[a-zA-Z0-9._/-]+['"]?)/.exec(
       build,
@@ -392,6 +399,31 @@ function detectBuildOutputDirectory(cwd: string, build: string): string | null {
   }
 
   return null;
+}
+
+function configuredTypeScriptOption(
+  cwd: string,
+  option: "outDir" | "sourceMap",
+): string | null {
+  for (const name of ["tsconfig.build.json", "tsconfig.json"]) {
+    const path = join(cwd, name);
+    if (!existsSync(path)) continue;
+    const source = readFileSync(path, "utf8");
+    if (option === "sourceMap") {
+      if (/['"]sourceMap['"]\s*:\s*true\b/.test(source)) return "true";
+      continue;
+    }
+    const value = /['"]outDir['"]\s*:\s*['"]([^'"]+)['"]/.exec(source)?.[1];
+    if (value) return safeOutputDirectory(value);
+  }
+  return null;
+}
+
+function hasConfiguredSourceMap(cwd: string, build: string): boolean {
+  return (
+    /(?:^|\s)nest\s+build(?:\s|$)/.test(build) &&
+    configuredTypeScriptOption(cwd, "sourceMap") === "true"
+  );
 }
 
 export function generateNodeIntegration(

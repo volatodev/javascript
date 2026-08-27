@@ -322,4 +322,43 @@ describe("volato errors init", () => {
     const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
     expect(output).toContain("controlled Fastify error");
   });
+
+  it("installs and reports a conventional NestJS HTTP application", async () => {
+    rmSync(join(cwd, "app"), { recursive: true, force: true });
+    rmSync(join(cwd, "next.config.ts"), { force: true });
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "nest-fixture",
+        type: "commonjs",
+        scripts: { build: "nest build" },
+        dependencies: {
+          "@nestjs/common": "11.2.3",
+          "@nestjs/core": "11.2.3",
+          "@nestjs/platform-express": "11.2.3",
+        },
+      })}\n`,
+    );
+    mkdirSync(join(cwd, "src"), { recursive: true });
+    writeFileSync(
+      join(cwd, "tsconfig.json"),
+      '{"compilerOptions":{"outDir":"dist","sourceMap":true}}\n',
+    );
+    writeFileSync(
+      join(cwd, "src", "main.ts"),
+      'import { NestFactory } from "@nestjs/core";\nasync function bootstrap() {\n  const app = await NestFactory.create(AppModule);\n  await app.listen(3000);\n}\nvoid bootstrap();\n',
+    );
+
+    await runErrorsInit({ cwd, nonInteractive: true });
+
+    expect(reportIntegrationInstalled).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "errors-node-nestjs",
+    );
+    expect(readFileSync(join(cwd, "src", "main.ts"), "utf8")).toContain(
+      "VolatoHttpExceptionFilter",
+    );
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toContain("controlled NestJS error");
+  });
 });

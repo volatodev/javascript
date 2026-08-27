@@ -97,6 +97,7 @@ try {
     "skills/volato-node/assets/runtime/node.ts",
     "skills/volato-node/assets/runtime/express.ts",
     "skills/volato-node/assets/runtime/fastify.ts",
+    "skills/volato-node/assets/runtime/nestjs.ts",
     "skills/volato-node/assets/runtime/upload-sourcemaps.mjs",
   ]) {
     assert(paths.has(required), `packed CLI is missing ${required}`);

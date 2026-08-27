@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { detectProject, type ProjectShape } from "./detect.js";
 
 export type SourceLanguage = "ts" | "js";
@@ -62,6 +62,17 @@ export type FastifyProjectShape = NodeProjectShape & {
   appVariable: string;
 };
 
+export type NestHttpTransport = "express" | "fastify";
+
+export type NestProjectShape = NodeProjectShape & {
+  express: false;
+  processShape: "server";
+  nestVersion: 11 | 12;
+  transport: NestHttpTransport;
+  transportVersion: 5;
+  appVariable: string;
+};
+
 export type NodeInvocationProjectShape = {
   cwd: string;
   handlerPath: string;
@@ -79,6 +90,7 @@ export type ErrorsStackShape = {
   browserSvelte?: ViteSvelteProjectShape;
   node?: NodeProjectShape;
   fastify?: FastifyProjectShape;
+  nest?: NestProjectShape;
   nodeInvocation?: NodeInvocationProjectShape;
   notices: string[];
 };
@@ -103,7 +115,6 @@ const UNSUPPORTED_BACKEND_MANIFESTS = [
 
 const UNSUPPORTED_HTTP_FRAMEWORKS = [
   ["hono", "Hono"],
-  ["@nestjs/core", "NestJS"],
 ] as const;
 
 function readPackageJson(cwd: string): PackageJson {
@@ -570,6 +581,154 @@ function fastifyShape(
   );
 }
 
+function sourceFiles(root: string): string[] {
+  if (!existsSync(root) || !statSync(root).isDirectory()) return [];
+  return readdirSync(root).flatMap((name) => {
+    const path = join(root, name);
+    if (statSync(path).isDirectory()) {
+      return name === "volato-node" ? [] : sourceFiles(path);
+    }
+    return /\.[cm]?[jt]sx?$/.test(name) ? [path] : [];
+  });
+}
+
+function nestShape(
+  cwd: string,
+  pkg: PackageJson,
+  deps: Record<string, string>,
+): NestProjectShape | undefined {
+  const core = deps["@nestjs/core"];
+  if (!core) return undefined;
+  const nestMajor = dependencyMajor(core);
+  if (nestMajor !== 11 && nestMajor !== 12) {
+    throw new ErrorsStackDetectionError(
+      `NestJS ${nestMajor ?? JSON.stringify(core)} HTTP capture is not supported; NestJS 11 or 12 is required and no files were modified.`,
+    );
+  }
+  if (dependencyMajor(deps["@nestjs/common"] ?? "") !== nestMajor) {
+    throw new ErrorsStackDetectionError(
+      "NestJS core and common majors must match before HTTP capture can be installed; no files were modified.",
+    );
+  }
+  for (const [dependency, label] of [
+    ["@nestjs/graphql", "GraphQL"],
+    ["@nestjs/websockets", "WebSocket"],
+    ["@nestjs/microservices", "microservice"],
+  ] as const) {
+    if (typeof deps[dependency] === "string") {
+      throw new ErrorsStackDetectionError(
+        `NestJS ${label} capture is not supported by the HTTP recipe; no files were modified.`,
+      );
+    }
+  }
+  if (
+    typeof deps.serverless === "string" ||
+    existsSync(join(cwd, "serverless.yml")) ||
+    existsSync(join(cwd, "serverless.yaml"))
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Serverless NestJS lifecycle capture is not supported by the long-lived HTTP recipe; no files were modified.",
+    );
+  }
+  const entryPath = join(cwd, "src", "main.ts");
+  if (!existsSync(entryPath)) {
+    throw new ErrorsStackDetectionError(
+      "NestJS HTTP setup requires the conventional src/main.ts bootstrap; no files were modified.",
+    );
+  }
+  if (pkg.type === "module") {
+    throw new ErrorsStackDetectionError(
+      "NestJS ESM bootstrap is outside the currently conformed CommonJS HTTP recipe; no files were modified.",
+    );
+  }
+  const source = readFileSync(entryPath, "utf8");
+  if (/\bconnectMicroservice\s*\(|\bcreateMicroservice\s*</.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "Hybrid or microservice NestJS bootstrap is not supported by the HTTP recipe; no files were modified.",
+    );
+  }
+  const creations = [
+    ...source.matchAll(
+      /\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+NestFactory\.create(?:<[^;]+?>)?\s*\(([\s\S]*?)\)\s*;/g,
+    ),
+  ];
+  if (creations.length !== 1) {
+    throw new ErrorsStackDetectionError(
+      "NestJS HTTP setup requires exactly one NestFactory.create application; no files were modified.",
+    );
+  }
+  const appVariable = creations[0]![1]!;
+  const argumentsSource = creations[0]![2]!;
+  const transport: NestHttpTransport = /\bnew\s+FastifyAdapter\s*\(/.test(
+    argumentsSource,
+  )
+    ? "fastify"
+    : argumentsSource.includes(",")
+      ? (() => {
+          throw new ErrorsStackDetectionError(
+            "A custom HTTP adapter was detected in NestFactory.create; no files were modified.",
+          );
+        })()
+      : "express";
+  if (transport === "fastify") {
+    if (
+      dependencyMajor(deps["@nestjs/platform-fastify"] ?? "") !== nestMajor ||
+      dependencyMajor(deps.fastify ?? "") !== 5
+    ) {
+      throw new ErrorsStackDetectionError(
+        "NestJS Fastify HTTP capture requires the matching platform adapter and Fastify 5; no files were modified.",
+      );
+    }
+  } else if (
+    deps["@nestjs/platform-express"] &&
+    dependencyMajor(deps["@nestjs/platform-express"]!) !== nestMajor
+  ) {
+    throw new ErrorsStackDetectionError(
+      "NestJS Express platform and core majors must match; no files were modified.",
+    );
+  }
+  const globalFilters = source.match(/\buseGlobalFilters\s*\(/g) ?? [];
+  if (
+    globalFilters.length > 0 &&
+    !(
+      globalFilters.length === 1 &&
+      source.includes("new VolatoHttpExceptionFilter(httpAdapter)")
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "An existing NestJS exception filter requires explicit catch-all delegation; no files were modified.",
+    );
+  }
+  for (const path of sourceFiles(join(cwd, "src"))) {
+    const candidate = readFileSync(path, "utf8");
+    if (/\bAPP_FILTER\b|@UseFilters\s*\(|@Catch\s*\(\s*\)/.test(candidate)) {
+      throw new ErrorsStackDetectionError(
+        `An existing NestJS exception filter at ${relative(cwd, path)} requires explicit delegation; no files were modified.`,
+      );
+    }
+  }
+  const listen = new RegExp(
+    `\\b${appVariable.replace(/[$]/g, "\\$")}\\.listen\\s*\\(`,
+  );
+  if (!listen.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "The NestJS application does not have one conventional app.listen lifecycle; no files were modified.",
+    );
+  }
+  return {
+    cwd,
+    entryPath,
+    appVariable,
+    nestVersion: nestMajor,
+    transport,
+    transportVersion: 5,
+    express: false,
+    language: "ts",
+    module: "cjs",
+    processShape: "server",
+  };
+}
+
 function handlerParameters(source: string): string[] | null {
   const arrow =
     /(?:export\s+const\s+handler(?:\s*:[^=\n]+)?\s*=|(?:module\.)?exports\.handler\s*=)\s*(async\s+)?(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*=>/m.exec(
@@ -797,6 +956,7 @@ function looksSupported(root: string): boolean {
       deps.next ||
         deps.express ||
         deps.fastify ||
+        deps["@nestjs/core"] ||
         ["src/handler.ts", "src/handler.js", "handler.ts", "handler.js"].some(
           (path) => existsSync(join(root, path)),
         ) ||
@@ -832,8 +992,9 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
           viteConfigPath: browserReact.buildConfigPath,
         }
       : undefined;
-  const fastify = fastifyShape(cwd, pkg, deps);
-  const node = fastify
+  const nest = nestShape(cwd, pkg, deps);
+  const fastify = nest ? undefined : fastifyShape(cwd, pkg, deps);
+  const node = fastify || nest
     ? undefined
     : nodeShape(
         cwd,
@@ -851,6 +1012,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     !browserVue &&
     !browserSvelte &&
     !fastify &&
+    !nest &&
     !node &&
     !nodeInvocation
   ) {
@@ -895,6 +1057,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     browserVue,
     browserSvelte,
     fastify,
+    nest,
     node,
     nodeInvocation,
     notices,

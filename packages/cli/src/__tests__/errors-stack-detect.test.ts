@@ -88,6 +88,73 @@ describe("detectErrorsStack", () => {
     expect(() => detectErrorsStack(cwd)).toThrowError(expected);
   });
 
+  it("detects a conventional NestJS 11 HTTP application on Express 5", () => {
+    writePackage(
+      cwd,
+      {
+        "@nestjs/common": "11.1.17",
+        "@nestjs/core": "11.1.17",
+        "@nestjs/platform-express": "11.1.17",
+        express: "5.2.1",
+      },
+      { type: "commonjs", scripts: { build: "nest build" } },
+    );
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "main.ts"),
+      'import { NestFactory } from "@nestjs/core";\nimport { AppModule } from "./app.module";\nasync function bootstrap() {\n  const app = await NestFactory.create(AppModule);\n  await app.listen(3000);\n}\nvoid bootstrap();\n',
+    );
+
+    expect(detectErrorsStack(cwd).nest).toMatchObject({
+      entryPath: join(cwd, "src", "main.ts"),
+      appVariable: "app",
+      nestVersion: 11,
+      transport: "express",
+      transportVersion: 5,
+      language: "ts",
+      module: "cjs",
+    });
+    expect(detectErrorsStack(cwd).node).toBeUndefined();
+    expect(detectErrorsStack(cwd).fastify).toBeUndefined();
+  });
+
+  it("detects a conventional NestJS 12 HTTP application on Fastify 5", () => {
+    writePackage(cwd, {
+      "@nestjs/common": "12.0.1",
+      "@nestjs/core": "12.0.1",
+      "@nestjs/platform-fastify": "12.0.1",
+      fastify: "5.12.1",
+    });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "main.ts"),
+      'import { NestFactory } from "@nestjs/core";\nimport { FastifyAdapter } from "@nestjs/platform-fastify";\nasync function bootstrap() {\n  const app = await NestFactory.create(AppModule, new FastifyAdapter());\n  await app.listen(3000);\n}\nvoid bootstrap();\n',
+    );
+
+    expect(detectErrorsStack(cwd).nest).toMatchObject({
+      nestVersion: 12,
+      transport: "fastify",
+      transportVersion: 5,
+    });
+  });
+
+  it.each([
+    ["NestJS 10", { "@nestjs/core": "10.4.22", "@nestjs/common": "10.4.22" }, "const app = await NestFactory.create(AppModule);", /NestJS 10.*not supported/i],
+    ["GraphQL", { "@nestjs/core": "11.2.3", "@nestjs/common": "11.2.3", "@nestjs/graphql": "13.2.3" }, "const app = await NestFactory.create(AppModule);", /NestJS GraphQL.*not supported/i],
+    ["a custom adapter", { "@nestjs/core": "11.2.3", "@nestjs/common": "11.2.3" }, "const app = await NestFactory.create(AppModule, new CustomAdapter());", /custom HTTP adapter.*no files were modified/i],
+    ["an existing global filter", { "@nestjs/core": "11.2.3", "@nestjs/common": "11.2.3" }, "const app = await NestFactory.create(AppModule);\n  app.useGlobalFilters(new ExistingFilter());", /existing NestJS exception filter.*no files were modified/i],
+    ["multiple applications", { "@nestjs/core": "11.2.3", "@nestjs/common": "11.2.3" }, "const app = await NestFactory.create(AppModule);\n  const admin = await NestFactory.create(AdminModule);", /exactly one NestFactory\.create.*no files were modified/i],
+  ])("refuses %s before selecting the NestJS recipe", (_label, dependencies, body, expected) => {
+    writePackage(cwd, dependencies, { type: "commonjs" });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "main.ts"),
+      `import { NestFactory } from "@nestjs/core";\nasync function bootstrap() {\n  ${body}\n  await app.listen(3000);\n}\nvoid bootstrap();\n`,
+    );
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(expected);
+  });
+
   it("detects one conventional Vite + Svelte 5 application", () => {
     writePackage(cwd, {
       vite: "8.2.2",
