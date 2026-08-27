@@ -280,7 +280,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       path: cwd,
       status: "manual",
       detail:
-        "--send-test-event is currently a Next.js-only verifier; run the browser and Node/Express conformance scenarios from their integration skills",
+        "--send-test-event is currently a Next.js-only verifier; run the production capture scenarios from each selected integration skill",
     });
   }
 

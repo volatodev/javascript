@@ -56,11 +56,19 @@ not touch application source or runtime credentials. `volato errors init` then
 retrieves credentials without printing them and owns the generated-file
 entries in the manifest. It adds no Volato runtime package.
 
+Browser capture supports React 18/19 with Vite 6/7/8, Webpack 5 or Rspack 2,
+plus client-rendered Vue 3 and Svelte 5 applications with Vite 6/7/8. Each
+renderer has a separate skill and lifecycle hook. Nuxt, SvelteKit, SSR,
+hydration and ambiguous roots remain explicit refusals.
+
 The long-lived Node recipe targets conventional servers, jobs, and scripts on
 Node 22/24, with TypeScript/JavaScript and package-declared ESM/CommonJS.
 Express 4/5 context is composed only for the conformed same-file or split
-app/listen topologies; unsupported or ambiguous HTTP composition remains
-generic Node capture with an explicit notice.
+app/listen topologies. Standalone Fastify 5 has its own conformed HTTP adapter.
+NestJS 11/12 TypeScript HTTP applications use one delegated exception filter
+above Express 5 or Fastify 5 and never install a competing transport adapter.
+Unsupported or ambiguous HTTP composition remains an explicit refusal or
+bounded generic-process result, never an inferred framework claim.
 
 The provider-neutral invocation recipe targets asynchronous generic and Node
 HTTP exports in root or `src/handler.{ts,js}` on the same Node 22/24,

@@ -16,22 +16,26 @@ volato errors init --yes
 ```
 
 The public beta installs Volato Errors only. `volato-errors` owns the
-investigation and correction job;
-`volato-nextjs`, `volato-vite-react`, and `volato-node` own independent capture
-integrations. Generated application source emits only contract-declared data.
+investigation and correction job. `volato-nextjs`, `volato-vite-react`,
+`volato-vite-vue`, `volato-vite-svelte`, `volato-node`, `volato-fastify`, and
+`volato-nestjs` own independent bounded capture integrations. Generated
+application source emits only contract-declared data.
 
 Errors supports JavaScript and TypeScript Next.js 15/16 App Router, Pages
-Router, and hybrid App + Pages applications, plus React browser capture with
-Vite, Webpack, or Rspack,
-with independent Node.js runtime capture and Express HTTP context. A Vite
-frontend does not imply Node: a project may install the browser adapter, the
-Node adapter, or both.
+Router, and hybrid App + Pages applications; React 18/19 browser capture with
+Vite, Webpack, or Rspack; and Vite 6/7/8 client SPAs using Vue 3 or Svelte 5.
+Node.js runtime capture remains independent, with bounded Express 4/5,
+standalone Fastify 5, and NestJS 11/12 HTTP adapters. A Vite frontend does not
+imply Node: a project may install one browser adapter, one server adapter, or
+both.
 
 The long-lived Node contract covers maintained Node 22/24, conventional
 servers, jobs and scripts, TypeScript/JavaScript, and package-declared
-ESM/CommonJS. Express 4/5 adds HTTP context for the conformed same-file and
-split app/listen topologies while preserving application-owned error handlers
-and responses.
+ESM/CommonJS. Express 4/5 and Fastify 5 add HTTP context for their conformed
+same-file and split app/listen topologies while preserving application-owned
+error handlers and responses. NestJS 11/12 covers conventional TypeScript HTTP
+applications on Express 5 or Fastify 5 and remains the sole HTTP capture owner
+above either transport.
 
 Provider-neutral Node invocation capture covers asynchronous generic and Node
 HTTP handlers on the same Node 22/24, TypeScript/JavaScript and ESM/CommonJS
@@ -45,9 +49,9 @@ Setup generates:
 ```text
 .agents/skills/        agent instructions
 .volato/manifest.json project link and per-integration generated-file integrity
-src/volato/            local capture runtime when src/app or React is used
+src/volato/            local browser runtime for supported renderer adapters
 volato/                local capture runtime when app is used
-src/volato-node/       Node runtime and Express adapter when detected
+src/volato-node/       Node runtime and selected HTTP adapter when detected
 src/volato-invocation/ provider-neutral Node invocation runtime when detected
 ```
 
@@ -84,10 +88,14 @@ pnpm build
 pnpm test
 pnpm smoke:nextjs
 pnpm smoke:browser-react
+pnpm smoke:browser-renderers
 pnpm smoke:node-long-lived
 pnpm smoke:express
+pnpm smoke:fastify
+pnpm smoke:nest
 pnpm smoke:node-invocation
 pnpm smoke:vite-node
+pnpm smoke:framework-stacks
 ```
 
 `pnpm smoke:nextjs` creates clean JavaScript and TypeScript Next.js 15 and 16
@@ -103,12 +111,26 @@ adapters through the packed CLI, builds Vite and Node, captures browser,
 React, Express and fatal-process failures, and proves map privacy plus fatal
 exit semantics.
 
+`pnpm smoke:browser-renderers` runs all 12 Vite 6/7/8 ×
+TypeScript/JavaScript Vue 3 and Svelte 5 cells. It exercises framework render,
+browser-global and manual capture, private map upload, public-map removal,
+privacy, setup convergence and exact causal source resolution.
+
 `pnpm smoke:node-long-lived` consumes the frozen 24-cell matrix and runs the
 packed CLI on exact Node 22.23.2/24.19.0 binaries across the three process
 shapes, both languages and both module systems. `pnpm smoke:express` runs the
 four Express 4.22.2/5.2.1 topology cells with framework-specific async
 propagation, application-owned responses, privacy checks and exact source
 resolution.
+
+`pnpm smoke:fastify` runs 16 Node 22/24 × TypeScript/JavaScript ×
+ESM/CommonJS × same-file/split Fastify 5 cells. `pnpm smoke:nest` runs eight
+NestJS 11/12 × Node 22/24 × Express 5/Fastify 5 cells and requires Nest to own
+each HTTP event exactly once while preserving the default response lifecycle.
+`pnpm smoke:framework-stacks` installs the packed CLI into independent
+Vue/Fastify and Svelte/Nest repositories, proves separate frontend/backend
+release identities, builds both sides, uploads sanitized maps and captures
+without request-value leakage.
 
 `pnpm smoke:node-invocation` runs all 16 exact Node 22.23.2/24.19.0 ×
 TypeScript/JavaScript × ESM/CommonJS × generic/Node-HTTP handler cells from the

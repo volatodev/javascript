@@ -8,6 +8,10 @@ const skill = (name: string): string =>
   );
 
 const setup = skill("volato-setup");
+const cliReadme = readFileSync(
+  new URL("../commands/readme.ts", import.meta.url),
+  "utf8",
+);
 
 describe("framework integration skill contracts", () => {
   it.each([
@@ -42,6 +46,7 @@ describe("framework integration skill contracts", () => {
       "volato-nestjs",
     ]) {
       expect(setup).toContain(`\`${name}\``);
+      expect(cliReadme).toContain("\\`" + name + "\\`");
     }
     expect(setup).toMatch(/NestJS owns\s+HTTP capture/i);
     expect(setup).toMatch(/frontend and backend independently/i);

@@ -33,21 +33,25 @@ Headless / CI — skip \`login\` and set the token in the environment:
     volato init --project "<project_id>" --yes
     volato errors init --yes
 
-\`volato init\` verifies access, installs \`volato-setup\`, \`volato-errors\`,
-\`volato-nextjs\`, \`volato-vite-react\` and \`volato-node\`, then links the repository through
+\`volato init\` verifies access and installs \`volato-setup\`, \`volato-errors\`,
+\`volato-nextjs\`, \`volato-vite-react\`, \`volato-vite-vue\`,
+\`volato-vite-svelte\`, \`volato-node\`, \`volato-fastify\` and
+\`volato-nestjs\`, then links the repository through
 \`.volato/manifest.json\`. It does not detect a framework, write credentials or
 instrument the app.
 
 \`volato errors init\` retrieves the linked project's credentials and generates
-the applicable independent adapters: Next.js 15/16 App Router or Pages Router,
-React browser capture with Vite, Webpack, or Rspack, and Node.js runtime capture
-for conventional servers, jobs, and scripts on Node 22/24 across
-TypeScript/JavaScript and package-declared ESM/CommonJS. Express 4/5 HTTP
-context covers the conformed same-file and split app/listen topologies. A
-browser build tool alone never implies a Node server. No Volato runtime
-dependency is added. Re-running is idempotent and refuses to overwrite locally
-edited generated files. \`--send-test-event\` is the built-in Next.js verifier;
-the browser and Node skills define their production-build conformance scenarios.
+the applicable independent adapters: Next.js 15/16 App Router or Pages Router;
+React browser capture with Vite, Webpack, or Rspack; Vue 3 and Svelte 5 browser
+capture with Vite 6/7/8; and Node.js runtime capture for conventional servers,
+jobs, and scripts on Node 22/24 across TypeScript/JavaScript and
+package-declared ESM/CommonJS. Express 4/5 and standalone Fastify 5 own bounded
+HTTP adapters. NestJS 11/12 owns one HTTP exception filter above Express 5 or
+Fastify 5. A browser build tool alone never implies a Node server, and Nest
+never receives a parallel transport adapter. No Volato runtime dependency is
+added. Re-running is idempotent and refuses to overwrite locally edited
+generated files. \`--send-test-event\` is the built-in Next.js verifier; each
+other framework skill defines its production-build conformance scenarios.
 
 Errors is the only public product. \`volato-errors\` owns the investigation job
 while the framework skills own capture integration. The CLI does not expose a
