@@ -15,15 +15,24 @@ data path. Do not invent capture code from scratch.
 2. Run `volato init --project <id>` from the application root. This links the
    repository and installs the bundled skills; it must not modify application
    source or write runtime credentials.
-3. Select each applicable integration independently. For Next.js error
-   capture, follow `volato-nextjs`. For React browser capture with Vite,
-   Webpack, or Rspack, follow `volato-vite-react`. For a deployed Node runtime,
-   follow `volato-node`: long-lived servers/jobs/scripts, Express, and
-   provider-neutral asynchronous `handler.{ts,js}` invocations are separate
-   lifecycle shapes within that skill. One repository may apply browser +
-   React, long-lived Node, and Node invocation independently. Run `volato
-   errors init` once to generate every selected Errors adapter. Stop with a
-   clear unsupported or partial-coverage result when no adapter applies.
+3. Select every applicable integration independently:
+   - Next.js: follow `volato-nextjs`.
+   - React browser capture with Vite, Webpack, or Rspack: follow
+     `volato-vite-react`.
+   - Vue 3 browser capture with Vite: follow `volato-vite-vue`.
+   - Svelte 5 browser capture with Vite: follow `volato-vite-svelte`.
+   - Generic long-lived Node servers/jobs/scripts, Express, or a
+     provider-neutral asynchronous `handler.{ts,js}` invocation: follow
+     `volato-node`.
+   - Standalone Fastify 5: follow `volato-fastify`.
+   - NestJS 11/12 HTTP over Express 5 or Fastify 5: follow `volato-nestjs`.
+
+   Inspect a repository's frontend and backend independently; one repository
+   may need one browser renderer skill plus one Node HTTP skill. NestJS owns
+   HTTP capture above its transport, so never select standalone Express or
+   Fastify HTTP capture for the same Nest application. Run `volato errors init`
+   once to generate all selected adapters. Stop with a clear unsupported or
+   partial-coverage result when no adapter applies.
 4. Review every file change reported by the selected integration before
    continuing. If setup reports a `manual` outcome, complete that exact action
    and rerun `volato errors init`. Do not continue to verification or declare

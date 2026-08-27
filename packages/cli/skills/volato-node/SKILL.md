@@ -5,9 +5,10 @@ description: Generate, compose, and verify dependency-free Volato Errors capture
 
 # Set up Volato for Node.js
 
-Treat Node as a runtime independent from a Vite frontend. Distinguish a
+Treat Node as a runtime independent from a browser frontend. Distinguish a
 long-lived process from an invocation that must finish capture before returning
-to its caller. Use Express only as the first explicit long-lived HTTP adapter.
+to its caller. Express is one explicit long-lived HTTP adapter; standalone
+Fastify and NestJS HTTP use their dedicated skills.
 
 ## Workflow
 
@@ -27,9 +28,10 @@ to its caller. Use Express only as the first explicit long-lived HTTP adapter.
 4. If Express is present, keep `volatoExpressErrorHandler()` after routes and
    before the application's existing error middleware. Preserve the existing
    response and always pass the original error to `next`.
-5. If another HTTP framework is present, install only generic Node capture and
-   report that framework-specific method, normalized route, status, and request
-   id are not covered.
+5. If standalone Fastify 5 is present, stop and follow `volato-fastify`. If
+   NestJS 11/12 HTTP is present, stop and follow `volato-nestjs`; Nest owns HTTP
+   capture above its transport. For any other HTTP framework, report precise
+   partial coverage and do not present generic process capture as HTTP support.
 6. Build with sourcemaps, set `VOLATO_RELEASE` to the deployed Git identity,
    and run the generated privacy-cleaned uploader with the server-only token.
    For `tsc`, use its configured `outDir`; if a custom build output cannot be

@@ -29,7 +29,11 @@ beforeEach(() => {
   addSkill("volato-errors", "errors");
   addSkill("volato-nextjs", "next");
   addSkill("volato-vite-react", "vite-react");
+  addSkill("volato-vite-vue", "vite-vue");
+  addSkill("volato-vite-svelte", "vite-svelte");
   addSkill("volato-node", "node");
+  addSkill("volato-fastify", "fastify");
+  addSkill("volato-nestjs", "nestjs");
 });
 
 afterEach(() => {
@@ -45,7 +49,11 @@ describe("installSkills", () => {
       { skill: "volato-errors", status: "created" },
       { skill: "volato-nextjs", status: "created" },
       { skill: "volato-vite-react", status: "created" },
+      { skill: "volato-vite-vue", status: "created" },
+      { skill: "volato-vite-svelte", status: "created" },
       { skill: "volato-node", status: "created" },
+      { skill: "volato-fastify", status: "created" },
+      { skill: "volato-nestjs", status: "created" },
     ]);
     expect(
       readFileSync(
@@ -89,6 +97,10 @@ describe("installSkills", () => {
       "unchanged",
       "unchanged",
       "unchanged",
+      "unchanged",
+      "unchanged",
+      "unchanged",
+      "unchanged",
     ]);
   });
 
@@ -98,6 +110,10 @@ describe("installSkills", () => {
     expect(
       installSkills({ cwd, sourceRoot }).map((outcome) => outcome.status),
     ).toEqual([
+      "unchanged",
+      "unchanged",
+      "unchanged",
+      "unchanged",
       "unchanged",
       "unchanged",
       "unchanged",

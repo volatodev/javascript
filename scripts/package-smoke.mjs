@@ -85,6 +85,10 @@ try {
     "skills/volato-nextjs/assets/runtime/server.ts",
     "skills/volato-nextjs/assets/runtime/withVolato.ts",
     "skills/volato-vite-react/SKILL.md",
+    "skills/volato-vite-vue/SKILL.md",
+    "skills/volato-vite-vue/agents/openai.yaml",
+    "skills/volato-vite-svelte/SKILL.md",
+    "skills/volato-vite-svelte/agents/openai.yaml",
     "skills/_shared/errors-browser/browser.ts",
     "skills/_shared/errors-browser/react.tsx",
     "skills/_shared/errors-browser/vue.ts",
@@ -94,6 +98,10 @@ try {
     "skills/_shared/errors-browser/webpack.ts",
     "skills/_shared/errors-browser/rspack.ts",
     "skills/volato-node/SKILL.md",
+    "skills/volato-fastify/SKILL.md",
+    "skills/volato-fastify/agents/openai.yaml",
+    "skills/volato-nestjs/SKILL.md",
+    "skills/volato-nestjs/agents/openai.yaml",
     "skills/volato-node/assets/runtime/node.ts",
     "skills/volato-node/assets/runtime/express.ts",
     "skills/volato-node/assets/runtime/fastify.ts",
@@ -182,7 +190,11 @@ try {
     ".agents/skills/volato-errors/SKILL.md",
     ".agents/skills/volato-nextjs/SKILL.md",
     ".agents/skills/volato-vite-react/SKILL.md",
+    ".agents/skills/volato-vite-vue/SKILL.md",
+    ".agents/skills/volato-vite-svelte/SKILL.md",
     ".agents/skills/volato-node/SKILL.md",
+    ".agents/skills/volato-fastify/SKILL.md",
+    ".agents/skills/volato-nestjs/SKILL.md",
   ]) {
     assert(existsSync(join(fixture, required)), `packed CLI did not create ${required}`);
   }

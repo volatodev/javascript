@@ -1,0 +1,4 @@
+interface:
+  display_name: "Volato Vite + Vue 3"
+  short_description: "Install and verify Vue 3 browser Errors capture with Vite."
+  default_prompt: "Use $volato-vite-vue to install and verify Volato Errors in this Vite + Vue 3 application."

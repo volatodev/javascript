@@ -1,0 +1,4 @@
+interface:
+  display_name: "Volato Vite + Svelte 5"
+  short_description: "Install and verify Svelte 5 browser Errors capture with Vite."
+  default_prompt: "Use $volato-vite-svelte to install and verify Volato Errors in this Vite + Svelte 5 application."

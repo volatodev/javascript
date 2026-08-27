@@ -16,7 +16,11 @@ const PUBLIC_SKILLS = [
   "volato-errors",
   "volato-nextjs",
   "volato-vite-react",
+  "volato-vite-vue",
+  "volato-vite-svelte",
   "volato-node",
+  "volato-fastify",
+  "volato-nestjs",
 ] as const;
 const RETIRED_SKILLS = ["monitor-product-usage", "volato-product"] as const;
 
