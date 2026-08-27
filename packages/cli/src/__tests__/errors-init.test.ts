@@ -286,9 +286,18 @@ describe("volato errors init", () => {
       "11111111-1111-4111-8111-111111111111",
       "errors-browser-svelte",
     );
-    expect(readFileSync(join(cwd, "src", "App.svelte"), "utf8")).toContain(
-      "<svelte:boundary",
+    expect(readFileSync(join(cwd, "src", "App.svelte"), "utf8")).toBe(
+      "<main>Ready</main>\n",
     );
+    expect(readFileSync(join(cwd, "src", "main.js"), "utf8")).toContain(
+      "VolatoSvelteRoot.svelte",
+    );
+    expect(
+      readFileSync(
+        join(cwd, "src", "volato", "VolatoSvelteRoot.svelte"),
+        "utf8",
+      ),
+    ).toContain("<svelte:boundary");
     const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
     expect(output).toContain("Svelte render error");
   });
