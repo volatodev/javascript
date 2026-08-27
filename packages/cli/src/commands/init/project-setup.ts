@@ -85,8 +85,12 @@ export async function reportIntegrationInstalled(
   adapter:
     | "errors-nextjs"
     | "errors-vite-react"
+    | "errors-browser-vue"
+    | "errors-browser-svelte"
     | "errors-node"
-    | "errors-node-invocation",
+    | "errors-node-invocation"
+    | "errors-node-fastify"
+    | "errors-node-nestjs",
 ): Promise<void> {
   try {
     await postJson(

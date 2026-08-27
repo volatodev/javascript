@@ -29,6 +29,7 @@ export type ViteReactProjectShape = BrowserReactProjectShape & {
 export type ViteVueProjectShape = BrowserProjectShape & {
   buildAdapter: "vite";
   viteConfigPath: string;
+  appVariable: string;
 };
 
 export type NodeProjectShape = {
@@ -252,10 +253,25 @@ function browserShapes(
       );
     }
     const createCalls = source.match(/\bcreateApp\s*\(/g) ?? [];
-    const mountCalls = source.match(/\.mount\s*\(/g) ?? [];
-    if (createCalls.length !== 1 || mountCalls.length !== 1) {
+    const assignments = [
+      ...source.matchAll(
+        /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*createApp\s*\(/g,
+      ),
+    ];
+    const appVariable = assignments[0]?.[1];
+    const mountCalls = appVariable
+      ? source.match(
+          new RegExp(`\\b${appVariable.replace(/[$]/g, "\\$")}\\.mount\\s*\\(`, "g"),
+        ) ?? []
+      : [];
+    if (
+      createCalls.length !== 1 ||
+      assignments.length !== 1 ||
+      !appVariable ||
+      mountCalls.length !== 1
+    ) {
       throw new ErrorsStackDetectionError(
-        "Vite + Vue setup requires exactly one static createApp root and one mount call; no files were modified.",
+        "Vite + Vue setup requires exactly one named createApp root and one matching mount call; no files were modified.",
       );
     }
     return {
@@ -263,6 +279,7 @@ function browserShapes(
         ...build,
         buildAdapter: "vite",
         viteConfigPath: build.buildConfigPath,
+        appVariable,
       },
     };
   }

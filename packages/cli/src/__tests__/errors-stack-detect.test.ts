@@ -361,6 +361,7 @@ describe("detectErrorsStack", () => {
     ["SSR", { vue: "3.5.42" }, 'createSSRApp(App).mount("#app")', /createSSRApp.*not supported/i],
     ["multiple roots", { vue: "3.5.42" }, 'createApp(App).mount("#one");\ncreateApp(Admin).mount("#two");', /exactly one.*createApp.*no files were modified/i],
     ["Nuxt", { vue: "3.5.42", nuxt: "4.1.2" }, 'createApp(App).mount("#app")', /Nuxt.*not supported/i],
+    ["a chained root", { vue: "3.5.42" }, 'createApp(App).mount("#app")', /named createApp root.*no files were modified/i],
   ])("refuses %s before selecting the Vue recipe", (_label, renderer, source, expected) => {
     writePackage(cwd, { vite: "7.3.6", "@vitejs/plugin-vue": "6.0.8", ...renderer });
     mkdirSync(join(cwd, "src"));

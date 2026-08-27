@@ -2,6 +2,8 @@ type CaptureSource =
   | "window_error"
   | "unhandled_rejection"
   | "error_boundary"
+  | "vue_error_handler"
+  | "svelte_boundary"
   | "manual";
 
 export type BrowserCaptureContext = {

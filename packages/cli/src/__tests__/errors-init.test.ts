@@ -215,4 +215,42 @@ describe("volato errors init", () => {
     expect(output).toContain("Node invocation");
     expect(output).toContain("production build and applicable capture checks");
   });
+
+  it("installs and reports a conventional Vite + Vue application", async () => {
+    rmSync(join(cwd, "app"), { recursive: true, force: true });
+    rmSync(join(cwd, "next.config.ts"), { force: true });
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "vue-fixture",
+        type: "module",
+        dependencies: {
+          vue: "3.5.42",
+          vite: "7.3.6",
+          "@vitejs/plugin-vue": "6.0.8",
+        },
+      })}\n`,
+    );
+    mkdirSync(join(cwd, "src"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "main.ts"),
+      'import { createApp } from "vue";\nconst app = createApp({});\napp.mount("#app");\n',
+    );
+    writeFileSync(
+      join(cwd, "vite.config.ts"),
+      'import { defineConfig } from "vite";\nexport default defineConfig({});\n',
+    );
+
+    await runErrorsInit({ cwd, nonInteractive: true });
+
+    expect(reportIntegrationInstalled).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "errors-browser-vue",
+    );
+    expect(readFileSync(join(cwd, "src", "main.ts"), "utf8")).toContain(
+      "installVolatoVue(app)",
+    );
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toContain("Vue render error");
+  });
 });
