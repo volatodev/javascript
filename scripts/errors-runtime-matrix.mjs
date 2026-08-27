@@ -369,6 +369,54 @@ const refusals = [
   },
 ];
 
+const quickstarts = [
+  {
+    id: "nextjs",
+    families: [],
+    skill: "volato-nextjs",
+    conformance: ["VOLATO_CLI_SPEC=pack pnpm smoke:nextjs"],
+  },
+  {
+    id: "vite-react",
+    families: ["browser-react"],
+    skill: "volato-vite-react",
+    conformance: ["pnpm smoke:browser-react"],
+  },
+  {
+    id: "vite-vue",
+    families: ["browser-vue"],
+    skill: "volato-vite-vue",
+    conformance: ["pnpm smoke:vite-vue"],
+  },
+  {
+    id: "vite-svelte",
+    families: ["browser-svelte"],
+    skill: "volato-vite-svelte",
+    conformance: ["pnpm smoke:vite-svelte"],
+  },
+  {
+    id: "node-express",
+    families: ["node-long-lived", "express"],
+    skill: "volato-node",
+    conformance: [
+      "VOLATO_CLI_SPEC=pack pnpm smoke:node-long-lived",
+      "VOLATO_CLI_SPEC=pack pnpm smoke:express",
+    ],
+  },
+  {
+    id: "fastify",
+    families: ["fastify"],
+    skill: "volato-fastify",
+    conformance: ["VOLATO_CLI_SPEC=pack pnpm smoke:fastify"],
+  },
+  {
+    id: "nestjs-http",
+    families: ["nest-http"],
+    skill: "volato-nestjs",
+    conformance: ["pnpm smoke:nest"],
+  },
+];
+
 export const runtimeMatrix = {
   frozenAt: "2026-08-27",
   versions,
@@ -384,6 +432,7 @@ export const runtimeMatrix = {
     ...nestHttpCells,
   ],
   refusals,
+  quickstarts,
 };
 
 function validate(matrix) {
@@ -396,6 +445,21 @@ function validate(matrix) {
     for (const gate of supportGates) {
       if (!cell.gates.includes(gate)) {
         throw new Error(`${cell.id} does not map support gate ${gate}`);
+      }
+    }
+  }
+  const quickstartIds = matrix.quickstarts.map(({ id }) => id);
+  if (new Set(quickstartIds).size !== quickstartIds.length) {
+    throw new Error("Quickstart IDs must be unique");
+  }
+  const families = new Set(matrix.cells.map((cell) => cell.family));
+  for (const quickstart of matrix.quickstarts) {
+    if (!quickstart.skill || quickstart.conformance.length === 0) {
+      throw new Error(`Incomplete quickstart proof: ${quickstart.id}`);
+    }
+    for (const family of quickstart.families) {
+      if (!families.has(family)) {
+        throw new Error(`${quickstart.id} maps unknown family ${family}`);
       }
     }
   }

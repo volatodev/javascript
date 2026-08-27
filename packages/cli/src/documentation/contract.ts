@@ -27,6 +27,12 @@ type RuntimeMatrix = {
   supportGates: string[];
   cells: RuntimeCell[];
   refusals: Array<{ id: string; reason: string }>;
+  quickstarts: Array<{
+    id: string;
+    families: string[];
+    skill: string;
+    conformance: string[];
+  }>;
 };
 
 const UUID = "11111111-1111-4111-8111-111111111111";
@@ -135,7 +141,8 @@ function assertRuntimeMatrix(value: unknown): asserts value is RuntimeMatrix {
     typeof matrix.versions !== "object" ||
     !Array.isArray(matrix.supportGates) ||
     !Array.isArray(matrix.cells) ||
-    !Array.isArray(matrix.refusals)
+    !Array.isArray(matrix.refusals) ||
+    !Array.isArray(matrix.quickstarts)
   ) {
     throw new Error("Documentation support authority is incomplete.");
   }
@@ -200,6 +207,7 @@ export function buildDocumentationContract(runtimeMatrix: unknown) {
       gates: runtimeMatrix.supportGates,
       cells: runtimeMatrix.cells,
       refusals: runtimeMatrix.refusals,
+      quickstarts: runtimeMatrix.quickstarts,
     },
   };
 }

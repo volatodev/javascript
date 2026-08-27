@@ -50,6 +50,28 @@ describe("generated documentation contract", () => {
       fastify: 16,
       "nest-http": 8,
     });
+    expect(contract.support.quickstarts.map(({ id }) => id)).toEqual([
+      "nextjs",
+      "vite-react",
+      "vite-vue",
+      "vite-svelte",
+      "node-express",
+      "fastify",
+      "nestjs-http",
+    ]);
+    const packageScripts = JSON.parse(
+      readFileSync(new URL("../../../../package.json", import.meta.url), "utf8"),
+    ).scripts as Record<string, string>;
+    for (const quickstart of contract.support.quickstarts) {
+      for (const command of quickstart.conformance) {
+        const script = command.match(/pnpm (smoke:[\w-]+)/)?.[1];
+        expect(script, command).toBeDefined();
+        expect(packageScripts[script!], command).toBeDefined();
+      }
+      for (const family of quickstart.families) {
+        expect(contract.support.families[family], family).toBeGreaterThan(0);
+      }
+    }
   });
 
   it("is byte deterministic", () => {

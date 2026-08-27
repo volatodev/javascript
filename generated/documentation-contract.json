@@ -5921,6 +5921,78 @@
         "id": "nest.ambiguous-filter-or-application",
         "reason": "Multiple applications, custom HTTP adapters and non-composable exception filters require an exact manual outcome before any mutation."
       }
+    ],
+    "quickstarts": [
+      {
+        "id": "nextjs",
+        "families": [],
+        "skill": "volato-nextjs",
+        "conformance": [
+          "VOLATO_CLI_SPEC=pack pnpm smoke:nextjs"
+        ]
+      },
+      {
+        "id": "vite-react",
+        "families": [
+          "browser-react"
+        ],
+        "skill": "volato-vite-react",
+        "conformance": [
+          "pnpm smoke:browser-react"
+        ]
+      },
+      {
+        "id": "vite-vue",
+        "families": [
+          "browser-vue"
+        ],
+        "skill": "volato-vite-vue",
+        "conformance": [
+          "pnpm smoke:vite-vue"
+        ]
+      },
+      {
+        "id": "vite-svelte",
+        "families": [
+          "browser-svelte"
+        ],
+        "skill": "volato-vite-svelte",
+        "conformance": [
+          "pnpm smoke:vite-svelte"
+        ]
+      },
+      {
+        "id": "node-express",
+        "families": [
+          "node-long-lived",
+          "express"
+        ],
+        "skill": "volato-node",
+        "conformance": [
+          "VOLATO_CLI_SPEC=pack pnpm smoke:node-long-lived",
+          "VOLATO_CLI_SPEC=pack pnpm smoke:express"
+        ]
+      },
+      {
+        "id": "fastify",
+        "families": [
+          "fastify"
+        ],
+        "skill": "volato-fastify",
+        "conformance": [
+          "VOLATO_CLI_SPEC=pack pnpm smoke:fastify"
+        ]
+      },
+      {
+        "id": "nestjs-http",
+        "families": [
+          "nest-http"
+        ],
+        "skill": "volato-nestjs",
+        "conformance": [
+          "pnpm smoke:nest"
+        ]
+      }
     ]
   }
 }
