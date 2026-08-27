@@ -7,9 +7,8 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = join(
   packageRoot,
   "skills",
-  "volato-vite-react",
-  "assets",
-  "runtime",
+  "_shared",
+  "errors-browser",
 );
 const target = join(
   packageRoot,

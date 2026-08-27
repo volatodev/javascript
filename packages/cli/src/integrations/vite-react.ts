@@ -43,9 +43,8 @@ function assetsRoot(): string {
     __dirname,
     "..",
     "skills",
-    "volato-vite-react",
-    "assets",
-    "runtime",
+    "_shared",
+    "errors-browser",
   );
   if (existsSync(packaged)) return packaged;
   return join(
@@ -53,9 +52,8 @@ function assetsRoot(): string {
     "..",
     "..",
     "skills",
-    "volato-vite-react",
-    "assets",
-    "runtime",
+    "_shared",
+    "errors-browser",
   );
 }
 
