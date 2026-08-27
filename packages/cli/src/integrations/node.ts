@@ -29,7 +29,7 @@ export type GenerateNodeOptions = {
   sourceRoot?: string;
 };
 
-function assetsRoot(): string {
+export function nodeAssetsRoot(): string {
   const packaged = join(
     __dirname,
     "..",
@@ -50,16 +50,17 @@ function assetsRoot(): string {
   );
 }
 
-function modulePath(fromFile: string, target: string): string {
+export function nodeModulePath(fromFile: string, target: string): string {
   let path = relative(dirname(fromFile), target).replaceAll("\\", "/");
   if (!path.startsWith(".")) path = `./${path}`;
   return path;
 }
 
-function copyRuntime(
+export function writeNodeRuntimeFiles(
   sourceRoot: string,
   targetRoot: string,
   project: NodeProjectShape,
+  runtimeNames: Array<"node" | "express" | "fastify"> = ["node", "express"],
 ): string[] {
   const extension =
     project.language === "ts"
@@ -67,7 +68,10 @@ function copyRuntime(
       : project.module === "cjs"
         ? "cjs"
         : "js";
-  const names = [`node.${extension}`, `express.${extension}`, "upload-sourcemaps.mjs"];
+  const names = [
+    ...runtimeNames.map((name) => `${name}.${extension}`),
+    "upload-sourcemaps.mjs",
+  ];
   return names.map((name) => {
     const target = join(targetRoot, name);
     mkdirSync(dirname(target), { recursive: true });
@@ -82,20 +86,20 @@ function copyRuntime(
   });
 }
 
-function runtimeModulePath(
+export function nodeRuntimeModulePath(
   project: NodeProjectShape,
   runtimeRoot: string,
-  name: "node" | "express",
+  name: "node" | "express" | "fastify",
   fromPath = project.entryPath,
 ): string {
   const extension =
     project.language === "js" && project.module === "cjs" ? "cjs" : "js";
-  return modulePath(fromPath, join(runtimeRoot, `${name}.${extension}`));
+  return nodeModulePath(fromPath, join(runtimeRoot, `${name}.${extension}`));
 }
 
-function importRuntime(
+export function importNodeRuntime(
   project: NodeProjectShape,
-  name: "initVolatoNode" | "volatoExpressErrorHandler",
+  name: string,
   path: string,
 ): string {
   return project.module === "cjs"
@@ -103,14 +107,14 @@ function importRuntime(
     : `import { ${name} } from ${JSON.stringify(path)};\n`;
 }
 
-function prependInitialization(original: string, prefix: string): string {
+export function prependNodeInitialization(original: string, prefix: string): string {
   const shebang = /^(#![^\n]*(?:\n|$))/.exec(original)?.[1];
   return shebang
     ? `${shebang}${prefix}${original.slice(shebang.length)}`
     : `${prefix}${original}`;
 }
 
-function patchNodeEntry(
+export function patchNodeEntry(
   project: NodeProjectShape,
   runtimeRoot: string,
 ): PatchOutcome[] {
@@ -141,14 +145,14 @@ function patchNodeEntry(
   if (original.includes("initVolatoNode")) {
     return [{ path, status: "skipped", detail: "Node capture already initialized" }];
   }
-  const nodeImport = importRuntime(
+  const nodeImport = importNodeRuntime(
     project,
     "initVolatoNode",
-    runtimeModulePath(project, runtimeRoot, "node"),
+    nodeRuntimeModulePath(project, runtimeRoot, "node"),
   );
   writeFileSync(
     path,
-    prependInitialization(original, `${nodeImport}initVolatoNode();\n`),
+    prependNodeInitialization(original, `${nodeImport}initVolatoNode();\n`),
     "utf8",
   );
   return [
@@ -243,12 +247,12 @@ function patchExpressApp(
     ];
   }
   const withMount = `${original.slice(0, boundary)}app.use(volatoExpressErrorHandler());\n${original.slice(boundary)}`;
-  const expressImport = importRuntime(
+  const expressImport = importNodeRuntime(
     project,
     "volatoExpressErrorHandler",
-    runtimeModulePath(project, runtimeRoot, "express", path),
+    nodeRuntimeModulePath(project, runtimeRoot, "express", path),
   );
-  writeFileSync(path, prependInitialization(withMount, expressImport), "utf8");
+  writeFileSync(path, prependNodeInitialization(withMount, expressImport), "utf8");
   return [
     {
       path,
@@ -408,11 +412,15 @@ export function generateNodeIntegration(
       );
     }
   }
-  const sourceRoot = options.sourceRoot ?? assetsRoot();
+  const sourceRoot = options.sourceRoot ?? nodeAssetsRoot();
   if (!existsSync(sourceRoot)) throw new Error(`Node recipe assets are missing: ${sourceRoot}`);
   const sourceDirectory = dirname(options.project.entryPath);
   const runtimeRoot = join(sourceDirectory, "volato-node");
-  const generatedFiles = copyRuntime(sourceRoot, runtimeRoot, options.project);
+  const generatedFiles = writeNodeRuntimeFiles(
+    sourceRoot,
+    runtimeRoot,
+    options.project,
+  );
   const outcomes: PatchOutcome[] = [
     patchEnvValues(
       options.cwd,

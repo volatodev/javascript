@@ -33,6 +33,7 @@ import { generateBrowserReactIntegration } from "../../integrations/vite-react.j
 import { generateViteVueIntegration } from "../../integrations/vite-vue.js";
 import { generateViteSvelteIntegration } from "../../integrations/vite-svelte.js";
 import { generateNodeIntegration } from "../../integrations/node.js";
+import { generateFastifyIntegration } from "../../integrations/fastify.js";
 import { generateNodeInvocationIntegration } from "../../integrations/node-invocation.js";
 import { linkedProject } from "../../integrations/manifest.js";
 import {
@@ -209,6 +210,27 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         },
       );
     }
+    if (stack.fastify) {
+      const generated = generateFastifyIntegration({
+        cwd,
+        dsn: setup.dsn,
+        ingestToken: setup.ingestToken,
+        project: stack.fastify,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Node + Fastify runtime files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
     if (stack.nodeInvocation) {
       const generated = generateNodeInvocationIntegration({
         cwd,
@@ -265,6 +287,9 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
     if (stack.node) {
       await reportIntegrationInstalled(projectLink.id, "errors-node");
     }
+    if (stack.fastify) {
+      await reportIntegrationInstalled(projectLink.id, "errors-node-fastify");
+    }
     if (stack.nodeInvocation) {
       await reportIntegrationInstalled(
         projectLink.id,
@@ -311,7 +336,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
           : stack.browserSvelte
             ? "Svelte"
             : null,
-      Boolean(stack.node),
+      stack.fastify ? "Fastify" : stack.node ? "Node/Express" : null,
       Boolean(stack.nodeInvocation),
       manualOutcomes.length === 0,
     );
@@ -387,7 +412,7 @@ function localModule(fromFile: string, target: string): string {
 function printPortableNextSteps(
   cwd: string,
   browserRenderer: "React" | "Vue" | "Svelte" | null,
-  hasNode: boolean,
+  nodeSurface: "Node/Express" | "Fastify" | "NestJS" | null,
   hasNodeInvocation: boolean,
   complete: boolean,
 ): void {
@@ -406,11 +431,11 @@ function printPortableNextSteps(
     );
     step += 1;
   }
-  if (hasNode) {
+  if (nodeSurface) {
     process.stdout.write(
       `  ${pc.dim(`${step}.`)} Set ${pc.cyan(
         "VOLATO_RELEASE",
-      )} to the deployed Git SHA and exercise a controlled Node/Express error.\n`,
+      )} to the deployed Git SHA and exercise a controlled ${nodeSurface} error.\n`,
     );
     step += 1;
   }

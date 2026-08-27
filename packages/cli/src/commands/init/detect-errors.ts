@@ -7,6 +7,7 @@ export type BrowserBuildAdapter = "vite" | "webpack" | "rspack";
 export type NodeModuleFormat = "esm" | "cjs";
 export type NodeProcessShape = "server" | "job" | "script";
 export type ExpressTopology = "same-file" | "split-bootstrap";
+export type FastifyTopology = "same-file" | "split-bootstrap";
 export type NodeInvocationHandlerShape =
   | "async-handler"
   | "node-http-handler";
@@ -52,6 +53,15 @@ export type NodeProjectShape = {
   expressUnsupportedReason?: string;
 };
 
+export type FastifyProjectShape = NodeProjectShape & {
+  express: false;
+  processShape: "server";
+  fastifyVersion: 5;
+  topology: FastifyTopology;
+  appPath: string;
+  appVariable: string;
+};
+
 export type NodeInvocationProjectShape = {
   cwd: string;
   handlerPath: string;
@@ -68,6 +78,7 @@ export type ErrorsStackShape = {
   browserVue?: ViteVueProjectShape;
   browserSvelte?: ViteSvelteProjectShape;
   node?: NodeProjectShape;
+  fastify?: FastifyProjectShape;
   nodeInvocation?: NodeInvocationProjectShape;
   notices: string[];
 };
@@ -91,7 +102,6 @@ const UNSUPPORTED_BACKEND_MANIFESTS = [
 ] as const;
 
 const UNSUPPORTED_HTTP_FRAMEWORKS = [
-  ["fastify", "Fastify"],
   ["hono", "Hono"],
   ["@nestjs/core", "NestJS"],
 ] as const;
@@ -464,6 +474,102 @@ function nodeShape(
   };
 }
 
+function fastifyCreation(source: string): string | null {
+  return (
+    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:Fastify|fastify)(?:\.default)?\s*\(/.exec(
+      source,
+    )?.[1] ??
+    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*["']fastify["']\s*\)\s*\(/.exec(
+      source,
+    )?.[1] ??
+    null
+  );
+}
+
+function fastifyShape(
+  cwd: string,
+  pkg: PackageJson,
+  deps: Record<string, string>,
+): FastifyProjectShape | undefined {
+  const version = deps.fastify;
+  if (!version) return undefined;
+  const major = dependencyMajor(version);
+  if (major !== 5) {
+    throw new ErrorsStackDetectionError(
+      `Fastify ${major ?? JSON.stringify(version)} HTTP capture is not supported; Fastify 5 is required and no files were modified.`,
+    );
+  }
+  const candidates = [
+    "src/server.ts",
+    "src/server.js",
+    "server.ts",
+    "server.js",
+    "src/index.ts",
+    "src/index.js",
+    "index.ts",
+    "index.js",
+  ].filter((path) => existsSync(join(cwd, path)));
+  if (candidates.length !== 1) {
+    throw new ErrorsStackDetectionError(
+      candidates.length === 0
+        ? "Fastify 5 is installed, but one conventional server entry could not be identified; no files were modified."
+        : `Multiple conventional Fastify entries were detected (${candidates.join(", ")}); select one application root explicitly and no files were modified.`,
+    );
+  }
+  const entryPath = join(cwd, candidates[0]!);
+  const entry = readFileSync(entryPath, "utf8");
+  const entryVariable = fastifyCreation(entry);
+  const entryListens = entry.match(/\b[A-Za-z_$][\w$]*\.listen\s*\(/g) ?? [];
+  const extension = languageOf(entryPath) === "ts" ? "ts" : "js";
+  const appPath = join(dirname(entryPath), `app.${extension}`);
+
+  if (entryVariable && entryListens.length === 1 && !existsSync(appPath)) {
+    return {
+      cwd,
+      entryPath,
+      appPath: entryPath,
+      appVariable: entryVariable,
+      topology: "same-file",
+      fastifyVersion: 5,
+      express: false,
+      language: languageOf(entryPath),
+      module: pkg.type === "module" ? "esm" : "cjs",
+      processShape: "server",
+    };
+  }
+
+  if (existsSync(appPath) && entryListens.length === 1) {
+    const app = readFileSync(appPath, "utf8");
+    const appVariable = fastifyCreation(app);
+    const importsApp =
+      /(?:from\s*["']\.\/app(?:\.[cm]?[jt]s)?["']|require\s*\(\s*["']\.\/app(?:\.[cm]?[jt]s)?["']\s*\))/.test(
+        entry,
+      );
+    const exportsApp =
+      /\bmodule\.exports\s*=/.test(app) ||
+      /\bexport\s+default\b/.test(app) ||
+      /\bexport\s*\{/.test(app);
+    if (appVariable && importsApp && exportsApp) {
+      return {
+        cwd,
+        entryPath,
+        appPath,
+        appVariable,
+        topology: "split-bootstrap",
+        fastifyVersion: 5,
+        express: false,
+        language: languageOf(entryPath),
+        module: pkg.type === "module" ? "esm" : "cjs",
+        processShape: "server",
+      };
+    }
+  }
+
+  throw new ErrorsStackDetectionError(
+    "Fastify 5 was detected, but one supported same-file or split app/listen topology could not be identified; no files were modified.",
+  );
+}
+
 function handlerParameters(source: string): string[] | null {
   const arrow =
     /(?:export\s+const\s+handler(?:\s*:[^=\n]+)?\s*=|(?:module\.)?exports\.handler\s*=)\s*(async\s+)?(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*=>/m.exec(
@@ -690,6 +796,7 @@ function looksSupported(root: string): boolean {
     return Boolean(
       deps.next ||
         deps.express ||
+        deps.fastify ||
         ["src/handler.ts", "src/handler.js", "handler.ts", "handler.js"].some(
           (path) => existsSync(join(root, path)),
         ) ||
@@ -725,12 +832,15 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
           viteConfigPath: browserReact.buildConfigPath,
         }
       : undefined;
-  const node = nodeShape(
-    cwd,
-    pkg,
-    deps,
-    Boolean(browserReact || browserVue || browserSvelte),
-  );
+  const fastify = fastifyShape(cwd, pkg, deps);
+  const node = fastify
+    ? undefined
+    : nodeShape(
+        cwd,
+        pkg,
+        deps,
+        Boolean(browserReact || browserVue || browserSvelte),
+      );
   const nodeInvocation = nodeInvocationShape(cwd, pkg);
   const unsupportedBackends = unsupportedBackendLabels(cwd);
   const unsupportedHttpFrameworks = UNSUPPORTED_HTTP_FRAMEWORKS.filter(
@@ -740,6 +850,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     !browserReact &&
     !browserVue &&
     !browserSvelte &&
+    !fastify &&
     !node &&
     !nodeInvocation
   ) {
@@ -783,6 +894,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     viteReact,
     browserVue,
     browserSvelte,
+    fastify,
     node,
     nodeInvocation,
     notices,

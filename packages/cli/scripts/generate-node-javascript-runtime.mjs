@@ -45,6 +45,14 @@ const runtime = {
     '"./node.js"',
     '"./node.cjs"',
   ),
+  "fastify.js": (await transpile("fastify.ts", "esm")).replaceAll(
+    '"./node.js"',
+    '"./node.js"',
+  ),
+  "fastify.cjs": (await transpile("fastify.ts", "cjs")).replaceAll(
+    '"./node.js"',
+    '"./node.cjs"',
+  ),
   "invocation.js": await transpile("invocation.ts", "esm"),
   "invocation.cjs": (await transpile("invocation.ts", "cjs")).replaceAll(
     '"./node.js"',

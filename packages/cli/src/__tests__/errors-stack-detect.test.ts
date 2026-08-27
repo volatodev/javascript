@@ -247,6 +247,65 @@ describe("detectErrorsStack", () => {
     });
   });
 
+  it("detects a Fastify 5 same-file server topology", () => {
+    writePackage(
+      cwd,
+      { fastify: "5.12.1" },
+      { type: "module", scripts: { build: "tsc --sourceMap" } },
+    );
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "server.ts"),
+      'import Fastify from "fastify";\nconst app = Fastify();\napp.get("/health", async () => ({ ok: true }));\nawait app.listen({ port: 3000 });\n',
+    );
+
+    expect(detectErrorsStack(cwd).fastify).toMatchObject({
+      entryPath: join(cwd, "src", "server.ts"),
+      appPath: join(cwd, "src", "server.ts"),
+      appVariable: "app",
+      topology: "same-file",
+      fastifyVersion: 5,
+      language: "ts",
+      module: "esm",
+    });
+    expect(detectErrorsStack(cwd).node).toBeUndefined();
+  });
+
+  it("detects a Fastify 5 split CommonJS bootstrap topology", () => {
+    writePackage(cwd, { fastify: "5.12.1" }, { type: "commonjs" });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(
+      join(cwd, "src", "server.js"),
+      'const app = require("./app");\napp.listen({ port: 3000 });\n',
+    );
+    writeFileSync(
+      join(cwd, "src", "app.js"),
+      'const Fastify = require("fastify");\nconst app = Fastify();\nmodule.exports = app;\n',
+    );
+
+    expect(detectErrorsStack(cwd).fastify).toMatchObject({
+      entryPath: join(cwd, "src", "server.js"),
+      appPath: join(cwd, "src", "app.js"),
+      appVariable: "app",
+      topology: "split-bootstrap",
+      language: "js",
+      module: "cjs",
+    });
+  });
+
+  it.each([
+    ["Fastify 4", "4.29.1", /Fastify 4.*not supported/i],
+    ["an unsupported major", "6.0.0", /Fastify 6.*not supported/i],
+  ])("refuses %s before mutation", (_label, version, expected) => {
+    writePackage(cwd, { fastify: version }, { type: "module" });
+    writeFileSync(
+      join(cwd, "server.js"),
+      'import Fastify from "fastify";\nconst app = Fastify();\napp.listen({ port: 3000 });\n',
+    );
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(expected);
+  });
+
   it("keeps generic Node capture when the installed Express major is unsupported", () => {
     writePackage(
       cwd,
@@ -449,7 +508,7 @@ describe("detectErrorsStack", () => {
     },
   );
 
-  it("announces an unsupported Node HTTP framework even without a conventional server entry", () => {
+  it("refuses a Fastify dependency without one conventional server entry", () => {
     writePackage(cwd, {
       fastify: "^5.6.0",
       react: "^19.1.1",
@@ -461,12 +520,8 @@ describe("detectErrorsStack", () => {
     writeFileSync(join(cwd, "src", "api.ts"), "startFastify();\n");
     writeFileSync(join(cwd, "vite.config.ts"), "export default {};\n");
 
-    const result = detectErrorsStack(cwd);
-
-    expect(result.viteReact).toBeDefined();
-    expect(result.node).toBeUndefined();
-    expect(result.notices).toContainEqual(
-      expect.stringMatching(/fastify.*not supported.*server.*not modified/i),
+    expect(() => detectErrorsStack(cwd)).toThrowError(
+      /Fastify 5.*conventional server entry.*no files were modified/i,
     );
   });
 

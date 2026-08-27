@@ -292,4 +292,34 @@ describe("volato errors init", () => {
     const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
     expect(output).toContain("Svelte render error");
   });
+
+  it("installs and reports a conventional Fastify 5 server", async () => {
+    rmSync(join(cwd, "app"), { recursive: true, force: true });
+    rmSync(join(cwd, "next.config.ts"), { force: true });
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "fastify-fixture",
+        type: "module",
+        dependencies: { fastify: "5.12.1" },
+      })}\n`,
+    );
+    mkdirSync(join(cwd, "src"), { recursive: true });
+    writeFileSync(
+      join(cwd, "src", "server.js"),
+      'import Fastify from "fastify";\nconst app = Fastify();\napp.listen({ port: 3000 });\n',
+    );
+
+    await runErrorsInit({ cwd, nonInteractive: true });
+
+    expect(reportIntegrationInstalled).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "errors-node-fastify",
+    );
+    expect(readFileSync(join(cwd, "src", "server.js"), "utf8")).toContain(
+      'app.addHook("onError", volatoFastifyErrorHook())',
+    );
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toContain("controlled Fastify error");
+  });
 });

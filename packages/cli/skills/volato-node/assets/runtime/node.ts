@@ -4,6 +4,8 @@ export type NodeCaptureContext = {
     | "uncaught_exception"
     | "unhandled_rejection"
     | "express"
+    | "fastify"
+    | "nest_exception_filter"
     | "invocation";
   method?: string;
   route?: string;
