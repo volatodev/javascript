@@ -10,7 +10,11 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   createGeneratedIntegration,
+  ERRORS_BROWSER_SVELTE_INTEGRATION,
+  ERRORS_BROWSER_VUE_INTEGRATION,
   ERRORS_NEXTJS_INTEGRATION,
+  ERRORS_NODE_FASTIFY_INTEGRATION,
+  ERRORS_NODE_NESTJS_INTEGRATION,
   linkProject,
   modifiedGeneratedFiles,
   readManifest,
@@ -65,6 +69,28 @@ describe("integration manifest", () => {
       [ERRORS_NEXTJS_INTEGRATION]: errorsIntegration,
     });
     expect(modifiedGeneratedFiles(cwd, errorsIntegration)).toEqual([]);
+  });
+
+  it.each([
+    ERRORS_BROWSER_VUE_INTEGRATION,
+    ERRORS_BROWSER_SVELTE_INTEGRATION,
+    ERRORS_NODE_FASTIFY_INTEGRATION,
+    ERRORS_NODE_NESTJS_INTEGRATION,
+  ])("persists the bounded %s adapter identity", (integrationId) => {
+    linkedManifest();
+    const runtime = join(cwd, `${integrationId}.ts`);
+    writeFileSync(runtime, "export const installed = true;\n");
+    const integration = createGeneratedIntegration(cwd, {
+      recipe: integrationId,
+      recipeVersion: "1.0.0",
+      files: [runtime],
+    });
+
+    writeIntegration(cwd, integrationId, integration);
+
+    expect(readManifest(cwd)?.integrations[integrationId]).toEqual(
+      integration,
+    );
   });
 
   it("drops the retired Product integration from an existing manifest", () => {
