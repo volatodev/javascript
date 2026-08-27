@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runReadme } from "../commands/readme.js";
+import { cliProgram } from "../cli.js";
+import { buildReadme, runReadme } from "../commands/readme.js";
 
 const packageReadme = readFileSync(
   new URL("../../README.md", import.meta.url),
@@ -12,12 +13,29 @@ afterEach(() => {
 });
 
 describe("public CLI documentation contract", () => {
+  it("renders every registered Commander command and option", () => {
+    const generated = buildReadme(cliProgram);
+
+    function verify(command: typeof cliProgram, parent: string[]): void {
+      const path = [...parent, command.name()];
+      if (parent.length > 0) {
+        expect(generated).toContain(`### \`${path.join(" ")}\``);
+      }
+      for (const option of command.createHelp().visibleOptions(command)) {
+        expect(generated).toContain(`\`${option.flags}\``);
+      }
+      for (const child of command.commands) verify(child, path);
+    }
+
+    verify(cliProgram, []);
+  });
+
   it("limits structured output to commands that actually expose --json", () => {
     const write = vi
       .spyOn(process.stdout, "write")
       .mockImplementation(() => true);
 
-    runReadme();
+    runReadme(cliProgram);
 
     const generated = String(write.mock.calls[0]?.[0]);
     for (const document of [packageReadme, generated]) {

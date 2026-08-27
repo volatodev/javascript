@@ -7,8 +7,10 @@
  * except the CLI works in any terminal without client config. Keep
  * the output stable and machine-friendly; this is part of the contract.
  */
+import type { Command } from "commander";
+import { renderCliReferenceMarkdown } from "../documentation/commander.js";
 
-const README = `# volato — Volato CLI
+const README_BEFORE_REFERENCE = `# volato — Volato CLI
 
 Volato Errors gives coding agents the production evidence needed to investigate
 and fix real errors. The CLI installs capture, reads bounded evidence, and
@@ -61,7 +63,7 @@ free-form tracking command.
 
 Replace the complete browser-origin allowlist after setup:
 
-    volato projects list [--limit <n>] [--cursor <cursor>] [--json]
+    volato projects list --json
     volato projects origins set <project_id> https://app.example.com https://example.com
     volato projects origins set <project_id> --clear
 
@@ -72,16 +74,12 @@ This is misuse reduction for a browser-safe DSN, not an authentication boundary.
 
 ## Reading errors
 
-    volato errors init [--yes] [--send-test-event]
-    volato errors list [--status <s>] [--release <r>] [--runtime <runtime>] [--route <route>] [--min-events <n>] [--min-users <n>] [--sort recent|new|users|events|growth] [--project-id <id>] [--limit <n>] [--cursor <cursor>] [--json]
+    volato errors list --status unresolved --sort recent --json
 
 Status filter: unresolved (default), resolved, ignored, all.
 
-    volato errors show [<id>] [--project-id <id>] [--environment <env>] [--json]
-    volato errors samples <id> [--release <r>] [--runtime <runtime>] [--route <route>] [--strategy all|recent|representative|variations] [--limit <n>] [--json]
-
-    volato releases list [--project-id <id>] [--runtime <runtime>] [--limit <n>] [--cursor <cursor>] [--json]
-    volato releases compare [<head>] [--base <release>] [--project-id <id>] [--runtime <runtime>] [--limit <n>] [--cursor <cursor>] [--json]
+    volato errors show --json
+    volato releases compare --json
 
 Returns the one-call fix context for an error group: stack,
 breadcrumbs, commit transition, source pointer, affected users,
@@ -109,9 +107,9 @@ headers, query values, arbitrary tags, and user identity.
 
 ## Triaging
 
-    volato errors resolve <id> --note "fixed in PR #123" [--json]
-    volato errors reopen  <id> --note "regression — needs more work" [--json]
-    volato errors ignore  <id> --note "flaky third-party API" [--json]
+    volato errors resolve <id> --note "fixed in deployed release abc123"
+    volato errors reopen  <id> --note "regression reproduced after abc123"
+    volato errors ignore  <id> --note "verified third-party noise"
 
 The note is persisted on the resolution history (append-only —
 reopen does NOT erase prior notes; the full history surfaces in
@@ -120,8 +118,9 @@ reopen does NOT erase prior notes; the full history surfaces in
 A locally verified patch is not proof that production recovered. Do not mark a
 group resolved until sufficient deployment evidence exists or the user makes
 that status mutation explicit.
+`;
 
-## Auth
+const README_AFTER_REFERENCE = `## Auth
 
     volato whoami            # confirm a token is loaded
     volato logout            # remove the stored token
@@ -166,6 +165,10 @@ is over 300 calls/minute. Back off and retry after the Retry-After
 window the CLI prints (typically <60s).
 `;
 
-export function runReadme(): void {
-  process.stdout.write(README);
+export function buildReadme(program: Command): string {
+  return `${README_BEFORE_REFERENCE}\n${renderCliReferenceMarkdown(program)}\n${README_AFTER_REFERENCE}`;
+}
+
+export function runReadme(program: Command): void {
+  process.stdout.write(buildReadme(program));
 }

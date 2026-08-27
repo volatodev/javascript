@@ -139,7 +139,7 @@ program
   .command("readme")
   .description("Print the full command surface (markdown — agents read this)")
   .action(() => {
-    runReadme();
+    runReadme(program);
   });
 
 const projects = program

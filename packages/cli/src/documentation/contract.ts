@@ -12,8 +12,8 @@ import {
   searchErrorGroupsInputSchema,
   searchErrorGroupsResultSchema,
 } from "@volatodev/read-client";
-import type { Command } from "commander";
 import { cliProgram } from "../cli.js";
+import { cliDocumentationModel } from "./commander.js";
 
 type RuntimeCell = {
   id: string;
@@ -151,47 +151,6 @@ function assertRuntimeMatrix(value: unknown): asserts value is RuntimeMatrix {
   }
 }
 
-function commandModel(command: Command, parentPath: string[]) {
-  const path = [...parentPath, command.name()];
-  const help = command.createHelp();
-  return {
-    path,
-    aliases: command.aliases(),
-    description: command.description(),
-    arguments: command.registeredArguments.map((argument) => ({
-      name: argument.name(),
-      description: argument.description,
-      required: argument.required,
-      variadic: argument.variadic,
-      choices: argument.argChoices ?? null,
-      defaultValue: argument.defaultValue ?? null,
-    })),
-    options: help.visibleOptions(command).map((option) => ({
-      flags: option.flags,
-      short: option.short ?? null,
-      long: option.long ?? null,
-      description: option.description,
-      required: option.required,
-      optional: option.optional,
-      variadic: option.variadic,
-      mandatory: option.mandatory,
-      choices: option.argChoices ?? null,
-      defaultValue: option.defaultValue ?? null,
-    })),
-  };
-}
-
-function allCommands(
-  command: Command,
-  parentPath: string[] = [],
-): Array<ReturnType<typeof commandModel>> {
-  const path = [...parentPath, command.name()];
-  return command.commands.flatMap((child) => [
-    commandModel(child, path),
-    ...allCommands(child, path),
-  ]);
-}
-
 function readModel() {
   return Object.fromEntries(
     Object.entries(readDefinitions).map(
@@ -231,13 +190,7 @@ export function buildDocumentationContract(runtimeMatrix: unknown) {
       reads: "packages/read-client/src/contracts.ts",
       support: "scripts/errors-runtime-matrix.mjs",
     },
-    cli: {
-      name: cliProgram.name(),
-      version: cliProgram.version(),
-      description: cliProgram.description(),
-      options: commandModel(cliProgram, []).options,
-      commands: allCommands(cliProgram),
-    },
+    cli: cliDocumentationModel(cliProgram),
     reads: readModel(),
     support: {
       frozenAt: runtimeMatrix.frozenAt,
