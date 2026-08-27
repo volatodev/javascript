@@ -62,6 +62,14 @@ Express 4/5 context is composed only for the conformed same-file or split
 app/listen topologies; unsupported or ambiguous HTTP composition remains
 generic Node capture with an explicit notice.
 
+The provider-neutral invocation recipe targets asynchronous generic and Node
+HTTP exports in root or `src/handler.{ts,js}` on the same Node 22/24,
+TypeScript/JavaScript and ESM/CommonJS matrix. It preserves arguments, return
+and rethrow identity, flushes within 2 seconds, remains safe across cold and
+warm reuse, and installs no fatal process hook. Callback, synchronous and
+streaming completion are refused before mutation. No cloud-provider preset is
+advertised.
+
 The project-origins command replaces the complete browser-origin allowlist.
 It canonicalises URLs, removes duplicates, and is safe for an agent to rerun.
 `--clear` accepts browser events from any origin. This setting reduces casual

@@ -33,6 +33,13 @@ ESM/CommonJS. Express 4/5 adds HTTP context for the conformed same-file and
 split app/listen topologies while preserving application-owned error handlers
 and responses.
 
+Provider-neutral Node invocation capture covers asynchronous generic and Node
+HTTP handlers on the same Node 22/24, TypeScript/JavaScript and ESM/CommonJS
+matrix. It preserves success returns and original failures, performs one
+bounded end-of-invocation flush, and proves cold, warm and concurrent reuse.
+Callback, synchronous and streaming completion remain explicit refusals; no
+cloud-provider preset is claimed.
+
 Setup generates:
 
 ```text
@@ -41,6 +48,7 @@ Setup generates:
 src/volato/            local capture runtime when src/app or React is used
 volato/                local capture runtime when app is used
 src/volato-node/       Node runtime and Express adapter when detected
+src/volato-invocation/ provider-neutral Node invocation runtime when detected
 ```
 
 The application keeps its existing Next.js and React dependencies. Generated
@@ -78,6 +86,7 @@ pnpm smoke:nextjs
 pnpm smoke:browser-react
 pnpm smoke:node-long-lived
 pnpm smoke:express
+pnpm smoke:node-invocation
 pnpm smoke:vite-node
 ```
 
@@ -100,6 +109,13 @@ shapes, both languages and both module systems. `pnpm smoke:express` runs the
 four Express 4.22.2/5.2.1 topology cells with framework-specific async
 propagation, application-owned responses, privacy checks and exact source
 resolution.
+
+`pnpm smoke:node-invocation` runs all 16 exact Node 22.23.2/24.19.0 ×
+TypeScript/JavaScript × ESM/CommonJS × generic/Node-HTTP handler cells from the
+packed CLI. It proves convergent setup, direct and mapped sources,
+cold/warm/concurrent reuse, success/throw/rejection identity, the 2-second
+flush bound, minimal HTTP context, privacy, and provider-neutrality. Callback,
+synchronous and streaming fixtures must fail before mutation.
 
 ## License
 

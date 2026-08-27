@@ -93,6 +93,12 @@ function writeFixture() {
             recipeVersion: "1",
             generatedFiles: {},
           },
+          "errors-node-invocation": {
+            protocolVersion: 1,
+            recipe: "errors-node-invocation",
+            recipeVersion: "1",
+            generatedFiles: {},
+          },
         },
       },
       null,
@@ -260,7 +266,13 @@ if (args[0] === "errors" && args[1] === "samples") {
       event: {
         runtime: "node",
         environment: "production",
-        payload: { route: "/api/checkout", method: "POST", release: ${JSON.stringify(headCommit)} },
+        payload: {
+          route: "/:segment/:segment",
+          method: "POST",
+          release: ${JSON.stringify(headCommit)},
+          capturedVia: "invocation",
+          contexts: { function: { name: "checkout" } },
+        },
       },
     }],
     privacy: "Bodies, cookies, headers, query values, arbitrary tags, and user identity are excluded from this response.",
@@ -284,7 +296,13 @@ if (args[0] === "errors" && args[1] === "show") {
       priorCleanCommit: ${JSON.stringify(baseCommit)},
       firstSeenCommit: ${JSON.stringify(headCommit)},
     },
-    events: [{ runtime: "node", environment: "production", route: "/api/checkout" }],
+    events: [{
+      runtime: "node",
+      environment: "production",
+      route: "/:segment/:segment",
+      capturedVia: "invocation",
+      contexts: { function: { name: "checkout" } },
+    }],
   });
 }
 if (args[0] === "errors" && ["resolve", "ignore", "reopen"].includes(args[1])) {
@@ -381,7 +399,7 @@ try {
     changedTrackedFiles.length === 1 && changedTrackedFiles[0] === "src/checkout.js";
   const result = {
     prompt: "What broke after the last deploy?",
-    stack: "Vite + React + Node.js + Express",
+    stack: "Vite + React + Node.js + Express + Node invocation evidence",
     agentExitCode: evaluation.status,
     selectedSkill,
     operationalCallsSucceeded,

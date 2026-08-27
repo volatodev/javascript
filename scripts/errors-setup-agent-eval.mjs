@@ -204,16 +204,26 @@ function writeFixture() {
     `import express from "express";\n\nconst app = express();\napp.get("/api/health", (_request, response) => response.json({ ok: true }));\napp.listen(3000);\n`,
   );
   writeFileSync(
+    join(fixtureRoot, "src", "handler.js"),
+    `export const handler = async (input) => {
+  if (input.surface === "success") return input.returnValue;
+  const failure = new Error("controlled invocation failure");
+  input.observedFailure = failure;
+  throw failure;
+};
+`,
+  );
+  writeFileSync(
     join(fixtureRoot, "vite.config.ts"),
     `import { defineConfig } from "vite";\n\nexport default defineConfig({ plugins: [] });\n`,
   );
   writeFileSync(
     join(fixtureRoot, "scripts", "build.mjs"),
-    `import assert from "node:assert/strict";\nimport { mkdirSync, readFileSync, writeFileSync } from "node:fs";\n\nconst main = readFileSync("src/main.tsx", "utf8");\nconst server = readFileSync("src/server.ts", "utf8");\nconst vite = readFileSync("vite.config.ts", "utf8");\nconst manifest = JSON.parse(readFileSync(".volato/manifest.json", "utf8"));\nassert.match(main, /VolatoErrorBoundary/);\nassert.match(server, /initVolatoNode/);\nassert.match(server, /volatoExpressErrorHandler/);\nassert.match(vite, /withVolato/);\nassert.ok(manifest.integrations["errors-vite-react"]);\nassert.ok(manifest.integrations["errors-node"]);\nmkdirSync("dist", { recursive: true });\nwriteFileSync("dist/server.js", "throw new Error('controlled build artifact');\\n");\nwriteFileSync("dist/server.js.map", JSON.stringify({ version: 3, file: "server.js", sources: ["../src/server.ts"], sourcesContent: ["private fixture source"], names: [], mappings: "AAAA" }));\nwriteFileSync(".volato-eval-build.json", JSON.stringify({ browser: true, node: true, express: true }));\n`,
+    `import assert from "node:assert/strict";\nimport { mkdirSync, readFileSync, writeFileSync } from "node:fs";\n\nconst main = readFileSync("src/main.tsx", "utf8");\nconst server = readFileSync("src/server.ts", "utf8");\nconst handlerSource = readFileSync("src/handler.js", "utf8");\nconst vite = readFileSync("vite.config.ts", "utf8");\nconst manifest = JSON.parse(readFileSync(".volato/manifest.json", "utf8"));\nassert.match(main, /VolatoErrorBoundary/);\nassert.match(server, /initVolatoNode/);\nassert.match(server, /volatoExpressErrorHandler/);\nassert.match(handlerSource, /withVolatoInvocation/);\nassert.match(vite, /withVolato/);\nassert.ok(manifest.integrations["errors-vite-react"]);\nassert.ok(manifest.integrations["errors-node"]);\nassert.ok(manifest.integrations["errors-node-invocation"]);\nconst localEnv = Object.fromEntries(readFileSync(".env.local", "utf8").trim().split("\\n").map((line) => line.split(/=(.*)/s).slice(0, 2)));\nprocess.env.VOLATO_DSN = localEnv.VOLATO_DSN;\nconst { handler } = await import("../src/handler.js");\nconst invocation = { surface: "failure", observedFailure: undefined };\nlet rethrown;\ntry { await handler(invocation); } catch (error) { rethrown = error; }\nassert.equal(rethrown, invocation.observedFailure);\nmkdirSync("dist", { recursive: true });\nwriteFileSync("dist/server.js", "throw new Error('controlled build artifact');\\n");\nwriteFileSync("dist/server.js.map", JSON.stringify({ version: 3, file: "server.js", sources: ["../src/server.ts"], sourcesContent: ["private fixture source"], names: [], mappings: "AAAA" }));\nwriteFileSync(".volato-eval-build.json", JSON.stringify({ browser: true, node: true, express: true, invocation: true }));\n`,
   );
   writeFileSync(
     join(fixtureRoot, "test", "setup.test.js"),
-    `import assert from "node:assert/strict";\nimport test from "node:test";\nimport { readFileSync } from "node:fs";\n\ntest("both independent adapters are composed", () => {\n  assert.match(readFileSync("src/main.tsx", "utf8"), /VolatoErrorBoundary/);\n  assert.match(readFileSync("src/server.ts", "utf8"), /volatoExpressErrorHandler/);\n});\n`,
+    `import assert from "node:assert/strict";\nimport test from "node:test";\nimport { readFileSync } from "node:fs";\n\ntest("all independent adapters are composed", () => {\n  assert.match(readFileSync("src/main.tsx", "utf8"), /VolatoErrorBoundary/);\n  assert.match(readFileSync("src/server.ts", "utf8"), /volatoExpressErrorHandler/);\n  assert.match(readFileSync("src/handler.js", "utf8"), /withVolatoInvocation/);\n});\n`,
   );
 
   for (const name of ["volato-setup", "volato-vite-react", "volato-node"]) {
@@ -326,13 +336,17 @@ try {
     ({ args, status }) =>
       args[0] === "errors" && args[1] === "init" && status === 0,
   );
+  const successfulInit = commands.findLastIndex(
+    ({ args, status }) => args[0] === "init" && status === 0,
+  );
   const unrecoveredVolatoFailures = commands.filter(
     ({ args, status }, index) =>
       status !== 0 &&
       !(
-        args[0] === "errors" &&
-        args[1] === "init" &&
-        index < successfulErrorsInit
+        (args[0] === "init" && index < successfulInit) ||
+        (args[0] === "errors" &&
+          args[1] === "init" &&
+          index < successfulErrorsInit)
       ),
   );
   const reportedBrowser = requests.some(
@@ -340,6 +354,11 @@ try {
   );
   const reportedNode = requests.some(
     ({ method, url }) => method === "POST" && url.endsWith("/integrations/errors-node"),
+  );
+  const reportedInvocation = requests.some(
+    ({ method, url }) =>
+      method === "POST" &&
+      url.endsWith("/integrations/errors-node-invocation"),
   );
   const sourcemapUploaded = requests.some(
     ({ method, url }) => method === "POST" && url === "/api/sourcemaps",
@@ -351,13 +370,18 @@ try {
     readFileSync(join(fixtureRoot, ".volato", "manifest.json"), "utf8"),
   );
   const packageJson = JSON.parse(readFileSync(join(fixtureRoot, "package.json"), "utf8"));
-  const sourceSurface = ["src/main.tsx", "src/server.ts", "vite.config.ts"]
+  const sourceSurface = [
+    "src/main.tsx",
+    "src/server.ts",
+    "src/handler.js",
+    "vite.config.ts",
+  ]
     .map((path) => readFileSync(join(fixtureRoot, path), "utf8"))
     .join("\n");
   const tests = run("npm", ["test"], { allowFailure: true });
   const result = {
     prompt: "Install Volato in this project.",
-    stack: "Vite + React + Node.js + Express",
+    stack: "Vite + React + long-lived Node.js + Express + Node invocation",
     cliArtifact: "npm pack",
     cliVersion: packagedCli.version,
     agentExitCode: evaluation.status,
@@ -369,8 +393,12 @@ try {
     unrecoveredVolatoFailures,
     generatedBrowser: Boolean(manifest.integrations?.["errors-vite-react"]),
     generatedNode: Boolean(manifest.integrations?.["errors-node"]),
+    generatedInvocation: Boolean(
+      manifest.integrations?.["errors-node-invocation"],
+    ),
     reportedBrowser,
     reportedNode,
+    reportedInvocation,
     sourcemapUploaded,
     runtimeEventDelivered,
     buildPassed: existsSync(join(fixtureRoot, ".volato-eval-build.json")),
@@ -402,8 +430,10 @@ try {
   );
   assert(result.generatedBrowser, "the browser adapter was not generated");
   assert(result.generatedNode, "the Node adapter was not generated");
+  assert(result.generatedInvocation, "the invocation adapter was not generated");
   assert(reportedBrowser, "the browser integration was not reported");
   assert(reportedNode, "the Node integration was not reported");
+  assert(reportedInvocation, "the invocation integration was not reported");
   assert(sourcemapUploaded, "the production build uploaded no sourcemap");
   assert(runtimeEventDelivered, "the generated runtime delivered no event");
   assert(result.buildPassed, "the agent did not run the fixture production build");
