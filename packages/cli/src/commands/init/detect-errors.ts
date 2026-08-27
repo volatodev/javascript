@@ -11,7 +11,7 @@ export type NodeInvocationHandlerShape =
   | "async-handler"
   | "node-http-handler";
 
-export type BrowserReactProjectShape = {
+export type BrowserProjectShape = {
   cwd: string;
   entryPath: string;
   buildConfigPath: string;
@@ -19,7 +19,14 @@ export type BrowserReactProjectShape = {
   language: SourceLanguage;
 };
 
+export type BrowserReactProjectShape = BrowserProjectShape;
+
 export type ViteReactProjectShape = BrowserReactProjectShape & {
+  buildAdapter: "vite";
+  viteConfigPath: string;
+};
+
+export type ViteVueProjectShape = BrowserProjectShape & {
   buildAdapter: "vite";
   viteConfigPath: string;
 };
@@ -50,6 +57,7 @@ export type ErrorsStackShape = {
   nextjs?: ProjectShape;
   browserReact?: BrowserReactProjectShape;
   viteReact?: ViteReactProjectShape;
+  browserVue?: ViteVueProjectShape;
   node?: NodeProjectShape;
   nodeInvocation?: NodeInvocationProjectShape;
   notices: string[];
@@ -151,10 +159,10 @@ const BROWSER_BUILD_ADAPTERS: Array<{
   },
 ];
 
-function browserShape(
+function browserBuildShape(
   cwd: string,
   deps: Record<string, string>,
-): BrowserReactProjectShape | undefined {
+): BrowserProjectShape | undefined {
   const installed = BROWSER_BUILD_ADAPTERS.filter(({ dependencies }) =>
     dependencies.some((dependency) => typeof deps[dependency] === "string"),
   );
@@ -178,12 +186,7 @@ function browserShape(
     }
     const candidate = installed[0]!;
     throw new ErrorsStackDetectionError(
-      `${candidate.label} + React was detected, but Volato could not find a supported ${candidate.configs.join(" or ")}. No files were modified.`,
-    );
-  }
-  if (typeof deps.react !== "string") {
-    throw new ErrorsStackDetectionError(
-      `${selected.label} is supported only with React in this release. Other renderers were not modified.`,
+      `${candidate.label} was detected, but Volato could not find a supported ${candidate.configs.join(" or ")}. No files were modified.`,
     );
   }
   const entryPath = firstExisting(cwd, [
@@ -194,7 +197,7 @@ function browserShape(
   ]);
   if (!entryPath) {
     throw new ErrorsStackDetectionError(
-      `${selected.label} + React was detected, but Volato could not find src/main.{tsx,jsx,ts,js}. No files were modified.`,
+      `${selected.label} was detected, but Volato could not find src/main.{tsx,jsx,ts,js}. No files were modified.`,
     );
   }
   return {
@@ -204,6 +207,70 @@ function browserShape(
     buildAdapter: selected.adapter,
     language: languageOf(entryPath),
   };
+}
+
+function browserShapes(
+  cwd: string,
+  deps: Record<string, string>,
+): {
+  browserReact?: BrowserReactProjectShape;
+  browserVue?: ViteVueProjectShape;
+} {
+  const build = browserBuildShape(cwd, deps);
+  if (!build) return {};
+
+  const renderers = ["react", "vue", "svelte"].filter(
+    (renderer) => typeof deps[renderer] === "string",
+  );
+  if (renderers.length > 1) {
+    throw new ErrorsStackDetectionError(
+      `Multiple browser renderers were detected (${renderers.join(", ")}). Select one application root explicitly; no files were modified.`,
+    );
+  }
+  if (renderers[0] === "react") return { browserReact: build };
+
+  if (renderers[0] === "vue") {
+    if (build.buildAdapter !== "vite") {
+      throw new ErrorsStackDetectionError(
+        `Vue 3 browser capture currently requires Vite; ${build.buildAdapter} was not modified.`,
+      );
+    }
+    if (dependencyMajor(deps.vue!) !== 3) {
+      throw new ErrorsStackDetectionError(
+        "Vue 2 browser capture is not supported; no files were modified.",
+      );
+    }
+    if (typeof deps.nuxt === "string") {
+      throw new ErrorsStackDetectionError(
+        "Nuxt and Vue SSR capture are not supported by the Vite + Vue SPA recipe; no files were modified.",
+      );
+    }
+    const source = readFileSync(build.entryPath, "utf8");
+    if (/\bcreateSSRApp\s*\(/.test(source)) {
+      throw new ErrorsStackDetectionError(
+        "createSSRApp is not supported by the Vite + Vue SPA recipe; no files were modified.",
+      );
+    }
+    const createCalls = source.match(/\bcreateApp\s*\(/g) ?? [];
+    const mountCalls = source.match(/\.mount\s*\(/g) ?? [];
+    if (createCalls.length !== 1 || mountCalls.length !== 1) {
+      throw new ErrorsStackDetectionError(
+        "Vite + Vue setup requires exactly one static createApp root and one mount call; no files were modified.",
+      );
+    }
+    return {
+      browserVue: {
+        ...build,
+        buildAdapter: "vite",
+        viteConfigPath: build.buildConfigPath,
+      },
+    };
+  }
+
+  const renderer = renderers[0] ?? "an unknown renderer";
+  throw new ErrorsStackDetectionError(
+    `${build.buildAdapter} + ${renderer} browser capture is not supported in this release; no files were modified.`,
+  );
 }
 
 function nodeShape(
@@ -537,7 +604,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     return { cwd, nextjs: detectProject(cwd), notices: [] };
   }
 
-  const browserReact = browserShape(cwd, deps);
+  const { browserReact, browserVue } = browserShapes(cwd, deps);
   const viteReact =
     browserReact?.buildAdapter === "vite"
       ? {
@@ -546,13 +613,13 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
           viteConfigPath: browserReact.buildConfigPath,
         }
       : undefined;
-  const node = nodeShape(cwd, pkg, deps, Boolean(browserReact));
+  const node = nodeShape(cwd, pkg, deps, Boolean(browserReact || browserVue));
   const nodeInvocation = nodeInvocationShape(cwd, pkg);
   const unsupportedBackends = unsupportedBackendLabels(cwd);
   const unsupportedHttpFrameworks = UNSUPPORTED_HTTP_FRAMEWORKS.filter(
     ([dependency]) => typeof deps[dependency] === "string",
   );
-  if (!browserReact && !node && !nodeInvocation) {
+  if (!browserReact && !browserVue && !node && !nodeInvocation) {
     const unsupported = [
       ...unsupportedBackends.map((label) => `${label} backend`),
       ...unsupportedHttpFrameworks.map(([, label]) => `${label} HTTP`),
@@ -587,5 +654,13 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
       `${node.expressUnsupportedReason}; generic Node process capture will be installed without Express HTTP context.`,
     );
   }
-  return { cwd, browserReact, viteReact, node, nodeInvocation, notices };
+  return {
+    cwd,
+    browserReact,
+    viteReact,
+    browserVue,
+    node,
+    nodeInvocation,
+    notices,
+  };
 }

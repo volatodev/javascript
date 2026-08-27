@@ -334,15 +334,40 @@ describe("detectErrorsStack", () => {
     );
   });
 
-  it("refuses to apply the React recipe to a Vite + Vue project", () => {
-    writePackage(cwd, { vite: "^7.1.1", vue: "^3.5.0" });
+  it("detects one conventional Vite + Vue 3 application", () => {
+    writePackage(cwd, {
+      vite: "7.3.6",
+      vue: "3.5.42",
+      "@vitejs/plugin-vue": "6.0.8",
+    });
     mkdirSync(join(cwd, "src"));
-    writeFileSync(join(cwd, "src", "main.ts"), "createApp(App).mount('#app');\n");
+    writeFileSync(
+      join(cwd, "src", "main.ts"),
+      'import { createApp } from "vue";\nimport App from "./App.vue";\nconst app = createApp(App);\napp.mount("#app");\n',
+    );
+    writeFileSync(join(cwd, "src", "App.vue"), "<template><main>Ready</main></template>\n");
     writeFileSync(join(cwd, "vite.config.ts"), "export default defineConfig({});\n");
 
-    expect(() => detectErrorsStack(cwd)).toThrowError(
-      /Vite is supported only with React/i,
-    );
+    expect(detectErrorsStack(cwd).browserVue).toMatchObject({
+      entryPath: join(cwd, "src", "main.ts"),
+      buildConfigPath: join(cwd, "vite.config.ts"),
+      buildAdapter: "vite",
+      language: "ts",
+    });
+  });
+
+  it.each([
+    ["Vue 2", { vue: "2.7.16" }, 'createApp(App).mount("#app")', /Vue 2.*not supported/i],
+    ["SSR", { vue: "3.5.42" }, 'createSSRApp(App).mount("#app")', /createSSRApp.*not supported/i],
+    ["multiple roots", { vue: "3.5.42" }, 'createApp(App).mount("#one");\ncreateApp(Admin).mount("#two");', /exactly one.*createApp.*no files were modified/i],
+    ["Nuxt", { vue: "3.5.42", nuxt: "4.1.2" }, 'createApp(App).mount("#app")', /Nuxt.*not supported/i],
+  ])("refuses %s before selecting the Vue recipe", (_label, renderer, source, expected) => {
+    writePackage(cwd, { vite: "7.3.6", "@vitejs/plugin-vue": "6.0.8", ...renderer });
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(join(cwd, "src", "main.ts"), `${source}\n`);
+    writeFileSync(join(cwd, "vite.config.ts"), "export default defineConfig({});\n");
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(expected);
   });
 
   it.each([
