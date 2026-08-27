@@ -45,7 +45,11 @@ data path. Do not invent capture code from scratch.
    report the single missing decision instead of guessing.
 6. Confirm that no Volato runtime dependency was added.
 7. Build the application and run the framework skill's conformance checks.
-8. Verify the selected integration's delivery path.
+8. Verify the selected integration's delivery path. Use only commands exposed
+   by `volato --help` and the generated CLI reference. There is no
+   `volato errors verify` command: after a controlled event, retrieve the
+   bounded proof with `volato errors show --json` or the equivalent read-only
+   MCP tool.
 9. For Errors, verify a production sourcemap when build credentials are
    available.
 10. Report the generated files, configured browser origins, any manual

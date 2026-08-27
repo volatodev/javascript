@@ -89,11 +89,13 @@ fixed.
 ## Keep status mutations explicit
 
 Do not resolve, reopen, or ignore a group during exploratory reads. Leave a
-group unresolved after a merely local patch. Perform a status mutation only as
-a separate, visible action after sufficient evidence or an explicit user
-instruction, and attach a concise factual note naming the patch or release and
-the verification performed. Status mutations remain explicit CLI commands;
-MCP V1 cannot perform them. Never erase uncertainty from the note.
+group unresolved after a merely local patch. Resolve only after the corrected
+release is deployed and bounded production recovery evidence exists. An
+explicit request to resolve starts this verification; it does not replace it.
+Perform the mutation as a separate visible CLI action and attach a concise
+factual note naming the release and recovery verification. Reopen or ignore
+also remain separate explicit decisions with factual notes. MCP V1 cannot
+perform status mutations. Never erase uncertainty from the note.
 
 ## Report
 

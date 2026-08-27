@@ -32,6 +32,11 @@ independent from whatever backend the application uses.
 - Never infer a Node backend merely because a browser build tool runs on Node.
 - Never put `VOLATO_INGEST_TOKEN` in browser code or a `VITE_*` variable.
 - Never upload `sourcesContent`; the build must sanitize maps before transit.
+- Browser capture includes the error type, message and stack, runtime,
+  environment, release, a value-free route shape, bounded browser context and
+  filtered navigation breadcrumbs. It never reads cookies, request or response
+  bodies, arbitrary headers, query values, storage values or arbitrary user
+  payloads.
 - Preserve existing build plugins, output behavior, and static config shape.
 - If the React root or build export is ambiguous, give one exact manual action
   and leave setup incomplete.

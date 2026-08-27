@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { verifyDocumentationTruth } from "./documentation-truth.mjs";
 
@@ -107,5 +108,43 @@ test("rejects each documentation drift family", () => {
       errors.some((error) => error.includes(fixture.expected)),
       `${fixture.name}: ${errors.join("\n")}`,
     );
+  }
+});
+
+test("skills refuse premature resolution and name exact verification primitives", () => {
+  const setup = readFileSync(
+    new URL("../packages/cli/skills/volato-setup/SKILL.md", import.meta.url),
+    "utf8",
+  );
+  const errors = readFileSync(
+    new URL("../packages/cli/skills/volato-errors/SKILL.md", import.meta.url),
+    "utf8",
+  );
+  const browser = readFileSync(
+    new URL("../packages/cli/skills/volato-vite-react/SKILL.md", import.meta.url),
+    "utf8",
+  );
+  const normalizedSetup = setup.replace(/\s+/g, " ");
+  const normalizedErrors = errors.replace(/\s+/g, " ");
+  const normalizedBrowser = browser.replace(/\s+/g, " ");
+
+  assert.match(normalizedSetup, /There is no `volato errors verify` command/);
+  assert.match(normalizedSetup, /`volato errors show --json`/);
+  assert.match(
+    normalizedErrors,
+    /An explicit request to resolve starts this verification; it does not replace it/,
+  );
+  assert.doesNotMatch(
+    normalizedErrors,
+    /sufficient evidence or an explicit user instruction/,
+  );
+  for (const exclusion of [
+    "cookies",
+    "request or response bodies",
+    "arbitrary headers",
+    "query values",
+    "arbitrary user payloads",
+  ]) {
+    assert.match(normalizedBrowser, new RegExp(exclusion));
   }
 });
