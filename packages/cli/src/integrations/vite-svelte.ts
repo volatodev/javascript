@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import type { ViteSvelteProjectShape } from "../commands/init/detect-errors.js";
 import type { PatchOutcome } from "../commands/init/patch.js";
 import {
@@ -16,13 +16,7 @@ export type GenerateViteSvelteOptions = Omit<
   "project"
 > & { project: ViteSvelteProjectShape };
 
-type SvelteRootParts = {
-  leadingScripts: string;
-  markup: string;
-  trailingStyles: string;
-};
-
-function svelteRootParts(source: string): SvelteRootParts {
+function assertSvelteRoot(source: string): void {
   if (
     /<svelte:boundary\b/.test(source) &&
     !source.includes("captureVolatoSvelteError")
@@ -31,24 +25,33 @@ function svelteRootParts(source: string): SvelteRootParts {
       "An existing Svelte boundary requires explicit fallback/reset composition; no files were modified.",
     );
   }
-  if (/<svelte:(?:head|window|body|document|options)\b/.test(source)) {
+  if (/\bexport\s+(?:let|const|function|class)\b/.test(source)) {
     throw new Error(
-      "A root-level Svelte special element requires explicit boundary placement; no files were modified.",
+      "An exported Svelte component API cannot be preserved by the root boundary wrapper; no files were modified.",
     );
   }
-  const leadingScripts =
-    /^(?:\s*<script\b[^>]*>[\s\S]*?<\/script>\s*)*/.exec(source)?.[0] ?? "";
-  const afterScripts = source.slice(leadingScripts.length);
-  const trailingStyles =
-    /(?:\s*<style\b[^>]*>[\s\S]*?<\/style>\s*)*$/.exec(afterScripts)?.[0] ??
-    "";
-  const markup = afterScripts.slice(0, afterScripts.length - trailingStyles.length);
-  if (!markup.trim() || /<(?:script|style)\b/.test(markup)) {
-    throw new Error(
-      "The Svelte root must keep scripts before markup and styles after markup; no files were modified.",
-    );
+}
+
+function writeSvelteWrapper(
+  project: ViteSvelteProjectShape,
+  runtimeRoot: string,
+): string[] {
+  const path = join(runtimeRoot, "VolatoSvelteRoot.svelte");
+  if (
+    basename(project.rootComponentPath) === "VolatoSvelteRoot.svelte" &&
+    existsSync(path)
+  ) {
+    return [path];
   }
-  return { leadingScripts, markup, trailingStyles };
+  const rootModule = browserModulePath(path, project.rootComponentPath);
+  const captureModule = browserModulePath(path, join(runtimeRoot, "svelte"));
+  const language = project.language === "ts" ? ' lang="ts"' : "";
+  writeFileSync(
+    path,
+    `<script${language}>\n  import OriginalRoot from ${JSON.stringify(rootModule)};\n  import { captureVolatoSvelteError } from ${JSON.stringify(captureModule)};\n  let props = $props();\n</script>\n\n<svelte:boundary onerror={captureVolatoSvelteError}>\n  <OriginalRoot {...props} />\n</svelte:boundary>\n`,
+    "utf8",
+  );
+  return [path];
 }
 
 function patchSvelteEntry(
@@ -57,53 +60,43 @@ function patchSvelteEntry(
 ): PatchOutcome {
   const path = project.entryPath;
   const original = readFileSync(path, "utf8");
-  if (original.includes("initVolatoBrowser")) {
+  if (
+    original.includes("initVolatoBrowser") &&
+    original.includes("VolatoSvelteRoot.svelte")
+  ) {
     return {
       path,
       status: "skipped",
       detail: "Volato browser capture already initialized",
     };
   }
+  const rootImport = new RegExp(
+    `(import\\s+${project.rootComponentVariable.replace(/[$]/g, "\\$")}\\s+from\\s+)["'][^"']+\\.svelte["']`,
+  );
+  if (!rootImport.test(original)) {
+    return {
+      path,
+      status: "manual",
+      detail: "the detected Svelte root import is no longer statically composable",
+    };
+  }
+  const wrapperModule = browserModulePath(
+    path,
+    join(project.cwd, "src", "volato", "VolatoSvelteRoot.svelte"),
+  );
+  const withWrapper = original.replace(
+    rootImport,
+    `$1${JSON.stringify(wrapperModule)}`,
+  );
   writeFileSync(
     path,
-    `import { initVolatoBrowser } from ${JSON.stringify(browserModule)};\ninitVolatoBrowser();\n${original}`,
+    `import { initVolatoBrowser } from ${JSON.stringify(browserModule)};\ninitVolatoBrowser();\n${withWrapper}`,
     "utf8",
   );
   return {
     path,
     status: "updated",
-    detail: "initialized browser capture without changing the Svelte mount",
-  };
-}
-
-function patchSvelteRoot(
-  project: ViteSvelteProjectShape,
-  svelteModule: string,
-): PatchOutcome {
-  const path = project.rootComponentPath;
-  const original = readFileSync(path, "utf8");
-  if (
-    original.includes("captureVolatoSvelteError") &&
-    /<svelte:boundary\s+onerror=\{captureVolatoSvelteError\}>/.test(original)
-  ) {
-    return {
-      path,
-      status: "skipped",
-      detail: "Volato Svelte boundary already composed",
-    };
-  }
-  const { leadingScripts, markup, trailingStyles } = svelteRootParts(original);
-  const importLine = `import { captureVolatoSvelteError } from ${JSON.stringify(svelteModule)};`;
-  const instanceScript = /<script(?![^>]*(?:\bmodule\b|context=["']module["']))[^>]*>/;
-  const scripts = instanceScript.test(leadingScripts)
-    ? leadingScripts.replace(instanceScript, (opening) => `${opening}\n  ${importLine}`)
-    : `<script>\n  ${importLine}\n</script>\n${leadingScripts}`;
-  const next = `${scripts}<svelte:boundary onerror={captureVolatoSvelteError}>\n${markup.trim()}\n</svelte:boundary>\n${trailingStyles.replace(/^\s+/, "")}`;
-  writeFileSync(path, next, "utf8");
-  return {
-    path,
-    status: "updated",
-    detail: "composed a Svelte render/effect boundary around root markup",
+    detail: "initialized browser capture and mounted the generated Svelte boundary wrapper",
   };
 }
 
@@ -117,19 +110,15 @@ export function generateViteSvelteIntegration(
     label: "Svelte",
     runtime: { ts: "svelte.ts", js: "svelte.js" },
     validate: (project) => {
-      svelteRootParts(
+      assertSvelteRoot(
         readFileSync((project as ViteSvelteProjectShape).rootComponentPath, "utf8"),
       );
     },
-    patchEntry: ({ project, runtimeRoot, browserModule }) => {
+    prepareRuntime: ({ project, runtimeRoot }) =>
+      writeSvelteWrapper(project as ViteSvelteProjectShape, runtimeRoot),
+    patchEntry: ({ project, browserModule }) => {
       const svelte = project as ViteSvelteProjectShape;
-      return [
-        patchSvelteEntry(svelte, browserModule),
-        patchSvelteRoot(
-          svelte,
-          browserModulePath(svelte.rootComponentPath, join(runtimeRoot, "svelte")),
-        ),
-      ];
+      return [patchSvelteEntry(svelte, browserModule)];
     },
   });
 }

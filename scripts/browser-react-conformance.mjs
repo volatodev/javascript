@@ -18,14 +18,19 @@ import { chromium } from "playwright";
 import { runtimeMatrix } from "./errors-runtime-matrix.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const scratch = mkdtempSync(join(tmpdir(), "volato-browser-react-matrix-"));
+const scratch = mkdtempSync(join(tmpdir(), "volato-browser-matrix-"));
 const projectId = "00000000-0000-4000-8000-000000000120";
 const authToken = "browser-matrix-agent-token";
 const ingestToken = "browser-matrix-ingest-token";
 const requestedCell = process.argv.find((arg) => arg.startsWith("--cell="))?.slice(7);
+const requestedFamilies = process.argv
+  .find((arg) => arg.startsWith("--family="))
+  ?.slice(9)
+  .split(",");
 const cells = runtimeMatrix.cells.filter(
   (cell) =>
-    cell.family === "browser-react" &&
+    ["browser-react", "browser-vue", "browser-svelte"].includes(cell.family) &&
+    (!requestedFamilies || requestedFamilies.includes(cell.family)) &&
     (!requestedCell || cell.id === requestedCell),
 );
 
@@ -91,16 +96,38 @@ function installPackagedCli() {
   return join(host, "node_modules", ".bin", "volato");
 }
 
-function sourceExtension(cell) {
+function mainExtension(cell) {
+  if (cell.family !== "browser-react") return cell.language;
   return cell.language === "ts" ? "tsx" : "jsx";
+}
+
+function appExtension(cell) {
+  if (cell.family === "browser-vue") return "vue";
+  if (cell.family === "browser-svelte") return "svelte";
+  return mainExtension(cell);
 }
 
 function packageJson(cell) {
   const devDependencies = {
-    "@types/react": cell.react.startsWith("18.") ? "18.3.28" : "19.2.2",
-    "@types/react-dom": cell.react.startsWith("18.") ? "18.3.7" : "19.2.2",
     typescript: runtimeMatrix.versions.typescript[0],
   };
+  const dependencies = {};
+  if (cell.family === "browser-react") {
+    dependencies.react = cell.react;
+    dependencies["react-dom"] = cell.react;
+    devDependencies["@types/react"] = cell.react.startsWith("18.")
+      ? "18.3.28"
+      : "19.2.2";
+    devDependencies["@types/react-dom"] = cell.react.startsWith("18.")
+      ? "18.3.7"
+      : "19.2.2";
+  } else if (cell.family === "browser-vue") {
+    dependencies.vue = cell.vue;
+    devDependencies["@vitejs/plugin-vue"] = cell.adapterPluginVersion;
+  } else {
+    dependencies.svelte = cell.svelte;
+    devDependencies["@sveltejs/vite-plugin-svelte"] = cell.adapterPluginVersion;
+  }
   if (cell.adapter === "vite") {
     devDependencies.vite = cell.adapterVersion;
   } else if (cell.adapter === "webpack") {
@@ -129,12 +156,61 @@ function packageJson(cell) {
             ? `webpack --config ${cell.config}`
             : `rspack build --config ${cell.config}`,
     },
-    dependencies: { react: cell.react, "react-dom": cell.react },
+    dependencies,
     devDependencies,
   };
 }
 
 function appSource(cell) {
+  if (cell.family === "browser-vue") {
+    const lang = cell.language === "ts" ? ' lang="ts"' : "";
+    const returnType = cell.language === "ts" ? ": string" : "";
+    return `<script setup${lang}>
+import { onMounted, ref } from "vue";
+import { captureBrowserError } from "./volato/browser";
+
+const renderFailure = ref(false);
+function renderValue()${returnType} {
+  if (renderFailure.value) throw new Error("render:${cell.id}");
+  return "Volato browser matrix";
+}
+onMounted(() => {
+  void captureBrowserError(new Error("manual:${cell.id}"));
+  window.dispatchEvent(new ErrorEvent("error", { error: new Error("window:${cell.id}") }));
+  void Promise.reject(new Error("rejection:${cell.id}"));
+  setTimeout(() => { renderFailure.value = true; }, 0);
+});
+</script>
+
+<template><main>{{ renderValue() }}</main></template>
+`;
+  }
+  if (cell.family === "browser-svelte") {
+    const lang = cell.language === "ts" ? ' lang="ts"' : "";
+    const returnType = cell.language === "ts" ? ": string" : "";
+    return `<script${lang}>
+  import { onMount } from "svelte";
+  import { captureBrowserError } from "./volato/browser";
+
+  let renderFailure = false;
+  function failRender()${returnType} {
+    throw new Error("render:${cell.id}");
+  }
+  onMount(() => {
+    void captureBrowserError(new Error("manual:${cell.id}"));
+    window.dispatchEvent(new ErrorEvent("error", { error: new Error("window:${cell.id}") }));
+    void Promise.reject(new Error("rejection:${cell.id}"));
+    setTimeout(() => { renderFailure = true; }, 0);
+  });
+</script>
+
+{#if renderFailure}
+  {failRender()}
+{:else}
+  <main>Volato browser matrix</main>
+{/if}
+`;
+  }
   return `import React, { useEffect, useState } from "react";
 import { captureBrowserError } from "./volato/browser";
 
@@ -153,6 +229,21 @@ export default function App() {
 }
 
 function mainSource(cell) {
+  if (cell.family === "browser-vue") {
+    return `import { createApp } from "vue";
+import App from "./App.vue";
+const app = createApp(App);
+app.mount("#app");
+`;
+  }
+  if (cell.family === "browser-svelte") {
+    const assertion = cell.language === "ts" ? "!" : "";
+    return `import { mount } from "svelte";
+import App from "./App.svelte";
+const app = mount(App, { target: document.getElementById("app")${assertion} });
+export default app;
+`;
+  }
   return `import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
@@ -161,8 +252,21 @@ createRoot(document.getElementById("root")${cell.language === "ts" ? "!" : ""}).
 }
 
 function viteConfig(cell) {
-  return `import { defineConfig } from "vite";
+  const pluginImport =
+    cell.family === "browser-vue"
+      ? 'import vue from "@vitejs/plugin-vue";\n'
+      : cell.family === "browser-svelte"
+        ? 'import { svelte } from "@sveltejs/vite-plugin-svelte";\n'
+        : "";
+  const plugins =
+    cell.family === "browser-vue"
+      ? "  plugins: [vue()],\n"
+      : cell.family === "browser-svelte"
+        ? "  plugins: [svelte()],\n"
+        : "";
+  return `${pluginImport}import { defineConfig } from "vite";
 export default defineConfig({
+${plugins}  build: { sourcemap: false },
   base: process.env.VOLATO_CONFORMANCE_BASE === "custom" ? "/nested/" : "/",
 });
 `;
@@ -172,7 +276,7 @@ function webpackConfig(cell) {
   const loader = cell.language === "ts" ? "tsx" : "jsx";
   const object = `{
   mode: "production",
-  entry: "./src/main.${sourceExtension(cell)}",
+  entry: "./src/main.${mainExtension(cell)}",
   output: {
     path: path.resolve(${cell.module === "cjs" ? "__dirname" : 'dirname(fileURLToPath(import.meta.url))'}, "dist"),
     publicPath: process.env.VOLATO_CONFORMANCE_BASE === "custom" ? "/nested/" : "/",
@@ -206,7 +310,7 @@ function rspackConfig(cell) {
   const syntax = cell.language === "ts" ? "typescript" : "ecmascript";
   const object = `{
   mode: "production",
-  entry: "./src/main.${sourceExtension(cell)}",
+  entry: "./src/main.${mainExtension(cell)}",
   output: {
     path: path.resolve(dirname(fileURLToPath(import.meta.url)), "dist"),
     publicPath: process.env.VOLATO_CONFORMANCE_BASE === "custom" ? "/nested/" : "/",
@@ -247,12 +351,14 @@ function writeFixture(root, cell) {
   );
   writeFileSync(
     join(root, "index.html"),
-    '<!doctype html><html><body><div id="root"></div><script type="module" src="/src/main.' +
-      sourceExtension(cell) +
+    '<!doctype html><html><body><div id="' +
+      (cell.family === "browser-react" ? "root" : "app") +
+      '"></div><script type="module" src="/src/main.' +
+      mainExtension(cell) +
       '"></script></body></html>\n',
   );
-  writeFileSync(join(root, "src", `App.${sourceExtension(cell)}`), appSource(cell));
-  writeFileSync(join(root, "src", `main.${sourceExtension(cell)}`), mainSource(cell));
+  writeFileSync(join(root, "src", `App.${appExtension(cell)}`), appSource(cell));
+  writeFileSync(join(root, "src", `main.${mainExtension(cell)}`), mainSource(cell));
   const configSource =
     cell.adapter === "vite"
       ? viteConfig(cell)
@@ -424,7 +530,7 @@ function assertResolvedSource(cell, release, events) {
     column: Number(frame[3]),
   });
   assert(
-    original.source?.endsWith(`src/App.${sourceExtension(cell)}`) &&
+    original.source?.endsWith(`src/App.${appExtension(cell)}`) &&
       typeof original.line === "number",
     `${cell.id} resolved to ${JSON.stringify(original)} instead of App source`,
   );
@@ -481,7 +587,10 @@ async function exerciseBuild(cell, root, scenario, apiOrigin) {
   const events = state.events
     .slice(beforeEvents)
     .filter((event) => String(event.message).endsWith(cell.id));
-  assert(events.length === 4, `${cell.id} ${scenario} emitted ${events.length}/4 events`);
+  assert(
+    events.length === 4,
+    `${cell.id} ${scenario} emitted ${events.length}/4 events: ${events.map((event) => `${event.capturedVia}:${event.message}`).join(", ")}`,
+  );
   assert(
     events.every(
       (event) =>
@@ -530,7 +639,7 @@ try {
     process.stdout.write(`✓ ${index + 1}/${cells.length} ${cell.id}\n`);
   }
   process.stdout.write(
-    `✓ ${cells.length} browser cells passed default/custom builds, four capture surfaces, privacy, private maps, and source resolution\n`,
+    `✓ ${cells.length} browser cells passed default/custom builds, renderer capture, privacy, private maps, and source resolution\n`,
   );
 } finally {
   await new Promise((resolveClose) => api.close(resolveClose));

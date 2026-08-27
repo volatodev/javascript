@@ -49,7 +49,6 @@ export default app;
     join(cwd, "src", "App.svelte"),
     `<script lang="ts">
   let { name }: { name: string } = $props();
-  export const ping = () => name;
 </script>
 
 <h1>Hello {name}</h1>
@@ -72,9 +71,9 @@ afterEach(() => {
 });
 
 describe("Vite + Svelte generated integration", () => {
-  it("wraps root markup while preserving mount props and component exports", () => {
+  it("wraps an export-free root while preserving mount props and source", () => {
     const project = detectErrorsStack(cwd).browserSvelte!;
-    const originalEntry = readFileSync(project.entryPath, "utf8");
+    const originalRoot = readFileSync(project.rootComponentPath, "utf8");
     const result = generateViteSvelteIntegration({
       cwd,
       project,
@@ -83,18 +82,23 @@ describe("Vite + Svelte generated integration", () => {
 
     const entry = readFileSync(project.entryPath, "utf8");
     const app = readFileSync(project.rootComponentPath, "utf8");
+    const wrapper = readFileSync(
+      join(cwd, "src", "volato", "VolatoSvelteRoot.svelte"),
+      "utf8",
+    );
     expect(entry).toContain('import { initVolatoBrowser } from "./volato/browser";');
     expect(entry).toContain("initVolatoBrowser();");
+    expect(entry).toContain('import App from "./volato/VolatoSvelteRoot.svelte";');
     expect(entry).toContain('props: { name: "Ada" }');
     expect(entry).toContain("export default app");
-    expect(entry.replace(/^import \{ initVolatoBrowser \}[^\n]+\ninitVolatoBrowser\(\);\n/, "")).toBe(
-      originalEntry,
+    expect(entry).toContain(
+      'const app = mount(App, {\n  target: document.getElementById("app")!,\n  props: { name: "Ada" },\n});',
     );
-    expect(app).toContain('import { captureVolatoSvelteError } from "./volato/svelte";');
-    expect(app).toContain("export const ping = () => name");
-    expect(app).toContain("<svelte:boundary onerror={captureVolatoSvelteError}>");
-    expect(app.indexOf("<svelte:boundary")).toBeLessThan(app.indexOf("<h1>"));
-    expect(app.indexOf("</svelte:boundary>")).toBeLessThan(app.indexOf("<style>"));
+    expect(app).toBe(originalRoot);
+    expect(wrapper).toContain('import OriginalRoot from "../App.svelte";');
+    expect(wrapper).toContain("let props = $props()");
+    expect(wrapper).toContain("<svelte:boundary onerror={captureVolatoSvelteError}>");
+    expect(wrapper).toContain("<OriginalRoot {...props} />");
 
     const integration = readManifest(cwd)?.integrations[
       ERRORS_BROWSER_SVELTE_INTEGRATION

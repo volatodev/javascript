@@ -368,9 +368,9 @@ function browserShapes(
         "An existing Svelte boundary requires explicit fallback/reset composition; no files were modified.",
       );
     }
-    if (/<svelte:(?:head|window|body|document|options)\b/.test(rootSource)) {
+    if (/\bexport\s+(?:let|const|function|class)\b/.test(rootSource)) {
       throw new ErrorsStackDetectionError(
-        "A root-level Svelte special element requires explicit boundary placement; no files were modified.",
+        "An exported Svelte component API cannot be preserved by the root boundary wrapper; no files were modified.",
       );
     }
     const leadingScripts = /^(?:\s*<script\b[^>]*>[\s\S]*?<\/script>\s*)*/.exec(

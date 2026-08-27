@@ -183,6 +183,7 @@ describe("detectErrorsStack", () => {
     ["SvelteKit", { svelte: "5.56.10", "@sveltejs/kit": "2.48.5" }, 'mount(App, { target })', "<main />", /SvelteKit.*not supported/i],
     ["hydrate", { svelte: "5.56.10" }, 'hydrate(App, { target })', "<main />", /hydrate.*not supported/i],
     ["existing boundary", { svelte: "5.56.10" }, 'mount(App, { target })', "<svelte:boundary><Widget /></svelte:boundary>", /existing Svelte boundary.*no files were modified/i],
+    ["exported component API", { svelte: "5.56.10" }, 'mount(App, { target })', "<script>export const ping = () => true;</script>\n<main />", /exported Svelte component API.*no files were modified/i],
   ])(
     "refuses %s before selecting the Svelte recipe",
     (_label, renderer, mountSource, appSource, expected) => {

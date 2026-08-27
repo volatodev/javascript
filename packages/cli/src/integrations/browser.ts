@@ -40,6 +40,10 @@ export type BrowserRendererRecipe = {
     browserModule: string;
   }) => PatchOutcome[];
   validate?: (project: BrowserProjectShape) => void;
+  prepareRuntime?: (options: {
+    project: BrowserProjectShape;
+    runtimeRoot: string;
+  }) => string[];
 };
 
 function assetsRoot(): string {
@@ -279,6 +283,12 @@ export function generateBrowserIntegration(
     runtimeRoot,
     options.project,
     renderer.runtime,
+  );
+  generatedFiles.push(
+    ...(renderer.prepareRuntime?.({
+      project: options.project,
+      runtimeRoot,
+    }) ?? []),
   );
   const outcomes: PatchOutcome[] = [
     patchEnvValues(

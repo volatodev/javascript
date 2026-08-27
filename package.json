@@ -22,6 +22,7 @@
     "matrix:errors": "node scripts/errors-runtime-matrix.mjs",
     "smoke:nextjs": "pnpm --filter @volatodev/cli build && node scripts/nextjs-conformance.mjs",
     "smoke:browser-react": "pnpm --filter @volatodev/cli build && node scripts/browser-react-conformance.mjs",
+    "smoke:browser-renderers": "pnpm --filter @volatodev/cli build && node scripts/browser-react-conformance.mjs --family=browser-vue,browser-svelte",
     "smoke:express": "pnpm --filter @volatodev/cli build && node scripts/express-conformance.mjs",
     "smoke:node-long-lived": "pnpm --filter @volatodev/cli build && node scripts/node-long-lived-conformance.mjs",
     "smoke:node-invocation": "pnpm --filter @volatodev/cli build && node scripts/node-invocation-conformance.mjs",
