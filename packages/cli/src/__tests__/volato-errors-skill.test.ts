@@ -76,8 +76,8 @@ describe("volato-errors skill contract", () => {
     expect(skill).toMatch(/use the authenticated Volato MCP tools when they are available/);
     expect(skill).toMatch(/otherwise confirm `volato --version` and `volato whoami`/);
     expect(skill).toMatch(/Do not call MCP and CLI for the same evidence/);
-    expect(skill).toMatch(/Status mutations remain explicit CLI commands/);
-    expect(skill).toMatch(/MCP V1 cannot perform them/);
+    expect(skill).toMatch(/Perform the mutation as a separate visible CLI action/);
+    expect(skill).toMatch(/MCP V1 cannot\s+perform status mutations/);
     expect(investigation).toMatch(/replace—not duplicate—the failed MCP read/);
   });
 });
