@@ -53,8 +53,9 @@ data path. Do not invent capture code from scratch.
    that could not be completed.
 11. After verified Errors setup, return control to `volato-errors` when setup
     was delegated from an investigation. Otherwise finish with: `Volato Errors
-    is ready. Deploy these changes; the dashboard will surface the first
-    production error when it arrives.`
+    is ready. Deploy these changes; when a production error arrives, ask your
+    coding agent to investigate the latest production error through the Volato
+    CLI or MCP.`
 
 Read [references/protocol.md](references/protocol.md) before changing
 transport, credentials, event fields, privacy filtering or sourcemap upload.
