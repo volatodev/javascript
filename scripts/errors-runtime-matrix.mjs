@@ -19,6 +19,25 @@ const versions = {
   webpackCli: ["7.2.2"],
   rspack: ["2.2.0"],
   express: ["4.22.2", "5.2.1"],
+  vue: ["3.5.42"],
+  viteVuePlugin: ["6.0.8"],
+  svelte: ["5.56.10"],
+  viteSveltePlugin: {
+    6: "6.2.4",
+    7: "6.2.4",
+    8: "7.3.0",
+  },
+  fastify: ["5.12.1"],
+  nest: ["11.2.3", "12.0.1"],
+  nestCli: ["11.0.24"],
+  nestExpress: {
+    11: "5.2.1",
+    12: "5.2.1",
+  },
+  nestFastify: {
+    11: "5.11.3",
+    12: "5.12.1",
+  },
   typescript: ["5.9.3"],
 };
 
