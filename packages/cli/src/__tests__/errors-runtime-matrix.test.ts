@@ -4,8 +4,16 @@ import { describe, expect, it } from "vitest";
 
 type MatrixCell = {
   id: string;
-  wave: "1B" | "1C" | "1D";
-  family: "browser-react" | "node-long-lived" | "express" | "node-invocation";
+  wave: "1B" | "1C" | "1D" | "2A" | "2B";
+  family:
+    | "browser-react"
+    | "node-long-lived"
+    | "express"
+    | "node-invocation"
+    | "browser-vue"
+    | "browser-svelte"
+    | "fastify"
+    | "nest-http";
   gates: string[];
   [key: string]: unknown;
 };
@@ -122,5 +130,36 @@ describe("Errors JavaScript runtime conformance matrix", () => {
         "12": "5.12.1",
       },
     });
+  });
+
+  it("enumerates every selected framework cell and refusal boundary", () => {
+    const matrix = readMatrix();
+
+    expect(
+      Object.fromEntries(
+        ["browser-vue", "browser-svelte", "fastify", "nest-http"].map(
+          (family) => [
+            family,
+            matrix.cells.filter((cell) => cell.family === family).length,
+          ],
+        ),
+      ),
+    ).toEqual({
+      "browser-vue": 6,
+      "browser-svelte": 6,
+      fastify: 16,
+      "nest-http": 8,
+    });
+    expect(matrix.cells).toHaveLength(108);
+    expect(matrix.refusals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "vue.ssr-or-ambiguous-root" }),
+        expect.objectContaining({ id: "svelte.ssr-or-ambiguous-root" }),
+        expect.objectContaining({ id: "fastify.v4-or-ambiguous-instance" }),
+        expect.objectContaining({ id: "fastify.unsupported-lifecycle" }),
+        expect.objectContaining({ id: "nest.pre-v11-or-non-http" }),
+        expect.objectContaining({ id: "nest.ambiguous-filter-or-application" }),
+      ]),
+    );
   });
 });

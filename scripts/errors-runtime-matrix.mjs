@@ -193,10 +193,123 @@ for (const node of versions.node) {
   }
 }
 
+const browserVueCells = [];
+for (const vite of versions.vite) {
+  const viteMajor = vite.split(".")[0];
+  for (const language of ["ts", "js"]) {
+    browserVueCells.push(
+      withGates({
+        id: `browser.vite${viteMajor}.vue3.${language}`,
+        wave: "2A",
+        family: "browser-vue",
+        adapter: "vite",
+        adapterVersion: vite,
+        adapterPluginVersion: versions.viteVuePlugin[0],
+        vue: versions.vue[0],
+        language,
+        config: language === "ts" ? "vite.config.ts" : "vite.config.js",
+        module: "esm",
+        rootTopology: "clean-create-app",
+        outputTopology: "default-and-custom-base",
+        capture: [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "vue-error-handler",
+        ],
+      }),
+    );
+  }
+}
+
+const browserSvelteCells = [];
+for (const vite of versions.vite) {
+  const viteMajor = vite.split(".")[0];
+  for (const language of ["ts", "js"]) {
+    browserSvelteCells.push(
+      withGates({
+        id: `browser.vite${viteMajor}.svelte5.${language}`,
+        wave: "2A",
+        family: "browser-svelte",
+        adapter: "vite",
+        adapterVersion: vite,
+        adapterPluginVersion: versions.viteSveltePlugin[viteMajor],
+        svelte: versions.svelte[0],
+        language,
+        config: language === "ts" ? "vite.config.ts" : "vite.config.js",
+        module: "esm",
+        rootTopology: "clean-mount",
+        outputTopology: "default-and-custom-base",
+        capture: [
+          "manual",
+          "window-error",
+          "unhandled-rejection",
+          "svelte-boundary",
+        ],
+      }),
+    );
+  }
+}
+
+const fastifyCells = [];
+for (const node of versions.node) {
+  const nodeMajor = node.split(".")[0];
+  for (const language of ["ts", "js"]) {
+    for (const module of ["esm", "cjs"]) {
+      for (const topology of ["same-file", "split-bootstrap"]) {
+        fastifyCells.push(
+          withGates({
+            id: `fastify5.node${nodeMajor}.${language}.${module}.${topology}`,
+            wave: "2B",
+            family: "fastify",
+            fastify: versions.fastify[0],
+            node,
+            language,
+            module,
+            topology,
+            artifact: language === "ts" ? "tsc-sourcemap" : "direct-source",
+            capture: ["sync-route", "async-route", "lifecycle-hook"],
+          }),
+        );
+      }
+    }
+  }
+}
+
+const nestHttpCells = [];
+for (const nest of versions.nest) {
+  const nestMajor = nest.split(".")[0];
+  for (const node of versions.node) {
+    const nodeMajor = node.split(".")[0];
+    for (const transport of ["express", "fastify"]) {
+      nestHttpCells.push(
+        withGates({
+          id: `nest${nestMajor}.node${nodeMajor}.${transport}`,
+          wave: "2B",
+          family: "nest-http",
+          nest,
+          nestCli: versions.nestCli[0],
+          node,
+          language: "ts",
+          module: "cjs",
+          topology: "conventional-main",
+          transport,
+          transportVersion:
+            transport === "express"
+              ? versions.nestExpress[nestMajor]
+              : versions.nestFastify[nestMajor],
+          artifact: "nest-cli-sourcemap",
+          capture: ["controller", "guard", "pipe", "interceptor"],
+        }),
+      );
+    }
+  }
+}
+
 const refusals = [
   {
     id: "browser.non-react-renderer",
-    reason: "Vue, Angular, Svelte and vanilla-browser render capture require their own adapter gates.",
+    reason: "Angular, vanilla-browser and other renderers require their own adapter gates.",
   },
   {
     id: "browser.dynamic-build-config",
@@ -230,6 +343,30 @@ const refusals = [
     id: "provider-presets",
     reason: "AWS Lambda, Vercel, Netlify, Google Cloud and Azure remain candidate presets until each lifecycle is independently conformed.",
   },
+  {
+    id: "vue.ssr-or-ambiguous-root",
+    reason: "Vue SSR, Nuxt, multiple roots and dynamic createApp composition are outside the Vite client promise.",
+  },
+  {
+    id: "svelte.ssr-or-ambiguous-root",
+    reason: "SvelteKit, SSR, hydration, multiple roots and dynamic mount composition are outside the Vite client promise.",
+  },
+  {
+    id: "fastify.v4-or-ambiguous-instance",
+    reason: "Fastify 4 is end-of-life and multiple or dynamic Fastify instances are not mutated automatically.",
+  },
+  {
+    id: "fastify.unsupported-lifecycle",
+    reason: "WebSockets, HTTP/2-specific behaviour, streaming, SSE and serverless completion require separate lifecycle gates.",
+  },
+  {
+    id: "nest.pre-v11-or-non-http",
+    reason: "Nest versions before 11 and GraphQL, gateways, microservices, hybrid or standalone application contexts are outside the HTTP promise.",
+  },
+  {
+    id: "nest.ambiguous-filter-or-application",
+    reason: "Multiple applications, custom HTTP adapters and non-composable exception filters require an exact manual outcome before any mutation.",
+  },
 ];
 
 export const runtimeMatrix = {
@@ -241,6 +378,10 @@ export const runtimeMatrix = {
     ...longLivedNodeCells,
     ...expressCells,
     ...invocationCells,
+    ...browserVueCells,
+    ...browserSvelteCells,
+    ...fastifyCells,
+    ...nestHttpCells,
   ],
   refusals,
 };
