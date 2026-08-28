@@ -32,6 +32,7 @@ function selectedSkills(cwd: string): readonly string[] {
     if (stack.angular) selected.push("volato-angular");
     if (stack.fastapi) selected.push("volato-fastapi");
     if (stack.nuxt) selected.push("volato-nuxt");
+    if (stack.sveltekit) selected.push("volato-sveltekit");
   } catch {
     // Generic skill installation must remain available in unsupported or
     // partially configured repositories. Exact detection reports the refusal

@@ -14,6 +14,7 @@ import {
   ERRORS_BROWSER_VUE_INTEGRATION,
   ERRORS_NEXTJS_INTEGRATION,
   ERRORS_NUXT_INTEGRATION,
+  ERRORS_SVELTEKIT_INTEGRATION,
   ERRORS_NODE_FASTIFY_INTEGRATION,
   ERRORS_NODE_NESTJS_INTEGRATION,
   linkProject,
@@ -78,6 +79,7 @@ describe("integration manifest", () => {
     ERRORS_NODE_FASTIFY_INTEGRATION,
     ERRORS_NODE_NESTJS_INTEGRATION,
     ERRORS_NUXT_INTEGRATION,
+    ERRORS_SVELTEKIT_INTEGRATION,
   ])("persists the bounded %s adapter identity", (integrationId) => {
     linkedManifest();
     const runtime = join(cwd, `${integrationId}.ts`);

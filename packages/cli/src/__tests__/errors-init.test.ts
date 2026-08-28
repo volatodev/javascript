@@ -302,6 +302,61 @@ describe("volato errors init", () => {
     expect(output).toContain("Svelte render error");
   });
 
+  it("installs and reports the exact private SvelteKit application", async () => {
+    rmSync(join(cwd, "app"), { recursive: true, force: true });
+    rmSync(join(cwd, "next.config.ts"), { force: true });
+    mkdirSync(join(cwd, "src", "routes"), { recursive: true });
+    writeFileSync(join(cwd, ".node-version"), "24.19.0\n");
+    writeFileSync(join(cwd, "src", "routes", "+page.svelte"), "<h1>Ready</h1>\n");
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "sveltekit-fixture",
+        type: "module",
+        engines: { node: "24.19.0" },
+        scripts: { build: "vite build" },
+        dependencies: {
+          svelte: "5.56.10",
+          "@sveltejs/kit": "2.70.3",
+          "@sveltejs/adapter-node": "5.5.7",
+          "@sveltejs/vite-plugin-svelte": "7.3.0",
+          vite: "8.2.2",
+        },
+      })}\n`,
+    );
+    writeFileSync(
+      join(cwd, "vite.config.ts"),
+      "import adapter from '@sveltejs/adapter-node';\nimport { sveltekit } from '@sveltejs/kit/vite';\nimport { defineConfig } from 'vite';\nexport default defineConfig({ plugins: [sveltekit({ adapter: adapter() })] });\n",
+    );
+    for (const [name, version] of [
+      ["svelte", "5.56.10"],
+      ["@sveltejs/kit", "2.70.3"],
+      ["@sveltejs/adapter-node", "5.5.7"],
+      ["@sveltejs/vite-plugin-svelte", "7.3.0"],
+      ["vite", "8.2.2"],
+    ] as const) {
+      const root = join(cwd, "node_modules", ...name.split("/"));
+      mkdirSync(root, { recursive: true });
+      writeFileSync(join(root, "package.json"), JSON.stringify({ name, version }));
+    }
+
+    await runErrorsInit({ cwd, nonInteractive: true });
+
+    expect(reportIntegrationInstalled).toHaveBeenCalledWith(
+      "11111111-1111-4111-8111-111111111111",
+      "errors-sveltekit",
+    );
+    expect(readFileSync(join(cwd, "src", "hooks.client.ts"), "utf8")).toContain(
+      "createVolatoSvelteKitClientHandleError",
+    );
+    expect(readFileSync(join(cwd, "src", "hooks.server.ts"), "utf8")).toContain(
+      "createVolatoSvelteKitServerHandleError",
+    );
+    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    expect(output).toContain("SvelteKit browser + adapter-node");
+    expect(output).toContain("SvelteKit/adapter-node");
+  });
+
   it("installs and reports a conventional Fastify 5 server", async () => {
     rmSync(join(cwd, "app"), { recursive: true, force: true });
     rmSync(join(cwd, "next.config.ts"), { force: true });

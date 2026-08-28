@@ -33,6 +33,10 @@ data path. Do not invent capture code from scratch.
    - Private Nuxt 4.5.2 SSR calibration on the exact Vite + Nitro node-server
      tuple: follow `volato-nuxt`, retain its private/publication boundary, and
      never fall back to the Vite + Vue SPA skill after a Nuxt refusal.
+   - Private SvelteKit 2.70.3 full-stack calibration on the exact official
+     adapter-node tuple: follow `volato-sveltekit`, retain its private/publication
+     boundary, and never fall back to the Vite + Svelte SPA skill after a
+     SvelteKit refusal.
 
    Inspect a repository's frontend and backend independently; one repository
    may need one browser renderer skill plus one Node HTTP skill. NestJS owns

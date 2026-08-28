@@ -294,4 +294,55 @@ describe("installSkills", () => {
       ),
     ).toBe("private-nuxt");
   });
+
+  it("installs the private SvelteKit skill only for the exact adapter-node tuple", () => {
+    addSkill("volato-sveltekit", "private-sveltekit");
+    mkdirSync(join(cwd, "src", "routes"), { recursive: true });
+    writeFileSync(join(cwd, "src", "routes", "+page.svelte"), "<h1>Ready</h1>\n");
+    writeFileSync(join(cwd, ".node-version"), "24.19.0\n");
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "sveltekit-private-fixture",
+        type: "module",
+        engines: { node: "24.19.0" },
+        scripts: { build: "vite build" },
+        dependencies: {
+          svelte: "5.56.10",
+          "@sveltejs/kit": "2.70.3",
+          "@sveltejs/adapter-node": "5.5.7",
+          "@sveltejs/vite-plugin-svelte": "7.3.0",
+          vite: "8.2.2",
+        },
+      })}\n`,
+    );
+    writeFileSync(
+      join(cwd, "vite.config.ts"),
+      "import adapter from '@sveltejs/adapter-node';\nimport { sveltekit } from '@sveltejs/kit/vite';\nimport { defineConfig } from 'vite';\nexport default defineConfig({ plugins: [sveltekit({ adapter: adapter() })] });\n",
+    );
+    for (const [name, version] of [
+      ["svelte", "5.56.10"],
+      ["@sveltejs/kit", "2.70.3"],
+      ["@sveltejs/adapter-node", "5.5.7"],
+      ["@sveltejs/vite-plugin-svelte", "7.3.0"],
+      ["vite", "8.2.2"],
+    ] as const) {
+      const root = join(cwd, "node_modules", ...name.split("/"));
+      mkdirSync(root, { recursive: true });
+      writeFileSync(join(root, "package.json"), JSON.stringify({ name, version }));
+    }
+
+    const outcomes = installSkills({ cwd, sourceRoot });
+
+    expect(outcomes.at(-1)).toMatchObject({
+      skill: "volato-sveltekit",
+      status: "created",
+    });
+    expect(
+      readFileSync(
+        join(cwd, ".agents", "skills", "volato-sveltekit", "SKILL.md"),
+        "utf8",
+      ),
+    ).toBe("private-sveltekit");
+  });
 });

@@ -21,6 +21,7 @@ describe("framework integration skill contracts", () => {
     ["volato-nestjs", "NestJS 11/12 HTTP"],
     ["volato-angular", "Angular 20/21/22"],
     ["volato-fastapi", "FastAPI 0.141"],
+    ["volato-sveltekit", "SvelteKit 2.70.3"],
   ])("ships %s as a discoverable bounded skill", (name, scope) => {
     const source = skill(name);
     const metadata = source.slice(0, source.indexOf("---", 4));
@@ -61,6 +62,7 @@ describe("framework integration skill contracts", () => {
     const nest = skill("volato-nestjs");
     const angular = skill("volato-angular");
     const fastapi = skill("volato-fastapi");
+    const sveltekit = skill("volato-sveltekit");
 
     expect(vue).toMatch(/component instance/i);
     expect(vue).toMatch(/Vue 2|Nuxt/);
@@ -82,5 +84,11 @@ describe("framework integration skill contracts", () => {
     expect(fastapi).toMatch(/body.*cookies.*authorization.*query/is);
     expect(setup).toContain("`volato-fastapi`");
     expect(cliReadme).not.toContain("`volato-fastapi`");
+    expect(sveltekit).toMatch(/private SvelteKit candidate/i);
+    expect(sveltekit).toMatch(/handleError.*return value/is);
+    expect(sveltekit).toMatch(/expected.*error.*emit nothing/is);
+    expect(sveltekit).toMatch(/service workers.*remote functions.*prerender/is);
+    expect(setup).toContain("`volato-sveltekit`");
+    expect(cliReadme).not.toContain("`volato-sveltekit`");
   });
 });
