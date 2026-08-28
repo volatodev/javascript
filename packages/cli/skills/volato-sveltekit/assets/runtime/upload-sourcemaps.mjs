@@ -92,6 +92,9 @@ const entries = [
     .sort()
     .map((path) => ({ path, family: "intermediate-server" })),
 ];
+const cleanupPaths = [
+  ...new Set([...mapsUnder("build"), ...mapsUnder(join(".svelte-kit", "output"))]),
+];
 const identity = releaseIdentity();
 const dirty = Boolean(
   identity.release && identity.inferredFromGit && !gitWorktreeIsClean(),
@@ -132,7 +135,7 @@ try {
     uploaded += 1;
   }
 } finally {
-  for (const { path } of entries) rmSync(path, { force: true });
+  for (const path of cleanupPaths) rmSync(path, { force: true });
 }
 
 if (entries.length > 0 && dirty) {

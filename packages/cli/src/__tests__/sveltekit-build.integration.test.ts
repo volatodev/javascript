@@ -67,6 +67,8 @@ function writeMaps(): string[] {
     join(cwd, "build", "client", "_app", "immutable", "chunks", "app.ABCD1234.js.map"),
     join(cwd, "build", "server", "chunks", "entries", "pages", "boom", "_page.server.ts.XYZ98765.js.map"),
     join(cwd, ".svelte-kit", "output", "server", "entries", "pages", "boom", "_page.server.ts.js.map"),
+    join(cwd, "build", "index.js.map"),
+    join(cwd, ".svelte-kit", "output", "client", "_app", "duplicate.ABCD1234.js.map"),
   ];
   for (const [index, path] of maps.entries()) {
     mkdirSync(dirname(path), { recursive: true });
@@ -76,7 +78,7 @@ function writeMaps(): string[] {
         version: 3,
         file: path.split("/").at(-1)?.replace(/\.map$/, ""),
         sources: [
-          index === 0
+          index === 0 || index === 4
             ? "../../../../src/routes/+page.svelte"
             : index === 1
               ? "../../../../../../.svelte-kit/output/server/entries/pages/boom/_page.server.ts.js"
