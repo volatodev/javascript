@@ -24,6 +24,8 @@ const groupId = "00000000-0000-4000-8000-000000000241";
 const authToken = "nuxt-calibration-workspace-token";
 const ingestToken = "nuxt-calibration-ingest-token";
 const requestedCell = process.argv.find((arg) => arg.startsWith("--cell="))?.slice(7);
+const exactNode =
+  process.argv.includes("--exact-node") || process.env.VOLATO_NUXT_EXACT_NODE === "1";
 const cells = runtimeMatrix.cells.filter(
   (cell) =>
     cell.family === "nuxt-nitro" &&
@@ -423,6 +425,66 @@ async function startNuxt(root, env) {
   throw new Error(`Nuxt server did not start\n${logs}`);
 }
 
+function exactNodeContainerArgs(root, cell, env, command) {
+  const workspace = resolve(root, "..", "..");
+  const containerRoot = `/workspace/apps/${basename(root)}`;
+  return [
+    "run",
+    "--rm",
+    "--network",
+    "host",
+    "--user",
+    `${process.getuid?.() ?? 1000}:${process.getgid?.() ?? 1000}`,
+    "--volume",
+    `${workspace}:/workspace`,
+    "--workdir",
+    containerRoot,
+    "--env",
+    "HOME=/tmp",
+    ...Object.entries(env).flatMap(([key, value]) => ["--env", `${key}=${value}`]),
+    `node:${cell.node}-bookworm-slim`,
+    ...command,
+  ];
+}
+
+async function buildCell(root, cell, env) {
+  if (!exactNode) return run("pnpm", ["build"], { cwd: root, env });
+  return run(
+    "docker",
+    exactNodeContainerArgs(root, cell, env, ["npm", "run", "build"]),
+  );
+}
+
+async function startCell(root, cell, env) {
+  if (!exactNode) return startNuxt(root, env);
+  const port = await availablePort();
+  const child = spawn(
+    "docker",
+    exactNodeContainerArgs(
+      root,
+      cell,
+      { ...env, HOST: "127.0.0.1", PORT: String(port) },
+      ["node", ".output/server/index.mjs"],
+    ),
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  let logs = "";
+  child.stdout.on("data", (chunk) => (logs += chunk));
+  child.stderr.on("data", (chunk) => (logs += chunk));
+  const origin = `http://127.0.0.1:${port}`;
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    if (child.exitCode !== null) throw new Error(`Nuxt container exited early\n${logs}`);
+    try {
+      const response = await fetch(`${origin}/__nuxt_ready__`);
+      if (response.status > 0) return { child, origin, logs: () => logs };
+    } catch {}
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+  }
+  child.kill("SIGTERM");
+  throw new Error(`Nuxt container did not start\n${logs}`);
+}
+
 async function stopChild(child) {
   if (child.exitCode !== null) return;
   child.kill("SIGTERM");
@@ -478,13 +540,10 @@ async function exerciseCell(cli, root, cell, apiOrigin) {
     existsSync(join(root, ".agents", "skills", "volato-nuxt", "SKILL.md")),
     `${cell.id} did not select the private Nuxt skill`,
   );
-  await run("pnpm", ["build"], {
-    cwd: root,
-    env: {
-      VOLATO_DSN: `${apiOrigin.replace("http://", "http://public@")}/${projectId}`,
-      VOLATO_INGEST_TOKEN: ingestToken,
-      VOLATO_RELEASE: release,
-    },
+  await buildCell(root, cell, {
+    VOLATO_DSN: `${apiOrigin.replace("http://", "http://public@")}/${projectId}`,
+    VOLATO_INGEST_TOKEN: ingestToken,
+    VOLATO_RELEASE: release,
   });
   const maps = state.maps.slice(mapStart);
   assert(maps.length > 1, `${cell.id} uploaded neither client nor server maps`);
@@ -507,7 +566,7 @@ async function exerciseCell(cli, root, cell, apiOrigin) {
     `${cell.id} left deployable sourcemaps`,
   );
 
-  const runtime = await startNuxt(root, {
+  const runtime = await startCell(root, cell, {
     VOLATO_DSN: `${apiOrigin.replace("http://", "http://public@")}/${projectId}`,
     VOLATO_RELEASE: release,
   });
@@ -683,6 +742,11 @@ try {
   writeFileSync(join(workspace, "package.json"), '{"name":"nuxt-calibration","private":true}\n');
   for (const cell of cells) writeFixture(join(workspace, "apps", cell.id), cell);
   await run("pnpm", ["install"], { cwd: workspace });
+  if (exactNode) {
+    for (const node of [...new Set(cells.map((cell) => cell.node))]) {
+      await run("docker", ["pull", `node:${node}-bookworm-slim`]);
+    }
+  }
   const cli = installPackagedCli();
   const apiOrigin = `http://127.0.0.1:${api.address().port}`;
   for (const [index, cell] of cells.entries()) {
@@ -694,7 +758,7 @@ try {
     "Nuxt integration activation was not reported after both convergent setup runs",
   );
   process.stdout.write(
-    `✓ ${cells.length} private Nuxt cells passed packed detection, convergent generation, production build, browser/SSR/Nitro capture, handled-error silence, privacy, lifecycle, client/server source resolution and CLI retrieval\n`,
+    `✓ ${cells.length} private Nuxt cells passed packed detection, convergent generation, ${exactNode ? "exact-Node " : ""}production build, browser/SSR/Nitro capture, handled-error silence, privacy, lifecycle, client/server source resolution and CLI retrieval\n`,
   );
 } catch (error) {
   keepScratch = true;
