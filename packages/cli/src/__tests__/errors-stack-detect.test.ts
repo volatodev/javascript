@@ -73,6 +73,47 @@ function writeNuxtFixture(
   }
 }
 
+function writeSvelteKitFixture(
+  config = "vite.config.ts",
+  node = "24.19.0",
+  source = [
+    "import adapter from '@sveltejs/adapter-node';",
+    "import { sveltekit } from '@sveltejs/kit/vite';",
+    "import { defineConfig } from 'vite';",
+    "export default defineConfig({ plugins: [sveltekit({ adapter: adapter() })] });",
+    "",
+  ].join("\n"),
+): void {
+  writePackage(
+    cwd,
+    {
+      svelte: "5.56.10",
+      "@sveltejs/kit": "2.70.3",
+      "@sveltejs/adapter-node": "5.5.7",
+      "@sveltejs/vite-plugin-svelte": "7.3.0",
+      vite: "8.2.2",
+    },
+    {
+      type: "module",
+      engines: { node },
+      scripts: { build: "vite build" },
+    },
+  );
+  writeFileSync(join(cwd, ".node-version"), `${node}\n`);
+  mkdirSync(join(cwd, "src", "routes"), { recursive: true });
+  writeFileSync(join(cwd, "src", "routes", "+page.svelte"), "<h1>Ready</h1>\n");
+  writeFileSync(join(cwd, config), source);
+  for (const [name, version] of [
+    ["svelte", "5.56.10"],
+    ["@sveltejs/kit", "2.70.3"],
+    ["@sveltejs/adapter-node", "5.5.7"],
+    ["@sveltejs/vite-plugin-svelte", "7.3.0"],
+    ["vite", "8.2.2"],
+  ] as const) {
+    writeInstalledPackage(name, version);
+  }
+}
+
 function snapshot(root: string): Record<string, string> {
   const entries: Record<string, string> = {};
   const visit = (directory: string): void => {
@@ -98,6 +139,145 @@ afterEach(() => {
 });
 
 describe("detectErrorsStack", () => {
+  it.each([
+    ["vite.config.ts", "ts", "22.23.2"],
+    ["vite.config.js", "js", "24.19.0"],
+  ] as const)(
+    "selects the private SvelteKit recipe before Vite + Svelte for %s",
+    (config, language, node) => {
+      writeSvelteKitFixture(config, node);
+
+      const result = detectErrorsStack(cwd);
+
+      expect(result.sveltekit).toEqual({
+        cwd,
+        configPath: join(cwd, config),
+        language,
+        nodeVersion: node,
+        svelteVersion: "5.56.10",
+        kitVersion: "2.70.3",
+        adapterNodeVersion: "5.5.7",
+        vitePluginVersion: "7.3.0",
+        viteVersion: "8.2.2",
+        clientHooksPath: join(cwd, "src", `hooks.client.${language}`),
+        serverHooksPath: join(cwd, "src", `hooks.server.${language}`),
+        outputRoot: join(cwd, "build"),
+        intermediateOutputRoot: join(cwd, ".svelte-kit", "output"),
+      });
+      expect(result.browserSvelte).toBeUndefined();
+      expect(result.node).toBeUndefined();
+    },
+  );
+
+  it.each([
+    [
+      "SvelteKit version drift",
+      () => {
+        writeSvelteKitFixture();
+        const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+        pkg.dependencies["@sveltejs/kit"] = "2.69.0";
+        writeFileSync(join(cwd, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+      },
+      /SvelteKit 2\.69\.0.*frozen 2\.70\.3 calibration.*no files were modified/i,
+    ],
+    [
+      "installed adapter drift",
+      () => {
+        writeSvelteKitFixture();
+        writeInstalledPackage("@sveltejs/adapter-node", "5.6.0");
+      },
+      /adapter-node 5\.6\.0.*requires 5\.5\.7.*no files were modified/i,
+    ],
+    [
+      "adapter-auto",
+      () => {
+        writeSvelteKitFixture();
+        const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+        delete pkg.dependencies["@sveltejs/adapter-node"];
+        pkg.dependencies["@sveltejs/adapter-auto"] = "6.1.0";
+        writeFileSync(join(cwd, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+      },
+      /official adapter-node.*adapter-auto.*no files were modified/i,
+    ],
+    [
+      "adapter options",
+      () => writeSvelteKitFixture(
+        "vite.config.ts",
+        "24.19.0",
+        "import adapter from '@sveltejs/adapter-node';\nimport { sveltekit } from '@sveltejs/kit/vite';\nimport { defineConfig } from 'vite';\nexport default defineConfig({ plugins: [sveltekit({ adapter: adapter({ out: 'dist' }) })] });\n",
+      ),
+      /optionless adapter-node.*no files were modified/i,
+    ],
+    [
+      "legacy Svelte config",
+      () => {
+        writeSvelteKitFixture();
+        writeFileSync(join(cwd, "svelte.config.js"), "export default {};\n");
+      },
+      /legacy svelte\.config.*no files were modified/i,
+    ],
+    [
+      "dynamic Vite config",
+      () => writeSvelteKitFixture(
+        "vite.config.ts",
+        "24.19.0",
+        "import adapter from '@sveltejs/adapter-node';\nimport { sveltekit } from '@sveltejs/kit/vite';\nimport { defineConfig } from 'vite';\nconst config = { plugins: [sveltekit({ adapter: adapter() })] };\nexport default defineConfig(config);\n",
+      ),
+      /one static defineConfig object.*no files were modified/i,
+    ],
+    [
+      "SSR disabled",
+      () => writeSvelteKitFixture(
+        "vite.config.ts",
+        "24.19.0",
+        "import adapter from '@sveltejs/adapter-node';\nimport { sveltekit } from '@sveltejs/kit/vite';\nimport { defineConfig } from 'vite';\nexport default defineConfig({ plugins: [sveltekit({ adapter: adapter(), ssr: false })] });\n",
+      ),
+      /ssr: false.*outside.*no files were modified/i,
+    ],
+    [
+      "experimental rendering handler",
+      () => writeSvelteKitFixture(
+        "vite.config.ts",
+        "24.19.0",
+        "import adapter from '@sveltejs/adapter-node';\nimport { sveltekit } from '@sveltejs/kit/vite';\nimport { defineConfig } from 'vite';\nexport default defineConfig({ plugins: [sveltekit({ adapter: adapter(), experimental: { handleRenderingErrors: true } })] });\n",
+      ),
+      /handleRenderingErrors.*outside.*no files were modified/i,
+    ],
+    [
+      "service worker",
+      () => {
+        writeSvelteKitFixture();
+        writeFileSync(join(cwd, "src", "service-worker.ts"), "self.addEventListener('install', () => {});\n");
+      },
+      /service workers.*outside.*no files were modified/i,
+    ],
+    [
+      "remote function",
+      () => {
+        writeSvelteKitFixture();
+        writeFileSync(join(cwd, "src", "account.remote.ts"), "export const account = {};\n");
+      },
+      /remote functions.*outside.*no files were modified/i,
+    ],
+    [
+      "Bun runtime marker",
+      () => {
+        writeSvelteKitFixture();
+        writeFileSync(join(cwd, "bun.lock"), "");
+      },
+      /Bun and Deno.*outside.*no files were modified/i,
+    ],
+  ] as const)(
+    "refuses %s before falling back to the Svelte SPA recipe",
+    (_label, arrange, expected) => {
+      arrange();
+      const before = snapshot(cwd);
+
+      expect(() => detectErrorsStack(cwd)).toThrowError(expected);
+      expect(snapshot(cwd)).toEqual(before);
+    },
+  );
+
   it.each([
     ["nuxt.config.ts", "ts", "22.23.2"],
     ["nuxt.config.js", "js", "24.19.0"],

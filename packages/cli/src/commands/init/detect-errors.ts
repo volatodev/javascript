@@ -80,6 +80,22 @@ export type NuxtProjectShape = {
   outputRoot: string;
 };
 
+export type SvelteKitProjectShape = {
+  cwd: string;
+  configPath: string;
+  language: SourceLanguage;
+  nodeVersion: "22.23.2" | "24.19.0";
+  svelteVersion: "5.56.10";
+  kitVersion: "2.70.3";
+  adapterNodeVersion: "5.5.7";
+  vitePluginVersion: "7.3.0";
+  viteVersion: "8.2.2";
+  clientHooksPath: string;
+  serverHooksPath: string;
+  outputRoot: string;
+  intermediateOutputRoot: string;
+};
+
 export type NodeProjectShape = {
   cwd: string;
   entryPath: string;
@@ -125,6 +141,7 @@ export type ErrorsStackShape = {
   cwd: string;
   nextjs?: ProjectShape;
   nuxt?: NuxtProjectShape;
+  sveltekit?: SvelteKitProjectShape;
   browserReact?: BrowserReactProjectShape;
   viteReact?: ViteReactProjectShape;
   browserVue?: ViteVueProjectShape;
@@ -201,6 +218,18 @@ const NUXT_NODE_VERSIONS = ["22.23.2", "24.19.0"] as const;
 const NUXT_BUILD_COMMAND = "nuxt build";
 const NUXT_GENERATED_BUILD_COMMAND =
   "nuxt build && node volato-nuxt/upload-sourcemaps.mjs .output";
+
+const SVELTEKIT_DEPENDENCIES = {
+  svelte: "5.56.10",
+  "@sveltejs/kit": "2.70.3",
+  "@sveltejs/adapter-node": "5.5.7",
+  "@sveltejs/vite-plugin-svelte": "7.3.0",
+  vite: "8.2.2",
+} as const;
+const SVELTEKIT_NODE_VERSIONS = ["22.23.2", "24.19.0"] as const;
+const SVELTEKIT_BUILD_COMMAND = "vite build";
+const SVELTEKIT_GENERATED_BUILD_COMMAND =
+  "vite build && node volato-sveltekit/upload-sourcemaps.mjs";
 
 function packageVersion(path: string): string | null {
   try {
@@ -492,6 +521,263 @@ function nuxtShape(
     vueVersion: installed.vue,
     viteVersion: installed.vite,
     outputRoot: join(cwd, ".output"),
+  };
+}
+
+function exactSvelteKitRuntimeVersions(
+  cwd: string,
+): typeof SVELTEKIT_DEPENDENCIES {
+  const rootRequire = createRequire(join(cwd, "package.json"));
+  const labels: Record<keyof typeof SVELTEKIT_DEPENDENCIES, string> = {
+    svelte: "Svelte",
+    "@sveltejs/kit": "SvelteKit",
+    "@sveltejs/adapter-node": "adapter-node",
+    "@sveltejs/vite-plugin-svelte": "Svelte Vite plugin",
+    vite: "Vite",
+  };
+  for (const [name, expected] of Object.entries(
+    SVELTEKIT_DEPENDENCIES,
+  ) as Array<[keyof typeof SVELTEKIT_DEPENDENCIES, string]>) {
+    const actual = resolvePackageVersion(rootRequire, name)?.version;
+    if (actual !== expected) {
+      throw new ErrorsStackDetectionError(
+        `${labels[name]} ${actual ?? "could not be resolved"} is outside the private SvelteKit calibration, which requires ${expected}; install the exact application dependencies and no files were modified.`,
+      );
+    }
+  }
+  return SVELTEKIT_DEPENDENCIES;
+}
+
+function svelteKitSourceFiles(root: string): string[] {
+  if (!existsSync(root) || !statSync(root).isDirectory()) return [];
+  return readdirSync(root).flatMap((name) => {
+    const path = join(root, name);
+    if (statSync(path).isDirectory()) return svelteKitSourceFiles(path);
+    return [path];
+  });
+}
+
+function svelteKitShape(
+  cwd: string,
+  pkg: PackageJson,
+  deps: Record<string, string>,
+): SvelteKitProjectShape {
+  const kit = deps["@sveltejs/kit"];
+  if (kit !== SVELTEKIT_DEPENDENCIES["@sveltejs/kit"]) {
+    throw new ErrorsStackDetectionError(
+      `SvelteKit ${kit ?? "unknown"} is not supported by the frozen 2.70.3 calibration; pin SvelteKit exactly and no files were modified.`,
+    );
+  }
+  if (
+    deps["@sveltejs/adapter-auto"] ||
+    deps["@sveltejs/adapter-static"] ||
+    !deps["@sveltejs/adapter-node"]
+  ) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit calibration requires the official adapter-node and refuses adapter-auto, static, provider and custom adapters; no files were modified.",
+    );
+  }
+  for (const [name, expected] of Object.entries(
+    SVELTEKIT_DEPENDENCIES,
+  ) as Array<[keyof typeof SVELTEKIT_DEPENDENCIES, string]>) {
+    const declared = deps[name];
+    if (declared !== expected) {
+      const label =
+        name === "@sveltejs/adapter-node"
+          ? "adapter-node"
+          : name === "@sveltejs/vite-plugin-svelte"
+            ? "Svelte Vite plugin"
+            : name === "@sveltejs/kit"
+              ? "SvelteKit"
+              : name[0]!.toUpperCase() + name.slice(1);
+      throw new ErrorsStackDetectionError(
+        `${label} ${declared ?? "unknown"} is outside the private SvelteKit calibration, which requires ${expected}; no files were modified.`,
+      );
+    }
+  }
+  if (
+    ["bun.lock", "bun.lockb", "deno.json", "deno.jsonc"].some((name) =>
+      existsSync(join(cwd, name)),
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit Bun and Deno runtimes are outside the long-lived Node calibration; no files were modified.",
+    );
+  }
+  if (pkg.type !== "module") {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit calibration requires a package with type: module; CommonJS was not modified.",
+    );
+  }
+  if (pkg.workspaces) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit monorepo and multi-application roots are outside the private calibration; run from one conventional application root and no files were modified.",
+    );
+  }
+
+  const nodeVersion = existsSync(join(cwd, ".node-version"))
+    ? readFileSync(join(cwd, ".node-version"), "utf8").trim()
+    : "";
+  if (!(SVELTEKIT_NODE_VERSIONS as readonly string[]).includes(nodeVersion)) {
+    throw new ErrorsStackDetectionError(
+      `Node ${nodeVersion || "unknown"} is outside the private SvelteKit calibration; .node-version must be exactly 22.23.2 or 24.19.0 and no files were modified.`,
+    );
+  }
+  const engines =
+    pkg.engines && typeof pkg.engines === "object" && !Array.isArray(pkg.engines)
+      ? (pkg.engines as Record<string, unknown>)
+      : null;
+  if (engines?.node !== nodeVersion) {
+    throw new ErrorsStackDetectionError(
+      `SvelteKit calibration requires package.json engines.node = ${JSON.stringify(nodeVersion)} to match .node-version exactly; no files were modified.`,
+    );
+  }
+  const scripts =
+    pkg.scripts && typeof pkg.scripts === "object" && !Array.isArray(pkg.scripts)
+      ? (pkg.scripts as Record<string, unknown>)
+      : null;
+  if (
+    scripts?.build !== SVELTEKIT_BUILD_COMMAND &&
+    scripts?.build !== SVELTEKIT_GENERATED_BUILD_COMMAND
+  ) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit calibration requires the conventional `vite build` production command; custom build and deployment commands were not modified.",
+    );
+  }
+
+  const supportedConfigs = ["vite.config.ts", "vite.config.js"].filter((name) =>
+    existsSync(join(cwd, name)),
+  );
+  const unsupportedConfigs = [
+    "vite.config.mts",
+    "vite.config.mjs",
+    "vite.config.cts",
+    "vite.config.cjs",
+  ].filter((name) => existsSync(join(cwd, name)));
+  const legacyConfigs = [
+    "svelte.config.ts",
+    "svelte.config.js",
+    "svelte.config.mjs",
+    "svelte.config.cjs",
+  ].filter((name) => existsSync(join(cwd, name)));
+  if (legacyConfigs.length > 0) {
+    throw new ErrorsStackDetectionError(
+      `SvelteKit legacy svelte.config authority (${legacyConfigs.join(", ")}) is outside the inline Vite calibration; no files were modified.`,
+    );
+  }
+  if (supportedConfigs.length !== 1 || unsupportedConfigs.length > 0) {
+    const found = [...supportedConfigs, ...unsupportedConfigs];
+    throw new ErrorsStackDetectionError(
+      `${found.length === 0 ? "No" : `Multiple or unsupported (${found.join(", ")})`} SvelteKit Vite config was detected; exactly one vite.config.ts or vite.config.js is required and no files were modified.`,
+    );
+  }
+  const configName = supportedConfigs[0]!;
+  const configPath = join(cwd, configName);
+  const source = readFileSync(configPath, "utf8");
+  const staticConfig =
+    /export\s+default\s+defineConfig\(\s*(?:withVolatoSvelteKit\(\s*)?\{[\s\S]*\}\s*(?:\)\s*)?\)\s*;?\s*$/.test(
+      source,
+    );
+  if (
+    (source.match(/\bexport\s+default\b/g) ?? []).length !== 1 ||
+    !staticConfig
+  ) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit calibration requires one static defineConfig object export; dynamic configuration was not modified and no files were modified.",
+    );
+  }
+  if (!/from\s*["']@sveltejs\/adapter-node["']/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit calibration requires the official adapter-node import; custom adapters were not modified and no files were modified.",
+    );
+  }
+  if (!/from\s*["']@sveltejs\/kit\/vite["']/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit calibration requires the official sveltekit Vite plugin; no files were modified.",
+    );
+  }
+  if (
+    (source.match(/\badapter\s*\(/g) ?? []).length !== 1 ||
+    !/adapter\s*:\s*adapter\s*\(\s*\)/.test(source)
+  ) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit calibration requires one optionless adapter-node instance; adapter options and custom output were not modified and no files were modified.",
+    );
+  }
+  if (!/plugins\s*:\s*\[\s*sveltekit\s*\(\s*\{[\s\S]*adapter\s*:\s*adapter\s*\(\s*\)[\s\S]*\}\s*\)\s*\]/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit calibration requires one statically composable sveltekit plugin with adapter-node; no files were modified.",
+    );
+  }
+  if (/\bssr\s*:\s*false\b/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit `ssr: false` is outside the private full-stack calibration; no files were modified.",
+    );
+  }
+  if (/\bhandleRenderingErrors\s*:/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit experimental handleRenderingErrors is outside the stable lifecycle calibration; no files were modified.",
+    );
+  }
+  if (
+    ["files", "outDir", "bundleStrategy", "serviceWorker"].some((name) =>
+      configProperty(source, name).test(source),
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit custom source, output, bundle or service-worker configuration is outside the private calibration; no files were modified.",
+    );
+  }
+  if (!existsSync(join(cwd, "src", "routes"))) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit calibration requires the conventional src/routes application root; no files were modified.",
+    );
+  }
+  const files = svelteKitSourceFiles(join(cwd, "src"));
+  if (files.some((path) => /(?:^|\/)service-worker\.[cm]?[jt]s$/.test(path))) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit service workers are outside the private calibration; no files were modified.",
+    );
+  }
+  if (files.some((path) => /\.remote\.[cm]?[jt]s$/.test(path))) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit remote functions are outside the private calibration; no files were modified.",
+    );
+  }
+  if (
+    files.some((path) =>
+      /\bexport\s+const\s+prerender\s*=/.test(readFileSync(path, "utf8")),
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit prerendering is outside the long-lived Node calibration; no files were modified.",
+    );
+  }
+  const installed = exactSvelteKitRuntimeVersions(cwd);
+  const language = languageOf(configPath);
+  const otherLanguage = language === "ts" ? "js" : "ts";
+  if (
+    existsSync(join(cwd, "src", `hooks.client.${otherLanguage}`)) ||
+    existsSync(join(cwd, "src", `hooks.server.${otherLanguage}`))
+  ) {
+    throw new ErrorsStackDetectionError(
+      "SvelteKit hooks use a language that differs from the Vite config; custom or mixed hook layouts were not modified.",
+    );
+  }
+  return {
+    cwd,
+    configPath,
+    language,
+    nodeVersion: nodeVersion as SvelteKitProjectShape["nodeVersion"],
+    svelteVersion: installed.svelte,
+    kitVersion: installed["@sveltejs/kit"],
+    adapterNodeVersion: installed["@sveltejs/adapter-node"],
+    vitePluginVersion: installed["@sveltejs/vite-plugin-svelte"],
+    viteVersion: installed.vite,
+    clientHooksPath: join(cwd, "src", `hooks.client.${language}`),
+    serverHooksPath: join(cwd, "src", `hooks.server.${language}`),
+    outputRoot: join(cwd, "build"),
+    intermediateOutputRoot: join(cwd, ".svelte-kit", "output"),
   };
 }
 
@@ -1629,6 +1915,7 @@ function looksSupported(root: string): boolean {
     return Boolean(
       deps.next ||
         deps.nuxt ||
+        deps["@sveltejs/kit"] ||
         deps["@angular/core"] ||
         deps.express ||
         deps.fastify ||
@@ -1661,6 +1948,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     nested.length > 0 &&
     !deps.next &&
     !deps.nuxt &&
+    !deps["@sveltejs/kit"] &&
     !deps.vite &&
     !deps.express
   ) {
@@ -1675,6 +1963,10 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
 
   if (deps.nuxt) {
     return { cwd, nuxt: nuxtShape(cwd, pkg, deps), notices: [] };
+  }
+
+  if (deps["@sveltejs/kit"]) {
+    return { cwd, sveltekit: svelteKitShape(cwd, pkg, deps), notices: [] };
   }
 
   const angular = angularShape(cwd, pkg, deps);

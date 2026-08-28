@@ -32,6 +32,9 @@ const versions = {
   vue: ["3.5.42"],
   viteVuePlugin: ["6.0.8"],
   svelte: ["5.56.10"],
+  svelteKit: ["2.70.3"],
+  svelteKitAdapterNode: ["5.5.7"],
+  svelteKitVitePlugin: ["7.3.0"],
   viteSveltePlugin: {
     6: "6.2.4",
     7: "6.2.4",
@@ -425,6 +428,39 @@ const nuxtNitroCells = versions.node.flatMap((node) =>
   ),
 );
 
+const svelteKitCells = versions.node.flatMap((node) =>
+  ["ts", "js"].map((language) =>
+    withGates({
+      id: `sveltekit2.node${node.split(".")[0]}.${language}`,
+      wave: "calibration-sveltekit",
+      family: "sveltekit-node",
+      visibility: "private-calibration",
+      svelte: versions.svelte[0],
+      svelteKit: versions.svelteKit[0],
+      adapter: "adapter-node",
+      adapterVersion: versions.svelteKitAdapterNode[0],
+      vitePlugin: versions.svelteKitVitePlugin[0],
+      vite: versions.vite[2],
+      node,
+      config: `vite.config.${language}`,
+      language,
+      module: "esm",
+      topology: "ssr-vite-adapter-node",
+      outputTopology: "build-client-server-and-sveltekit-intermediate",
+      capture: [
+        "browser-global",
+        "unhandled-rejection",
+        "sveltekit-client-handle-error",
+        "ssr",
+        "server-load",
+        "action",
+        "endpoint",
+        "sveltekit-server-handle-error",
+      ],
+    }),
+  ),
+);
+
 const refusals = [
   {
     id: "next.version-or-root",
@@ -542,6 +578,21 @@ const refusals = [
     id: "nuxt.hybrid-or-lifecycle",
     visibility: "private-calibration",
     reason: "Hybrid route rules, prerendering, ISR and unproven streaming or alternate Nitro lifecycles are refused before mutation.",
+  },
+  {
+    id: "sveltekit.version-or-config",
+    visibility: "private-calibration",
+    reason: "Svelte, SvelteKit, adapter-node, Vite plugin, Vite or Node drift, CommonJS, legacy Svelte config, dynamic Vite config and multi-app roots are refused before mutation.",
+  },
+  {
+    id: "sveltekit.adapter-or-output",
+    visibility: "private-calibration",
+    reason: "Adapter-auto, static, provider, edge, serverless and custom adapters, adapter options, custom roots, outputs and bundle strategies are outside the standalone Node calibration.",
+  },
+  {
+    id: "sveltekit.lifecycle-or-hooks",
+    visibility: "private-calibration",
+    reason: "SSR-disabled, prerendered, service-worker, remote-function, experimental rendering, ambiguous hook, streaming, WebSocket, background and process-fatal lifecycles are refused before mutation.",
   },
 ];
 
@@ -744,6 +795,9 @@ export const runtimeMatrix = {
     "nuxtViteBuilder",
     "nitro",
     "nuxtVueRouter",
+    "svelteKit",
+    "svelteKitAdapterNode",
+    "svelteKitVitePlugin",
   ],
   versions,
   supportGates,
@@ -759,6 +813,7 @@ export const runtimeMatrix = {
     ...browserAngularCells,
     ...pythonFastApiCells,
     ...nuxtNitroCells,
+    ...svelteKitCells,
   ],
   refusals,
   quickstarts,

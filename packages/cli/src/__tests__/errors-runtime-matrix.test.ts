@@ -12,7 +12,8 @@ type MatrixCell = {
     | "2B"
     | "calibration-angular"
     | "calibration-fastapi"
-    | "calibration-nuxt";
+    | "calibration-nuxt"
+    | "calibration-sveltekit";
   family:
     | "browser-react"
     | "node-long-lived"
@@ -23,6 +24,7 @@ type MatrixCell = {
     | "browser-angular"
     | "python-fastapi"
     | "nuxt-nitro"
+    | "sveltekit-node"
     | "fastify"
     | "nest-http";
   gates: string[];
@@ -164,7 +166,9 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     expect(
       matrix.cells.filter(
         (cell) =>
-          cell.family !== "python-fastapi" && cell.family !== "nuxt-nitro",
+          cell.family !== "python-fastapi" &&
+          cell.family !== "nuxt-nitro" &&
+          cell.family !== "sveltekit-node",
       ),
     ).toHaveLength(112);
     expect(matrix.refusals).toEqual(
@@ -215,7 +219,9 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     expect(
       matrix.cells.filter(
         (cell) =>
-          cell.family !== "python-fastapi" && cell.family !== "nuxt-nitro",
+          cell.family !== "python-fastapi" &&
+          cell.family !== "nuxt-nitro" &&
+          cell.family !== "sveltekit-node",
       ),
     ).toHaveLength(112);
     expect(matrix.quickstarts.some(({ id }) => id === "angular")).toBe(false);
@@ -262,7 +268,10 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       ]),
     );
     expect(
-      matrix.cells.filter((cell) => cell.family !== "nuxt-nitro"),
+      matrix.cells.filter(
+        (cell) =>
+          cell.family !== "nuxt-nitro" && cell.family !== "sveltekit-node",
+      ),
     ).toHaveLength(117);
     expect(matrix.quickstarts.some(({ id }) => id === "fastapi")).toBe(false);
     expect(matrix.targets.some(({ id }) => id === "fastapi")).toBe(false);
@@ -305,8 +314,52 @@ describe("Errors JavaScript runtime conformance matrix", () => {
         expect.objectContaining({ id: "nuxt.hybrid-or-lifecycle" }),
       ]),
     );
-    expect(matrix.cells).toHaveLength(123);
+    expect(
+      matrix.cells.filter((cell) => cell.family !== "sveltekit-node"),
+    ).toHaveLength(123);
     expect(matrix.quickstarts.some(({ id }) => id === "nuxt")).toBe(false);
     expect(matrix.targets.some(({ id }) => id === "nuxt")).toBe(false);
+  });
+
+  it("freezes SvelteKit as four private adapter-node cells", () => {
+    const matrix = readMatrix() as RuntimeMatrix & {
+      quickstarts: Array<{ id: string }>;
+      targets: Array<{ id: string }>;
+    };
+    const sveltekit = matrix.cells.filter(
+      (cell) => cell.family === "sveltekit-node",
+    );
+
+    expect(matrix.versions).toMatchObject({
+      svelte: ["5.56.10"],
+      svelteKit: ["2.70.3"],
+      svelteKitAdapterNode: ["5.5.7"],
+      svelteKitVitePlugin: ["7.3.0"],
+      vite: ["6.4.3", "7.3.6", "8.2.2"],
+    });
+    expect(sveltekit).toHaveLength(4);
+    expect(
+      sveltekit.every(
+        (cell) =>
+          cell.wave === "calibration-sveltekit" &&
+          cell.visibility === "private-calibration",
+      ),
+    ).toBe(true);
+    expect(sveltekit.map((cell) => cell.id)).toEqual([
+      "sveltekit2.node22.ts",
+      "sveltekit2.node22.js",
+      "sveltekit2.node24.ts",
+      "sveltekit2.node24.js",
+    ]);
+    expect(matrix.refusals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "sveltekit.version-or-config" }),
+        expect.objectContaining({ id: "sveltekit.adapter-or-output" }),
+        expect.objectContaining({ id: "sveltekit.lifecycle-or-hooks" }),
+      ]),
+    );
+    expect(matrix.cells).toHaveLength(127);
+    expect(matrix.quickstarts.some(({ id }) => id === "sveltekit")).toBe(false);
+    expect(matrix.targets.some(({ id }) => id === "sveltekit")).toBe(false);
   });
 });
