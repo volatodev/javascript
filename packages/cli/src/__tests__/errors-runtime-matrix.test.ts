@@ -11,7 +11,8 @@ type MatrixCell = {
     | "2A"
     | "2B"
     | "calibration-angular"
-    | "calibration-fastapi";
+    | "calibration-fastapi"
+    | "calibration-nuxt";
   family:
     | "browser-react"
     | "node-long-lived"
@@ -21,6 +22,7 @@ type MatrixCell = {
     | "browser-svelte"
     | "browser-angular"
     | "python-fastapi"
+    | "nuxt-nitro"
     | "fastify"
     | "nest-http";
   gates: string[];
@@ -160,7 +162,10 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       "nest-http": 8,
     });
     expect(
-      matrix.cells.filter((cell) => cell.family !== "python-fastapi"),
+      matrix.cells.filter(
+        (cell) =>
+          cell.family !== "python-fastapi" && cell.family !== "nuxt-nitro",
+      ),
     ).toHaveLength(112);
     expect(matrix.refusals).toEqual(
       expect.arrayContaining([
@@ -208,7 +213,10 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       ]),
     );
     expect(
-      matrix.cells.filter((cell) => cell.family !== "python-fastapi"),
+      matrix.cells.filter(
+        (cell) =>
+          cell.family !== "python-fastapi" && cell.family !== "nuxt-nitro",
+      ),
     ).toHaveLength(112);
     expect(matrix.quickstarts.some(({ id }) => id === "angular")).toBe(false);
     expect(matrix.targets.some(({ id }) => id === "angular")).toBe(false);
@@ -253,8 +261,52 @@ describe("Errors JavaScript runtime conformance matrix", () => {
         expect.objectContaining({ id: "fastapi.lifespan-or-background" }),
       ]),
     );
-    expect(matrix.cells).toHaveLength(117);
+    expect(
+      matrix.cells.filter((cell) => cell.family !== "nuxt-nitro"),
+    ).toHaveLength(117);
     expect(matrix.quickstarts.some(({ id }) => id === "fastapi")).toBe(false);
     expect(matrix.targets.some(({ id }) => id === "fastapi")).toBe(false);
+  });
+
+  it("freezes Nuxt/Nitro as six private full-stack cells", () => {
+    const matrix = readMatrix() as RuntimeMatrix & {
+      quickstarts: Array<{ id: string }>;
+      targets: Array<{ id: string }>;
+    };
+    const nuxt = matrix.cells.filter((cell) => cell.family === "nuxt-nitro");
+
+    expect(matrix.versions).toMatchObject({
+      nuxt: ["4.5.2"],
+      nuxtNitroServer: ["4.5.2"],
+      nuxtViteBuilder: ["4.5.2"],
+      nitro: ["2.13.4"],
+      nuxtVueRouter: ["5.2.0"],
+    });
+    expect(nuxt).toHaveLength(6);
+    expect(
+      nuxt.every(
+        (cell) =>
+          cell.wave === "calibration-nuxt" &&
+          cell.visibility === "private-calibration",
+      ),
+    ).toBe(true);
+    expect(nuxt.map((cell) => cell.id)).toEqual([
+      "nuxt4.node22.ts",
+      "nuxt4.node22.js",
+      "nuxt4.node22.mjs",
+      "nuxt4.node24.ts",
+      "nuxt4.node24.js",
+      "nuxt4.node24.mjs",
+    ]);
+    expect(matrix.refusals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "nuxt.version-or-config" }),
+        expect.objectContaining({ id: "nuxt.render-or-preset" }),
+        expect.objectContaining({ id: "nuxt.hybrid-or-lifecycle" }),
+      ]),
+    );
+    expect(matrix.cells).toHaveLength(123);
+    expect(matrix.quickstarts.some(({ id }) => id === "nuxt")).toBe(false);
+    expect(matrix.targets.some(({ id }) => id === "nuxt")).toBe(false);
   });
 });

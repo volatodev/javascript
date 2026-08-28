@@ -60,6 +60,11 @@ const versions = {
   uvicorn: ["0.52.4"],
   pydantic: ["2.13.5"],
   anyio: ["4.14.2"],
+  nuxt: ["4.5.2"],
+  nuxtNitroServer: ["4.5.2"],
+  nuxtViteBuilder: ["4.5.2"],
+  nitro: ["2.13.4"],
+  nuxtVueRouter: ["5.2.0"],
   typescript: ["5.9.3"],
 };
 
@@ -390,6 +395,36 @@ const pythonFastApiCells = versions.python.map((python) =>
   }),
 );
 
+const nuxtNitroCells = versions.node.flatMap((node) =>
+  ["ts", "js", "mjs"].map((configFormat) =>
+    withGates({
+      id: `nuxt4.node${node.split(".")[0]}.${configFormat}`,
+      wave: "calibration-nuxt",
+      family: "nuxt-nitro",
+      visibility: "private-calibration",
+      nuxt: versions.nuxt[0],
+      nitro: versions.nitro[0],
+      vue: versions.vue[0],
+      vueRouter: versions.nuxtVueRouter[0],
+      vite: versions.vite[2],
+      node,
+      config: `nuxt.config.${configFormat}`,
+      language: configFormat === "ts" ? "ts" : "js",
+      module: "esm",
+      topology: "ssr-vite-node-server",
+      outputTopology: "output-public-nuxt-and-output-server",
+      capture: [
+        "browser-global",
+        "unhandled-rejection",
+        "vue-error",
+        "nuxt-app-error",
+        "ssr",
+        "nitro-error",
+      ],
+    }),
+  ),
+);
+
 const refusals = [
   {
     id: "next.version-or-root",
@@ -492,6 +527,21 @@ const refusals = [
     id: "fastapi.lifespan-or-background",
     visibility: "private-calibration",
     reason: "Lifespan and post-response background-task failures remain explicit refusals until their independent propagation and flush lifecycles are proven.",
+  },
+  {
+    id: "nuxt.version-or-config",
+    visibility: "private-calibration",
+    reason: "Nuxt, Nitro, Vue, Vue Router or Vite dependency drift, dynamic config, custom builders, layers and multi-app roots are refused before mutation.",
+  },
+  {
+    id: "nuxt.render-or-preset",
+    visibility: "private-calibration",
+    reason: "Static generation, ssr:false, edge, serverless, provider, Deno and Bun presets are outside the long-lived Node calibration.",
+  },
+  {
+    id: "nuxt.hybrid-or-lifecycle",
+    visibility: "private-calibration",
+    reason: "Hybrid route rules, prerendering, ISR and unproven streaming or alternate Nitro lifecycles are refused before mutation.",
   },
 ];
 
@@ -689,6 +739,11 @@ export const runtimeMatrix = {
     "uvicorn",
     "pydantic",
     "anyio",
+    "nuxt",
+    "nuxtNitroServer",
+    "nuxtViteBuilder",
+    "nitro",
+    "nuxtVueRouter",
   ],
   versions,
   supportGates,
@@ -703,6 +758,7 @@ export const runtimeMatrix = {
     ...nestHttpCells,
     ...browserAngularCells,
     ...pythonFastApiCells,
+    ...nuxtNitroCells,
   ],
   refusals,
   quickstarts,

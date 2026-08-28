@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { detectProject, type ProjectShape } from "./detect.js";
 
@@ -64,6 +65,21 @@ export type FastApiProjectShape = {
   topology: "module-app";
 };
 
+export type NuxtConfigFormat = "ts" | "js" | "mjs";
+
+export type NuxtProjectShape = {
+  cwd: string;
+  configPath: string;
+  configFormat: NuxtConfigFormat;
+  language: SourceLanguage;
+  nodeVersion: "22.23.2" | "24.19.0";
+  nuxtVersion: "4.5.2";
+  nitroVersion: "2.13.4";
+  vueVersion: "3.5.42";
+  viteVersion: "8.2.2";
+  outputRoot: string;
+};
+
 export type NodeProjectShape = {
   cwd: string;
   entryPath: string;
@@ -108,6 +124,7 @@ export type NodeInvocationProjectShape = {
 export type ErrorsStackShape = {
   cwd: string;
   nextjs?: ProjectShape;
+  nuxt?: NuxtProjectShape;
   browserReact?: BrowserReactProjectShape;
   viteReact?: ViteReactProjectShape;
   browserVue?: ViteVueProjectShape;
@@ -169,6 +186,252 @@ const FASTAPI_DEPENDENCIES = {
   pydantic: "2.13.5",
   anyio: "4.14.2",
 } as const;
+
+const NUXT_DEPENDENCIES = {
+  nuxt: "4.5.2",
+  "@nuxt/nitro-server": "4.5.2",
+  "@nuxt/vite-builder": "4.5.2",
+  nitropack: "2.13.4",
+  vue: "3.5.42",
+  "vue-router": "5.2.0",
+  vite: "8.2.2",
+} as const;
+
+const NUXT_NODE_VERSIONS = ["22.23.2", "24.19.0"] as const;
+const NUXT_BUILD_COMMAND = "nuxt build";
+const NUXT_GENERATED_BUILD_COMMAND =
+  "nuxt build && node volato-nuxt/upload-sourcemaps.mjs .output";
+
+function packageVersion(path: string): string | null {
+  try {
+    const value = JSON.parse(readFileSync(path, "utf8")) as {
+      version?: unknown;
+    };
+    return typeof value.version === "string" ? value.version : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolvePackageVersion(
+  requireFrom: ReturnType<typeof createRequire>,
+  name: string,
+): { path: string; version: string } | null {
+  try {
+    const path = requireFrom.resolve(`${name}/package.json`);
+    const version = packageVersion(path);
+    return version ? { path, version } : null;
+  } catch {
+    return null;
+  }
+}
+
+function exactNuxtRuntimeVersions(cwd: string): typeof NUXT_DEPENDENCIES {
+  const rootRequire = createRequire(join(cwd, "package.json"));
+  const nuxt = resolvePackageVersion(rootRequire, "nuxt");
+  if (!nuxt) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt dependencies are not installed, so the exact private calibration tuple cannot be verified; install the application dependencies and no files were modified.",
+    );
+  }
+  const nuxtRequire = createRequire(nuxt.path);
+  const nitroServer = resolvePackageVersion(
+    nuxtRequire,
+    "@nuxt/nitro-server",
+  );
+  const viteBuilder = resolvePackageVersion(nuxtRequire, "@nuxt/vite-builder");
+  const resolved = {
+    nuxt,
+    "@nuxt/nitro-server": nitroServer,
+    "@nuxt/vite-builder": viteBuilder,
+    nitropack: nitroServer
+      ? resolvePackageVersion(createRequire(nitroServer.path), "nitropack")
+      : null,
+    vue: resolvePackageVersion(nuxtRequire, "vue"),
+    "vue-router": resolvePackageVersion(nuxtRequire, "vue-router"),
+    vite: viteBuilder
+      ? resolvePackageVersion(createRequire(viteBuilder.path), "vite")
+      : null,
+  } satisfies Record<keyof typeof NUXT_DEPENDENCIES, {
+    path: string;
+    version: string;
+  } | null>;
+  const labels: Record<keyof typeof NUXT_DEPENDENCIES, string> = {
+    nuxt: "Nuxt",
+    "@nuxt/nitro-server": "Nuxt Nitro server",
+    "@nuxt/vite-builder": "Nuxt Vite builder",
+    nitropack: "Nitro",
+    vue: "Vue",
+    "vue-router": "Vue Router",
+    vite: "Vite",
+  };
+  for (const [name, expected] of Object.entries(NUXT_DEPENDENCIES) as Array<
+    [keyof typeof NUXT_DEPENDENCIES, string]
+  >) {
+    const actual = resolved[name]?.version;
+    if (actual !== expected) {
+      throw new ErrorsStackDetectionError(
+        `${labels[name]} ${actual ?? "could not be resolved"} is outside the private Nuxt calibration, which requires ${expected}; no files were modified.`,
+      );
+    }
+  }
+  return NUXT_DEPENDENCIES;
+}
+
+function configProperty(source: string, name: string): RegExp {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[,{])\\s*(?:["']${escaped}["']|${escaped})\\s*:`, "m");
+}
+
+function nuxtShape(
+  cwd: string,
+  pkg: PackageJson,
+  deps: Record<string, string>,
+): NuxtProjectShape {
+  const declaredNuxt = deps.nuxt;
+  if (declaredNuxt !== NUXT_DEPENDENCIES.nuxt) {
+    throw new ErrorsStackDetectionError(
+      `Nuxt ${declaredNuxt ?? "unknown"} is not supported by the frozen 4.5.2 calibration; pin Nuxt exactly and no files were modified.`,
+    );
+  }
+  for (const name of ["vue", "vue-router"] as const) {
+    if (deps[name] !== NUXT_DEPENDENCIES[name]) {
+      throw new ErrorsStackDetectionError(
+        `${name === "vue" ? "Vue" : "Vue Router"} must be pinned exactly to ${NUXT_DEPENDENCIES[name]} for the private Nuxt calibration; found ${deps[name] ?? "no exact pin"} and no files were modified.`,
+      );
+    }
+  }
+
+  const installed = exactNuxtRuntimeVersions(cwd);
+  const nodeVersion = existsSync(join(cwd, ".node-version"))
+    ? readFileSync(join(cwd, ".node-version"), "utf8").trim()
+    : "";
+  if (!(NUXT_NODE_VERSIONS as readonly string[]).includes(nodeVersion)) {
+    throw new ErrorsStackDetectionError(
+      `Node ${nodeVersion || "unknown"} is outside the private Nuxt calibration; .node-version must be exactly 22.23.2 or 24.19.0 and no files were modified.`,
+    );
+  }
+  const engines =
+    pkg.engines && typeof pkg.engines === "object" && !Array.isArray(pkg.engines)
+      ? (pkg.engines as Record<string, unknown>)
+      : null;
+  if (engines?.node !== nodeVersion) {
+    throw new ErrorsStackDetectionError(
+      `Nuxt calibration requires package.json engines.node = ${JSON.stringify(nodeVersion)} to match .node-version exactly; no files were modified.`,
+    );
+  }
+  if (pkg.type !== "module") {
+    throw new ErrorsStackDetectionError(
+      "Nuxt calibration requires a package with type: module; no files were modified.",
+    );
+  }
+  if (pkg.workspaces) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt monorepo and multi-application roots are not supported by the private calibration; run from one conventional application root and no files were modified.",
+    );
+  }
+
+  const scripts =
+    pkg.scripts && typeof pkg.scripts === "object" && !Array.isArray(pkg.scripts)
+      ? (pkg.scripts as Record<string, unknown>)
+      : null;
+  if (
+    scripts?.build !== NUXT_BUILD_COMMAND &&
+    scripts?.build !== NUXT_GENERATED_BUILD_COMMAND
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt calibration requires the conventional `nuxt build` production command; custom build, generate and deployment commands are not modified automatically.",
+    );
+  }
+
+  const supportedConfigs = [
+    "nuxt.config.ts",
+    "nuxt.config.js",
+    "nuxt.config.mjs",
+  ].filter((name) => existsSync(join(cwd, name)));
+  const otherConfigs = ["nuxt.config.mts", "nuxt.config.cjs"].filter((name) =>
+    existsSync(join(cwd, name)),
+  );
+  if (supportedConfigs.length !== 1 || otherConfigs.length > 0) {
+    const found = [...supportedConfigs, ...otherConfigs];
+    throw new ErrorsStackDetectionError(
+      `${found.length === 0 ? "No" : `Multiple or unsupported (${found.join(", ")})`} Nuxt config was detected; exactly one nuxt.config.ts, nuxt.config.js or nuxt.config.mjs is required and no files were modified.`,
+    );
+  }
+  const configName = supportedConfigs[0]!;
+  const configPath = join(cwd, configName);
+  const source = readFileSync(configPath, "utf8");
+  if (
+    (source.match(/\bexport\s+default\b/g) ?? []).length !== 1 ||
+    !/export\s+default\s+(?:withVolatoNuxt\(\s*)?defineNuxtConfig\(\s*\{[\s\S]*\}\s*\)\s*\)?\s*;?\s*$/.test(
+      source,
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt calibration requires one static defineNuxtConfig object export; dynamic configuration was not modified and no files were modified.",
+    );
+  }
+  if (configProperty(source, "routeRules").test(source)) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt route rules and hybrid rendering are outside the private calibration; no files were modified.",
+    );
+  }
+  if (configProperty(source, "ssr").test(source) && /\bssr\s*:\s*false\b/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt `ssr: false` is not supported by the private full-stack calibration; no files were modified.",
+    );
+  }
+  if (configProperty(source, "builder").test(source)) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt calibration requires the default Vite builder; explicit or custom builders were not modified and no files were modified.",
+    );
+  }
+  if (
+    ["extends", "srcDir", "workspaceDir", "multiApp"].some((name) =>
+      configProperty(source, name).test(source),
+    ) ||
+    existsSync(join(cwd, ".nuxtrc")) ||
+    existsSync(join(cwd, "layers"))
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt layers, custom source roots and multi-app layouts are not supported by the private calibration; no files were modified.",
+    );
+  }
+  if (
+    ["prerender", "isr", "static"].some((name) =>
+      configProperty(source, name).test(source),
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt prerender, ISR and static output are outside the long-lived Node calibration; no files were modified.",
+    );
+  }
+  const preset = /\bpreset\s*:\s*["']([^"']+)["']/.exec(source)?.[1];
+  if (preset !== "node-server") {
+    throw new ErrorsStackDetectionError(
+      `Nuxt calibration requires an explicit node-server preset; found ${preset ?? "no preset"} and no files were modified.`,
+    );
+  }
+  if (!existsSync(join(cwd, "app", "app.vue"))) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt calibration requires the conventional app/app.vue root; custom application roots were not modified and no files were modified.",
+    );
+  }
+
+  const configFormat = configName.slice("nuxt.config.".length) as NuxtConfigFormat;
+  return {
+    cwd,
+    configPath,
+    configFormat,
+    language: configFormat === "ts" ? "ts" : "js",
+    nodeVersion: nodeVersion as NuxtProjectShape["nodeVersion"],
+    nuxtVersion: installed.nuxt,
+    nitroVersion: installed.nitropack,
+    vueVersion: installed.vue,
+    viteVersion: installed.vite,
+    outputRoot: join(cwd, ".output"),
+  };
+}
 
 function exactPythonDependency(source: string, name: string): string | null {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1303,6 +1566,7 @@ function looksSupported(root: string): boolean {
     const deps = dependencies(readPackageJson(root));
     return Boolean(
       deps.next ||
+        deps.nuxt ||
         deps["@angular/core"] ||
         deps.express ||
         deps.fastify ||
@@ -1331,7 +1595,13 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
   const deps = dependencies(pkg);
 
   const nested = nestedPackageRoots(cwd, pkg).filter(looksSupported);
-  if (nested.length > 0 && !deps.next && !deps.vite && !deps.express) {
+  if (
+    nested.length > 0 &&
+    !deps.next &&
+    !deps.nuxt &&
+    !deps.vite &&
+    !deps.express
+  ) {
     throw new ErrorsStackDetectionError(
       `This monorepo contains multiple supported applications or requires an explicit target (${nested.join(", ")}). Run Volato from the selected application root; no application was modified.`,
     );
@@ -1339,6 +1609,10 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
 
   if (deps.next) {
     return { cwd, nextjs: detectProject(cwd), notices: [] };
+  }
+
+  if (deps.nuxt) {
+    return { cwd, nuxt: nuxtShape(cwd, pkg, deps), notices: [] };
   }
 
   const angular = angularShape(cwd, pkg, deps);

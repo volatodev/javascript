@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -21,6 +27,50 @@ function writePackage(
   );
 }
 
+function writeInstalledPackage(name: string, version: string): void {
+  const root = join(cwd, "node_modules", ...name.split("/"));
+  mkdirSync(root, { recursive: true });
+  writeFileSync(
+    join(root, "package.json"),
+    `${JSON.stringify({ name, version }, null, 2)}\n`,
+  );
+}
+
+function writeNuxtFixture(
+  config = "nuxt.config.ts",
+  node = "24.19.0",
+  source = "export default defineNuxtConfig({ nitro: { preset: 'node-server' } });\n",
+): void {
+  writePackage(
+    cwd,
+    {
+      nuxt: "4.5.2",
+      vue: "3.5.42",
+      "vue-router": "5.2.0",
+    },
+    {
+      type: "module",
+      engines: { node },
+      scripts: { build: "nuxt build" },
+    },
+  );
+  writeFileSync(join(cwd, ".node-version"), `${node}\n`);
+  mkdirSync(join(cwd, "app"), { recursive: true });
+  writeFileSync(join(cwd, "app", "app.vue"), "<template><NuxtPage /></template>\n");
+  writeFileSync(join(cwd, config), source);
+  for (const [name, version] of [
+    ["nuxt", "4.5.2"],
+    ["@nuxt/nitro-server", "4.5.2"],
+    ["@nuxt/vite-builder", "4.5.2"],
+    ["nitropack", "2.13.4"],
+    ["vue", "3.5.42"],
+    ["vue-router", "5.2.0"],
+    ["vite", "8.2.2"],
+  ] as const) {
+    writeInstalledPackage(name, version);
+  }
+}
+
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "volato-errors-detect-"));
 });
@@ -30,6 +80,107 @@ afterEach(() => {
 });
 
 describe("detectErrorsStack", () => {
+  it.each([
+    ["nuxt.config.ts", "ts", "22.23.2"],
+    ["nuxt.config.js", "js", "24.19.0"],
+    ["nuxt.config.mjs", "mjs", "24.19.0"],
+  ] as const)(
+    "selects the private Nuxt recipe before Vite + Vue for %s",
+    (config, format, node) => {
+      writeNuxtFixture(config, node);
+
+      const result = detectErrorsStack(cwd);
+
+      expect(result.nuxt).toEqual({
+        cwd,
+        configPath: join(cwd, config),
+        configFormat: format,
+        language: format === "ts" ? "ts" : "js",
+        nodeVersion: node,
+        nuxtVersion: "4.5.2",
+        nitroVersion: "2.13.4",
+        vueVersion: "3.5.42",
+        viteVersion: "8.2.2",
+        outputRoot: join(cwd, ".output"),
+      });
+      expect(result.browserVue).toBeUndefined();
+      expect(result.node).toBeUndefined();
+    },
+  );
+
+  it.each([
+    [
+      "Nuxt 3",
+      () => {
+        writeNuxtFixture();
+        const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+        pkg.dependencies.nuxt = "3.20.1";
+        writeFileSync(join(cwd, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+      },
+      /Nuxt 3\.20\.1.*frozen 4\.5\.2 calibration.*no files were modified/i,
+    ],
+    [
+      "SSR disabled",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default defineNuxtConfig({ ssr: false, nitro: { preset: 'node-server' } });\n"),
+      /ssr: false.*not supported.*no files were modified/i,
+    ],
+    [
+      "provider preset",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default defineNuxtConfig({ nitro: { preset: 'cloudflare-pages' } });\n"),
+      /node-server preset.*cloudflare-pages.*no files were modified/i,
+    ],
+    [
+      "route rules",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default defineNuxtConfig({ routeRules: { '/admin/**': { ssr: false } }, nitro: { preset: 'node-server' } });\n"),
+      /route rules.*hybrid.*no files were modified/i,
+    ],
+    [
+      "layer",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default defineNuxtConfig({ extends: ['./base'], nitro: { preset: 'node-server' } });\n"),
+      /layers.*not supported.*no files were modified/i,
+    ],
+    [
+      "custom builder",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default defineNuxtConfig({ builder: 'rspack', nitro: { preset: 'node-server' } });\n"),
+      /default Vite builder.*no files were modified/i,
+    ],
+    [
+      "dynamic config",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default async () => defineNuxtConfig({ nitro: { preset: 'node-server' } });\n"),
+      /static defineNuxtConfig.*no files were modified/i,
+    ],
+  ] as const)("refuses %s before falling back to Vue", (_label, arrange, expected) => {
+    arrange();
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(expected);
+  });
+
+  it("refuses a drifted installed Nuxt tuple", () => {
+    writeNuxtFixture();
+    writeInstalledPackage("nitropack", "2.14.0");
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(
+      /Nitro 2\.14\.0.*requires 2\.13\.4.*no files were modified/i,
+    );
+  });
+
+  it("redetects the generated Nuxt wrapper for convergent setup", () => {
+    writeNuxtFixture(
+      "nuxt.config.ts",
+      "24.19.0",
+      "import { withVolatoNuxt } from './volato-nuxt/build.mjs';\nexport default withVolatoNuxt(defineNuxtConfig({ nitro: { preset: 'node-server' } }));\n",
+    );
+    const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+    pkg.scripts.build =
+      "nuxt build && node volato-nuxt/upload-sourcemaps.mjs .output";
+    writeFileSync(join(cwd, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
+
+    expect(detectErrorsStack(cwd).nuxt).toMatchObject({
+      configPath: join(cwd, "nuxt.config.ts"),
+      configFormat: "ts",
+    });
+  });
+
   it.each([
     [
       "async handler",
