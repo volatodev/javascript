@@ -15,6 +15,8 @@ export const ERRORS_BROWSER_ANGULAR_INTEGRATION =
   "errors-browser-angular" as const;
 export const ERRORS_NODE_FASTIFY_INTEGRATION = "errors-node-fastify" as const;
 export const ERRORS_NODE_NESTJS_INTEGRATION = "errors-node-nestjs" as const;
+export const ERRORS_PYTHON_FASTAPI_INTEGRATION =
+  "errors-python-fastapi" as const;
 const RETIRED_INTEGRATION_IDS = new Set(["analytics-nextjs"]);
 
 export type IntegrationId =
@@ -26,7 +28,8 @@ export type IntegrationId =
   | typeof ERRORS_BROWSER_SVELTE_INTEGRATION
   | typeof ERRORS_BROWSER_ANGULAR_INTEGRATION
   | typeof ERRORS_NODE_FASTIFY_INTEGRATION
-  | typeof ERRORS_NODE_NESTJS_INTEGRATION;
+  | typeof ERRORS_NODE_NESTJS_INTEGRATION
+  | typeof ERRORS_PYTHON_FASTAPI_INTEGRATION;
 
 export type GeneratedIntegration = {
   protocolVersion: 1;
@@ -120,7 +123,8 @@ function parseManifest(value: unknown, path: string): IntegrationManifest {
       id !== ERRORS_BROWSER_SVELTE_INTEGRATION &&
       id !== ERRORS_BROWSER_ANGULAR_INTEGRATION &&
       id !== ERRORS_NODE_FASTIFY_INTEGRATION &&
-      id !== ERRORS_NODE_NESTJS_INTEGRATION
+      id !== ERRORS_NODE_NESTJS_INTEGRATION &&
+      id !== ERRORS_PYTHON_FASTAPI_INTEGRATION
     ) {
       throw new Error(`Unsupported Volato integration ${JSON.stringify(id)}: ${path}`);
     }

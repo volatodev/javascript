@@ -33,6 +33,7 @@ import { generateBrowserReactIntegration } from "../../integrations/vite-react.j
 import { generateViteVueIntegration } from "../../integrations/vite-vue.js";
 import { generateViteSvelteIntegration } from "../../integrations/vite-svelte.js";
 import { generateAngularIntegration } from "../../integrations/angular.js";
+import { generateFastApiIntegration } from "../../integrations/fastapi.js";
 import { generateNodeIntegration } from "../../integrations/node.js";
 import { generateFastifyIntegration } from "../../integrations/fastify.js";
 import { generateNestIntegration } from "../../integrations/nest.js";
@@ -140,6 +141,26 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
           path: generated.runtimeRoot,
           status: "created",
           detail: `${generated.generatedFiles.length} local Angular browser files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
+    if (stack.fastapi) {
+      const generated = generateFastApiIntegration({
+        cwd,
+        dsn: setup.dsn,
+        project: stack.fastapi,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Python + FastAPI runtime files`,
         },
         ...generated.outcomes,
         {
@@ -349,6 +370,12 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         "errors-node-invocation",
       );
     }
+    if (stack.fastapi) {
+      await reportIntegrationInstalled(
+        projectLink.id,
+        "errors-python-fastapi",
+      );
+    }
   }
 
   if (manualOutcomes.length === 0 && stack.nextjs && nextjsRuntimeRoot) {
@@ -399,6 +426,7 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
             ? "Node/Express"
             : null,
       Boolean(stack.nodeInvocation),
+      Boolean(stack.fastapi),
       manualOutcomes.length === 0,
     );
   }
@@ -475,6 +503,7 @@ function printPortableNextSteps(
   browserRenderer: "React" | "Vue" | "Svelte" | "Angular" | null,
   nodeSurface: "Node/Express" | "Fastify" | "NestJS" | null,
   hasNodeInvocation: boolean,
+  hasFastApi: boolean,
   complete: boolean,
 ): void {
   process.stdout.write(`${pc.bold("Next steps")}\n`);
@@ -508,13 +537,25 @@ function printPortableNextSteps(
     );
     step += 1;
   }
-  process.stdout.write(
-    `  ${pc.dim(`${step}.`)} In CI, keep ${pc.cyan(
-      "VOLATO_INGEST_TOKEN",
-    )} server-only and verify the uploaded maps contain no ${pc.cyan(
-      "sourcesContent",
-    )}.\n\n`,
-  );
+  if (hasFastApi) {
+    process.stdout.write(
+      `  ${pc.dim(`${step}.`)} Start ${pc.cyan(
+        "uvicorn app:app",
+      )}, exercise one unexpected HTTP failure, and verify handled HTTP/validation responses emit nothing.\n`,
+    );
+    step += 1;
+  }
+  if (browserRenderer || nodeSurface || hasNodeInvocation) {
+    process.stdout.write(
+      `  ${pc.dim(`${step}.`)} In CI, keep ${pc.cyan(
+        "VOLATO_INGEST_TOKEN",
+      )} server-only and verify the uploaded maps contain no ${pc.cyan(
+        "sourcesContent",
+      )}.\n\n`,
+    );
+  } else {
+    process.stdout.write("\n");
+  }
   if (complete) {
     process.stdout.write(
       `${pc.green("✓")} ${pc.bold("Volato Errors files are composed.")} ${pc.dim(

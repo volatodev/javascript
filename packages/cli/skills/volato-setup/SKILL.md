@@ -10,8 +10,8 @@ data path. Do not invent capture code from scratch.
 
 ## Workflow
 
-1. Inspect `package.json`, framework configuration, source layout, build
-   scripts and existing `.volato/manifest.json`.
+1. Inspect `package.json` or the language manifest, framework configuration,
+   source layout, build scripts and existing `.volato/manifest.json`.
 2. Run `volato init --project <id>` from the application root. This links the
    repository and installs the bundled skills; it must not modify application
    source or write runtime credentials.
@@ -28,6 +28,8 @@ data path. Do not invent capture code from scratch.
      `volato-node`.
    - Standalone Fastify 5: follow `volato-fastify`.
    - NestJS 11/12 HTTP over Express 5 or Fastify 5: follow `volato-nestjs`.
+   - Private FastAPI 0.141 HTTP calibration on maintained Python 3.10-3.14:
+     follow `volato-fastapi` and retain its private/publication boundary.
 
    Inspect a repository's frontend and backend independently; one repository
    may need one browser renderer skill plus one Node HTTP skill. NestJS owns

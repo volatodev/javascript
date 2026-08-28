@@ -217,4 +217,30 @@ describe("installSkills", () => {
       ),
     ).toBe("generic");
   });
+
+  it("installs a private FastAPI skill only when exact repository evidence selects it", () => {
+    addSkill("volato-fastapi", "private-fastapi");
+    writeFileSync(join(cwd, ".python-version"), "3.12\n");
+    writeFileSync(
+      join(cwd, "pyproject.toml"),
+      '[project]\nrequires-python = "==3.12.*"\ndependencies = ["fastapi==0.141.1", "starlette==1.6.0", "uvicorn==0.52.4", "pydantic==2.13.5", "anyio==4.14.2"]\n',
+    );
+    writeFileSync(
+      join(cwd, "app.py"),
+      "from fastapi import FastAPI\napp = FastAPI()\n",
+    );
+
+    const outcomes = installSkills({ cwd, sourceRoot });
+
+    expect(outcomes.at(-1)).toMatchObject({
+      skill: "volato-fastapi",
+      status: "created",
+    });
+    expect(
+      readFileSync(
+        join(cwd, ".agents", "skills", "volato-fastapi", "SKILL.md"),
+        "utf8",
+      ),
+    ).toBe("private-fastapi");
+  });
 });

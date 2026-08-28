@@ -10,6 +10,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import pc from "picocolors";
 import prompts from "prompts";
+import { detectErrorsStack } from "./init/detect-errors.js";
 
 const PUBLIC_SKILLS = [
   "volato-setup",
@@ -23,6 +24,20 @@ const PUBLIC_SKILLS = [
   "volato-nestjs",
 ] as const;
 const RETIRED_SKILLS = ["monitor-product-usage", "volato-product"] as const;
+
+function selectedSkills(cwd: string): readonly string[] {
+  const selected: string[] = [...PUBLIC_SKILLS];
+  try {
+    const stack = detectErrorsStack(cwd);
+    if (stack.angular) selected.push("volato-angular");
+    if (stack.fastapi) selected.push("volato-fastapi");
+  } catch {
+    // Generic skill installation must remain available in unsupported or
+    // partially configured repositories. Exact detection reports the refusal
+    // later from `volato errors init`.
+  }
+  return selected;
+}
 
 export type SkillInstallStatus =
   | "created"
@@ -108,7 +123,7 @@ export function installSkills(
     outcomes.push({ skill, status: "removed", target });
   }
 
-  for (const skill of PUBLIC_SKILLS) {
+  for (const skill of selectedSkills(options.cwd)) {
     const source = join(sourceRoot, skill);
     const target = join(targetRoot, skill);
     const targetExists = existsSync(target);

@@ -53,6 +53,17 @@ export type AngularProjectShape = {
   outputRoot: string;
 };
 
+export type FastApiProjectShape = {
+  cwd: string;
+  entryPath: string;
+  appVariable: "app";
+  pythonVersion: "3.10" | "3.11" | "3.12" | "3.13" | "3.14";
+  fastapiVersion: "0.141.1";
+  starletteVersion: "1.6.0";
+  uvicornVersion: "0.52.4";
+  topology: "module-app";
+};
+
 export type NodeProjectShape = {
   cwd: string;
   entryPath: string;
@@ -102,6 +113,7 @@ export type ErrorsStackShape = {
   browserVue?: ViteVueProjectShape;
   browserSvelte?: ViteSvelteProjectShape;
   angular?: AngularProjectShape;
+  fastapi?: FastApiProjectShape;
   node?: NodeProjectShape;
   fastify?: FastifyProjectShape;
   nest?: NestProjectShape;
@@ -148,6 +160,118 @@ function readPackageJson(cwd: string): PackageJson {
     const detail = error instanceof Error ? error.message : String(error);
     throw new ErrorsStackDetectionError(`Cannot read ${path}: ${detail}`);
   }
+}
+
+const FASTAPI_DEPENDENCIES = {
+  fastapi: "0.141.1",
+  starlette: "1.6.0",
+  uvicorn: "0.52.4",
+  pydantic: "2.13.5",
+  anyio: "4.14.2",
+} as const;
+
+function exactPythonDependency(source: string, name: string): string | null {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|["'\\s])${escaped}==([0-9]+(?:\\.[0-9]+){1,3})(?=["'\\s,;]|$)`, "mi")
+    .exec(source)?.[1] ?? null;
+}
+
+function fastApiShape(cwd: string): FastApiProjectShape {
+  const pyprojectPath = join(cwd, "pyproject.toml");
+  const requirementsPath = join(cwd, "requirements.txt");
+  const pythonVersionPath = join(cwd, ".python-version");
+  const entryPath = join(cwd, "app.py");
+  if (!existsSync(pyprojectPath) || !existsSync(pythonVersionPath)) {
+    throw new ErrorsStackDetectionError(
+      "FastAPI private calibration requires pyproject.toml and one exact .python-version at the application root; no files were modified.",
+    );
+  }
+  const manifest = [
+    readFileSync(pyprojectPath, "utf8"),
+    existsSync(requirementsPath) ? readFileSync(requirementsPath, "utf8") : "",
+  ].join("\n");
+  const pythonVersion = readFileSync(pythonVersionPath, "utf8").trim();
+  if (!["3.10", "3.11", "3.12", "3.13", "3.14"].includes(pythonVersion)) {
+    throw new ErrorsStackDetectionError(
+      `Python ${pythonVersion || "unknown"} is not supported by the private FastAPI calibration; maintained Python 3.10-3.14 is required and no files were modified.`,
+    );
+  }
+  const declaredPython = /requires-python\s*=\s*["']==([^"']+)\.\*["']/i.exec(
+    manifest,
+  )?.[1];
+  if (declaredPython !== pythonVersion) {
+    throw new ErrorsStackDetectionError(
+      `FastAPI calibration requires requires-python = "==${pythonVersion}.*" to match .python-version exactly; no files were modified.`,
+    );
+  }
+  const fastapi = exactPythonDependency(manifest, "fastapi");
+  if (!fastapi) {
+    if (/\bstarlette\b/i.test(manifest)) {
+      throw new ErrorsStackDetectionError(
+        "A direct Starlette application was detected; direct Starlette is not supported by the private FastAPI calibration and no files were modified.",
+      );
+    }
+    throw new ErrorsStackDetectionError(
+      "FastAPI was not pinned exactly in the Python application manifest; no files were modified.",
+    );
+  }
+  if (fastapi !== FASTAPI_DEPENDENCIES.fastapi) {
+    throw new ErrorsStackDetectionError(
+      `FastAPI ${fastapi} is not supported by the frozen 0.141.1 calibration; no files were modified.`,
+    );
+  }
+  for (const name of ["starlette", "uvicorn", "pydantic", "anyio"] as const) {
+    const actual = exactPythonDependency(manifest, name);
+    if (actual !== FASTAPI_DEPENDENCIES[name]) {
+      throw new ErrorsStackDetectionError(
+        `${name} must be pinned exactly to ${FASTAPI_DEPENDENCIES[name]} for this private calibration; found ${actual ?? "no exact pin"} and no files were modified.`,
+      );
+    }
+  }
+  if (!existsSync(entryPath)) {
+    throw new ErrorsStackDetectionError(
+      "FastAPI was detected without the conventional app.py module; app factories and alternate entries are not supported and no files were modified.",
+    );
+  }
+  const source = readFileSync(entryPath, "utf8");
+  const instances = source.match(
+    /^\s*[A-Za-z_]\w*\s*=\s*FastAPI\s*\([^\n]*\)\s*$/gm,
+  ) ?? [];
+  if (instances.length !== 1) {
+    throw new ErrorsStackDetectionError(
+      `FastAPI calibration requires exactly one module-level app = FastAPI(...) statement; found ${instances.length} and no files were modified.`,
+    );
+  }
+  if (!/^\s*app\s*=\s*FastAPI\s*\([^\n]*\)\s*$/m.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "FastAPI calibration requires the conventional module-level app = FastAPI(...) bootstrap; no files were modified.",
+    );
+  }
+  const unsupported: Array<[RegExp, string]> = [
+    [/\b(?:BackgroundTasks?|BackgroundTask)\b/, "background-task failures are not supported"],
+    [/\b(?:WebSocket|websocket)\b/, "WebSocket lifecycle is not supported"],
+    [/\b(?:StreamingResponse|EventSourceResponse)\b/, "streaming/SSE lifecycle is not supported"],
+    [/\blifespan\s*=/, "lifespan failures are not supported"],
+    [/\bapp\.mount\s*\(/, "mounted or nested applications are not supported"],
+    [/\buvicorn\.run\s*\(/, "in-module Uvicorn bootstrap is not supported"],
+  ];
+  for (const [pattern, reason] of unsupported) {
+    if (pattern.test(source)) {
+      throw new ErrorsStackDetectionError(
+        `FastAPI ${reason} by the frozen HTTP calibration; no files were modified.`,
+      );
+    }
+  }
+  return {
+    cwd,
+    entryPath,
+    appVariable: "app",
+    pythonVersion: pythonVersion as FastApiProjectShape["pythonVersion"],
+    fastapiVersion: FASTAPI_DEPENDENCIES.fastapi,
+    starletteVersion: FASTAPI_DEPENDENCIES.starlette,
+    uvicornVersion: FASTAPI_DEPENDENCIES.uvicorn,
+    topology: "module-app",
+  };
 }
 
 function dependencies(pkg: PackageJson): Record<string, string> {
@@ -1195,6 +1319,14 @@ function looksSupported(root: string): boolean {
 }
 
 export function detectErrorsStack(cwd: string): ErrorsStackShape {
+  if (!existsSync(join(cwd, "package.json"))) {
+    const hasPythonManifest = ["pyproject.toml", "requirements.txt", "Pipfile"].some(
+      (path) => existsSync(join(cwd, path)),
+    );
+    if (hasPythonManifest) {
+      return { cwd, fastapi: fastApiShape(cwd), notices: [] };
+    }
+  }
   const pkg = readPackageJson(cwd);
   const deps = dependencies(pkg);
 

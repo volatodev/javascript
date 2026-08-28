@@ -91,7 +91,8 @@ export async function reportIntegrationInstalled(
     | "errors-node"
     | "errors-node-invocation"
     | "errors-node-fastify"
-    | "errors-node-nestjs",
+    | "errors-node-nestjs"
+    | "errors-python-fastapi",
 ): Promise<void> {
   try {
     await postJson(

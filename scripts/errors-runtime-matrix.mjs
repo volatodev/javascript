@@ -54,6 +54,12 @@ const versions = {
     21: "21.2.22",
     22: "22.1.6",
   },
+  python: ["3.10", "3.11", "3.12", "3.13", "3.14"],
+  fastapi: ["0.141.1"],
+  starlette: ["1.6.0"],
+  uvicorn: ["0.52.4"],
+  pydantic: ["2.13.5"],
+  anyio: ["4.14.2"],
   typescript: ["5.9.3"],
 };
 
@@ -364,6 +370,26 @@ const browserAngularCells = [
   }),
 );
 
+const pythonFastApiCells = versions.python.map((python) =>
+  withGates({
+    id: `fastapi.py${python.replace(".", "")}.http`,
+    wave: "calibration-fastapi",
+    family: "python-fastapi",
+    visibility: "private-calibration",
+    python,
+    framework: "fastapi",
+    frameworkVersion: versions.fastapi[0],
+    adapter: "starlette-pure-asgi",
+    adapterVersion: versions.starlette[0],
+    server: "uvicorn",
+    serverVersion: versions.uvicorn[0],
+    topology: "module-app",
+    artifact: "direct-python-source",
+    capture: ["manual", "asgi-http"],
+    explicitRefusals: ["lifespan", "background", "websocket", "streaming"],
+  }),
+);
+
 const refusals = [
   {
     id: "next.version-or-root",
@@ -451,6 +477,21 @@ const refusals = [
     id: "angular.builder-or-bootstrap",
     visibility: "private-calibration",
     reason: "Alternate builders, custom output paths or build scripts, NgModule/dynamic bootstrap and non-static ApplicationConfig ownership are refused before mutation.",
+  },
+  {
+    id: "fastapi.version-or-bootstrap",
+    visibility: "private-calibration",
+    reason: "Python outside maintained 3.10-3.14, dependency drift, app factories and alternate or multiple FastAPI bootstraps are refused before mutation.",
+  },
+  {
+    id: "fastapi.non-http-or-topology",
+    visibility: "private-calibration",
+    reason: "Direct Starlette, WSGI, mounted applications, WebSockets, streaming/SSE, serverless wrappers and multiple application topologies are outside the private FastAPI HTTP calibration.",
+  },
+  {
+    id: "fastapi.lifespan-or-background",
+    visibility: "private-calibration",
+    reason: "Lifespan and post-response background-task failures remain explicit refusals until their independent propagation and flush lifecycles are proven.",
   },
 ];
 
@@ -639,7 +680,16 @@ const supportTargets = [
 export const runtimeMatrix = {
   frozenAt: "2026-08-28",
   publicFrozenAt: "2026-08-27",
-  privateVersionKeys: ["angular", "angularBuild"],
+  privateVersionKeys: [
+    "angular",
+    "angularBuild",
+    "python",
+    "fastapi",
+    "starlette",
+    "uvicorn",
+    "pydantic",
+    "anyio",
+  ],
   versions,
   supportGates,
   cells: [
@@ -652,6 +702,7 @@ export const runtimeMatrix = {
     ...fastifyCells,
     ...nestHttpCells,
     ...browserAngularCells,
+    ...pythonFastApiCells,
   ],
   refusals,
   quickstarts,

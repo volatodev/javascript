@@ -4,7 +4,14 @@ import { describe, expect, it } from "vitest";
 
 type MatrixCell = {
   id: string;
-  wave: "1B" | "1C" | "1D" | "2A" | "2B" | "calibration-angular";
+  wave:
+    | "1B"
+    | "1C"
+    | "1D"
+    | "2A"
+    | "2B"
+    | "calibration-angular"
+    | "calibration-fastapi";
   family:
     | "browser-react"
     | "node-long-lived"
@@ -13,6 +20,7 @@ type MatrixCell = {
     | "browser-vue"
     | "browser-svelte"
     | "browser-angular"
+    | "python-fastapi"
     | "fastify"
     | "nest-http";
   gates: string[];
@@ -151,7 +159,9 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       fastify: 16,
       "nest-http": 8,
     });
-    expect(matrix.cells).toHaveLength(112);
+    expect(
+      matrix.cells.filter((cell) => cell.family !== "python-fastapi"),
+    ).toHaveLength(112);
     expect(matrix.refusals).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "vue.ssr-or-ambiguous-root" }),
@@ -197,8 +207,54 @@ describe("Errors JavaScript runtime conformance matrix", () => {
         expect.objectContaining({ id: "angular.builder-or-bootstrap" }),
       ]),
     );
-    expect(matrix.cells).toHaveLength(112);
+    expect(
+      matrix.cells.filter((cell) => cell.family !== "python-fastapi"),
+    ).toHaveLength(112);
     expect(matrix.quickstarts.some(({ id }) => id === "angular")).toBe(false);
     expect(matrix.targets.some(({ id }) => id === "angular")).toBe(false);
+  });
+
+  it("freezes FastAPI as five private maintained-Python cells", () => {
+    const matrix = readMatrix() as RuntimeMatrix & {
+      quickstarts: Array<{ id: string }>;
+      targets: Array<{ id: string }>;
+    };
+    const fastapi = matrix.cells.filter(
+      (cell) => cell.family === "python-fastapi",
+    );
+
+    expect(matrix.versions).toMatchObject({
+      python: ["3.10", "3.11", "3.12", "3.13", "3.14"],
+      fastapi: ["0.141.1"],
+      starlette: ["1.6.0"],
+      uvicorn: ["0.52.4"],
+      pydantic: ["2.13.5"],
+      anyio: ["4.14.2"],
+    });
+    expect(fastapi).toHaveLength(5);
+    expect(
+      fastapi.every(
+        (cell) =>
+          cell.wave === "calibration-fastapi" &&
+          cell.visibility === "private-calibration",
+      ),
+    ).toBe(true);
+    expect(fastapi.map((cell) => cell.id)).toEqual([
+      "fastapi.py310.http",
+      "fastapi.py311.http",
+      "fastapi.py312.http",
+      "fastapi.py313.http",
+      "fastapi.py314.http",
+    ]);
+    expect(matrix.refusals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "fastapi.version-or-bootstrap" }),
+        expect.objectContaining({ id: "fastapi.non-http-or-topology" }),
+        expect.objectContaining({ id: "fastapi.lifespan-or-background" }),
+      ]),
+    );
+    expect(matrix.cells).toHaveLength(117);
+    expect(matrix.quickstarts.some(({ id }) => id === "fastapi")).toBe(false);
+    expect(matrix.targets.some(({ id }) => id === "fastapi")).toBe(false);
   });
 });
