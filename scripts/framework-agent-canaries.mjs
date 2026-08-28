@@ -119,7 +119,63 @@ const targets = {
     language: "ts",
     release: "2082082082082082082082082082082082082082",
   },
+  astroCore: {
+    label: "Astro 7.2 standalone Node core private calibration",
+    projectId: "10000000-0000-4000-8000-000000000209",
+    groupId: "20000000-0000-4000-8000-000000000209",
+    integrationId: "errors-astro",
+    skill: "volato-astro",
+    runtime: "node",
+    capturedVia: "astro_middleware",
+    route: "/checkout",
+    language: "ts",
+    astroRenderer: "core",
+    release: "2092092092092092092092092092092092092092",
+  },
+  astroReact: {
+    label: "Astro 7.2 + React 19 hydration private calibration",
+    projectId: "10000000-0000-4000-8000-000000000210",
+    groupId: "20000000-0000-4000-8000-000000000210",
+    integrationId: "errors-astro",
+    skill: "volato-astro",
+    runtime: "node",
+    capturedVia: "astro_middleware",
+    route: "/checkout",
+    language: "ts",
+    astroRenderer: "react",
+    release: "2102102102102102102102102102102102102102",
+  },
+  astroVue: {
+    label: "Astro 7.2 + Vue 3 hydration private calibration",
+    projectId: "10000000-0000-4000-8000-000000000211",
+    groupId: "20000000-0000-4000-8000-000000000211",
+    integrationId: "errors-astro",
+    skill: "volato-astro",
+    runtime: "node",
+    capturedVia: "astro_middleware",
+    route: "/checkout",
+    language: "ts",
+    astroRenderer: "vue",
+    release: "2112112112112112112112112112112112112112",
+  },
+  astroSvelte: {
+    label: "Astro 7.2 + Svelte 5 hydration private calibration",
+    projectId: "10000000-0000-4000-8000-000000000212",
+    groupId: "20000000-0000-4000-8000-000000000212",
+    integrationId: "errors-astro",
+    skill: "volato-astro",
+    runtime: "node",
+    capturedVia: "astro_middleware",
+    route: "/checkout",
+    language: "ts",
+    astroRenderer: "svelte",
+    release: "2122122122122122122122122122122122122122",
+  },
 };
+
+function isAstroTarget(target) {
+  return typeof target.astroRenderer === "string";
+}
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -247,6 +303,49 @@ function commonPackage(target) {
   const scripts = {
     test: "node --test && node scripts/mark.mjs test",
   };
+  if (isAstroTarget(target)) {
+    scripts.build = "astro build";
+    scripts.postbuild =
+      "node scripts/verify-setup.mjs && node scripts/mark.mjs build";
+    scripts.test =
+      "tsx --test test/capture.test.ts && node scripts/mark.mjs test";
+    const rendererDependencies =
+      target.astroRenderer === "react"
+        ? {
+            "@astrojs/react": "6.0.4",
+            react: "19.2.8",
+            "react-dom": "19.2.8",
+            "@vitejs/plugin-react": "5.2.0",
+          }
+        : target.astroRenderer === "vue"
+          ? {
+              "@astrojs/vue": "7.0.2",
+              vue: "3.5.42",
+              "@vitejs/plugin-vue": "6.0.8",
+            }
+          : target.astroRenderer === "svelte"
+            ? {
+                "@astrojs/svelte": "9.0.1",
+                svelte: "5.56.10",
+                "@sveltejs/vite-plugin-svelte": "7.3.0",
+                typescript: "5.9.3",
+              }
+            : {};
+    return {
+      name: `volato-astro-${target.astroRenderer}-agent-canary`,
+      private: true,
+      type: "module",
+      engines: { node: "24.19.0" },
+      scripts,
+      dependencies: {
+        astro: "7.2.9",
+        "@astrojs/node": "11.1.4",
+        vite: "8.2.2",
+        ...rendererDependencies,
+      },
+      devDependencies: { tsx: "4.20.6" },
+    };
+  }
   if (target === targets.nuxt) {
     scripts.build = "nuxt build";
     scripts.postbuild =
@@ -616,6 +715,42 @@ export default defineConfig({
   );
 }
 
+function writeAstroFixture(root, target) {
+  mkdirSync(join(root, "src", "pages"), { recursive: true });
+  mkdirSync(join(root, "src", "components"), { recursive: true });
+  writeFileSync(join(root, ".node-version"), "24.19.0\n");
+  const renderer = target.astroRenderer;
+  const rendererImport =
+    renderer === "core"
+      ? ""
+      : `import ${renderer} from "@astrojs/${renderer}";\n`;
+  writeFileSync(
+    join(root, "astro.config.mjs"),
+    `import { defineConfig } from "astro/config";
+import node from "@astrojs/node";
+${rendererImport}
+export default defineConfig({
+  output: "server",
+  adapter: node({ mode: "standalone" }),
+  integrations: [${renderer === "core" ? "" : `${renderer}()`}],
+});
+`,
+  );
+  writeFileSync(
+    join(root, "tsconfig.json"),
+    `${JSON.stringify({ extends: "astro/tsconfigs/strict" }, null, 2)}\n`,
+  );
+  writeFileSync(
+    join(root, "src", "pages", "index.astro"),
+    `---
+import { checkoutTotal } from "../checkout";
+const total = checkoutTotal([]);
+---
+<main>{total}</main>
+`,
+  );
+}
+
 function writeFastifyFixture(root) {
   writeFileSync(
     join(root, "src", "server.ts"),
@@ -742,6 +877,29 @@ function files(root) {
 }
 assert.equal(files("build").some((path) => path.endsWith(".map")), false);
 assert.equal(files(".svelte-kit/output").some((path) => path.endsWith(".map")), false);
+`;
+  }
+  if (isAstroTarget(target)) {
+    return `import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+assert.match(readFileSync("astro.config.mjs", "utf8"), /withVolatoAstro/);
+assert.match(readFileSync("package.json", "utf8"), /volato-astro\\/upload-sourcemaps[.]mjs/);
+assert.ok(JSON.parse(readFileSync(".volato/manifest.json", "utf8")).integrations["errors-astro"]);
+for (const file of ["browser.mjs", "node.mjs", "client.mjs", "middleware.mjs", "build.mjs", "upload-sourcemaps.mjs"]) {
+  assert.ok(readFileSync(join("volato-astro", file), "utf8").length > 0);
+}
+function files(root) {
+  const found = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) found.push(...files(path));
+    else found.push(path);
+  }
+  return found;
+}
+assert.equal(files("dist").some((path) => path.endsWith(".map")), false);
 `;
   }
   if (target === targets.angular) {
@@ -884,6 +1042,33 @@ test("generated SvelteKit browser and server runtimes deliver bounded events", a
 });
 `;
   }
+  if (isAstroTarget(target)) {
+    const browserOwner =
+      target.astroRenderer === "vue"
+        ? "vue_error_handler"
+        : target.astroRenderer === "svelte"
+          ? "astro_hydration_error"
+          : "window_error";
+    return `import assert from "node:assert/strict";
+import test from "node:test";
+import { checkoutTotal } from "../src/checkout.ts";
+
+test("empty checkout remains valid", () => {
+  assert.equal(checkoutTotal([]), 0);
+});
+
+test("generated Astro browser and standalone Node runtimes deliver bounded events", async () => {
+  globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  const browser = await import("../volato-astro/browser.mjs");
+  browser.initVolatoBrowser({ dsn: process.env.VOLATO_TEST_DSN, environment: "production", release: process.env.VOLATO_RELEASE });
+  assert.equal(await browser.captureBrowserError(new Error("Astro ${target.astroRenderer} browser setup canary"), { capturedVia: "${browserOwner}" }), true);
+
+  const node = await import("../volato-astro/node.mjs");
+  node.initVolatoNode({ dsn: process.env.VOLATO_TEST_DSN, environment: "production", release: process.env.VOLATO_RELEASE, installFatalHandlers: false });
+  assert.equal(await node.captureNodeException(new Error("Astro standalone Node setup canary"), { capturedVia: "astro_middleware", method: "POST", route: "/checkout", status: 500, requestId: "astro-canary" }), true);
+});
+`;
+  }
   const extension = target.language === "js" ? "js" : "ts";
   const runtimeRoot = target.runtime === "browser" ? "volato" : "volato-node";
   const runtimeFile = target.runtime === "browser" ? "browser.js" : "node.ts";
@@ -933,6 +1118,7 @@ function writeFixture(root, target, skillRoot, realCli) {
   if (target === targets.fastapi) writeFastApiFixture(root);
   else if (target === targets.nuxt) writeNuxtFixture(root);
   else if (target === targets.sveltekit) writeSvelteKitFixture(root);
+  else if (isAstroTarget(target)) writeAstroFixture(root, target);
   else if (target === targets.angular) writeAngularFixture(root);
   else if (target.runtime === "browser") writeBrowserFixture(root, target);
   else if (target === targets.fastify) writeFastifyFixture(root);
@@ -941,7 +1127,8 @@ function writeFixture(root, target, skillRoot, realCli) {
   const testName =
     target === targets.angular ||
     target === targets.nuxt ||
-    target === targets.sveltekit
+    target === targets.sveltekit ||
+    isAstroTarget(target)
       ? "capture.test.ts"
       : "capture.test.mjs";
   if (target === targets.fastapi) {
@@ -1327,6 +1514,22 @@ async function runTargetCanaries(name, target, packaged) {
               multipartField(body, "display_path")?.startsWith(prefix),
             ),
         ),
+      astroBrowserCaptured:
+        isAstroTarget(target) &&
+        state.events.some((event) => event.runtime === "browser"),
+      astroServerCaptured:
+        isAstroTarget(target) &&
+        state.events.some(
+          (event) =>
+            event.runtime === "node" && event.capturedVia === "astro_middleware",
+        ),
+      astroMapFamiliesUploaded:
+        isAstroTarget(target) &&
+        ["_astro/", "server/"].every((prefix) =>
+          state.maps.some((body) =>
+            multipartField(body, "display_path")?.startsWith(prefix),
+          ),
+        ),
       wallClockMs: Date.now() - setupStarted,
     };
     for (const [passed, message] of [
@@ -1363,6 +1566,18 @@ async function runTargetCanaries(name, target, packaged) {
         target !== targets.sveltekit ||
           setupResult.svelteKitMapFamiliesUploaded,
         `${target.label} setup did not upload all three sourcemap families`,
+      ],
+      [
+        !isAstroTarget(target) || setupResult.astroBrowserCaptured,
+        `${target.label} setup did not exercise the generated browser runtime`,
+      ],
+      [
+        !isAstroTarget(target) || setupResult.astroServerCaptured,
+        `${target.label} setup did not exercise the generated standalone Node runtime`,
+      ],
+      [
+        !isAstroTarget(target) || setupResult.astroMapFamiliesUploaded,
+        `${target.label} setup did not upload both sourcemap families`,
       ],
     ]) assert(passed, message);
 
@@ -1435,8 +1650,10 @@ def checkout_total(lines):
         ? "pnpm"
         : target === targets.nuxt
           ? "pnpm"
-          : target === targets.sveltekit
+        : target === targets.sveltekit
             ? "pnpm"
+            : isAstroTarget(target)
+              ? "pnpm"
             : target === targets.fastapi
               ? join(root, ".venv", "bin", "python")
               : process.execPath,
@@ -1464,6 +1681,14 @@ def checkout_total(lines):
                 "--test-name-pattern=empty checkout remains valid",
                 "test/capture.test.ts",
               ]
+            : isAstroTarget(target)
+              ? [
+                  "exec",
+                  "tsx",
+                  "--test",
+                  "--test-name-pattern=empty checkout remains valid",
+                  "test/capture.test.ts",
+                ]
             : target === targets.fastapi
               ? [
                   "-m",
