@@ -33,6 +33,7 @@
     "smoke:fastapi-calibration": "pnpm --filter @volatodev/cli build && node scripts/fastapi-conformance.mjs",
     "smoke:nuxt-calibration": "pnpm --filter @volatodev/cli build && node scripts/nuxt-conformance.mjs",
     "smoke:sveltekit-calibration": "pnpm --filter @volatodev/cli build && node scripts/sveltekit-conformance.mjs",
+    "smoke:astro-calibration": "pnpm --filter @volatodev/cli build && node scripts/astro-conformance.mjs",
     "smoke:express": "pnpm --filter @volatodev/cli build && node scripts/express-conformance.mjs",
     "smoke:fastify": "pnpm --filter @volatodev/cli build && node scripts/express-conformance.mjs --family=fastify",
     "smoke:nest": "pnpm --filter @volatodev/cli build && node scripts/nest-conformance.mjs",

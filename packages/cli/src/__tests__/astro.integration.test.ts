@@ -213,7 +213,6 @@ describe("Astro private generated integration", () => {
         "client.mjs",
         "middleware.mjs",
         "vue-client.mjs",
-        "vue-server.mjs",
         "vue-app.mjs",
         "build.mjs",
         "upload-sourcemaps.mjs",
@@ -230,7 +229,7 @@ describe("Astro private generated integration", () => {
       expect(config.indexOf(`${renderer === "core" ? "integrations: []" : `integrations: [${renderer}(`}`)).toBeGreaterThan(-1);
       if (renderer === "vue") {
         expect(config).toContain(
-          'vue({ appEntrypoint: new URL("./volato-astro/vue-app.mjs", import.meta.url) })',
+          'vue({ appEntrypoint: "./volato-astro/vue-app.mjs" })',
         );
       }
       const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
@@ -246,7 +245,7 @@ describe("Astro private generated integration", () => {
       const integration = readManifest(cwd)?.integrations[ERRORS_ASTRO_INTEGRATION];
       expect(integration?.recipe).toBe("errors-astro-private");
       expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
-      expect(result.generatedFiles).toHaveLength(9);
+      expect(result.generatedFiles).toHaveLength(8);
 
       const afterFirst = Object.fromEntries(
         result.generatedFiles.map((path) => [path, readFileSync(path, "utf8")]),

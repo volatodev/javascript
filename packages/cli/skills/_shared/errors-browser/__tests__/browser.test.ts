@@ -68,6 +68,34 @@ describe("private browser capture recipe", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("removes credentials and document values from stack URLs while preserving asset paths", async () => {
+    const bodies: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        bodies.push(String(init.body));
+        return new Response(null, { status: 202 });
+      }),
+    );
+    initVolatoBrowser({
+      dsn: "https://public@api.volato.dev/project",
+      environment: "production",
+    });
+    const error = new Error("browser failure");
+    error.stack = [
+      "Error: browser failure",
+      "    at inline (https://user:password@example.test/accounts/private@example.com?token=secret:3:8)",
+      "    at chunk (https://example.test/_astro/app.ABCD1234.js?token=secret:9:4)",
+    ].join("\n");
+
+    await expect(captureBrowserError(error)).resolves.toBe(true);
+
+    const payload = JSON.parse(bodies[0]!) as { stack: string };
+    expect(payload.stack).toContain("https://example.test/:segment/:segment:3:8");
+    expect(payload.stack).toContain("https://example.test/_astro/app.ABCD1234.js:9:4");
+    expect(payload.stack).not.toMatch(/private@example|token=secret|user:password/);
+  });
+
   it("captures window errors and unhandled rejections without swallowing them", async () => {
     const bodies: string[] = [];
     vi.stubGlobal(

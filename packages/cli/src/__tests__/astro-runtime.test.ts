@@ -50,13 +50,12 @@ async function bundle(
   for (const name of [
     entryName,
     "vue-client.mjs",
-    "vue-server.mjs",
   ]) {
     const source = join(runtimeRoot, name);
     try {
       writeFileSync(join(root, name), readFileSync(source, "utf8"));
     } catch {
-      // Only the Vue entry needs its two lazily imported branches.
+      // Only the Vue entry needs its lazily imported browser branch.
     }
   }
   writeFileSync(join(root, "browser.mjs"), BROWSER_JAVASCRIPT_RUNTIME["browser.js"]);

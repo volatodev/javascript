@@ -1048,7 +1048,7 @@ function astroShape(
     const optionless = new RegExp(`\\b${renderer}\\s*\\(\\s*\\)`).test(source);
     const ownedVue =
       renderer === "vue" &&
-      /\bvue\s*\(\s*\{\s*appEntrypoint\s*:\s*new\s+URL\(\s*["']\.\/volato-astro\/vue-app\.mjs["']\s*,\s*import\.meta\.url\s*\)\s*\}\s*\)/.test(source);
+      /\bvue\s*\(\s*\{\s*appEntrypoint\s*:\s*["']\.\/volato-astro\/vue-app\.mjs["']\s*\}\s*\)/.test(source);
     if (calls.length !== 1 || (!optionless && !ownedVue)) {
       throw new ErrorsStackDetectionError(
         `Astro ${renderer} calibration requires one direct optionless ${renderer}() integration; renderer options were not modified and no files were modified.`,

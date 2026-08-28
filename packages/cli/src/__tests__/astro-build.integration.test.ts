@@ -114,7 +114,11 @@ describe("Astro build composition", () => {
     expect(config.integrations.slice(0, 2)).toEqual([first, second]);
     expect(config.integrations.at(-1).name).toBe("volato-errors-private-astro");
     expect(config.vite.define.__APP_FLAG__).toBe("true");
-    expect(config.vite.build).toMatchObject({ minify: false, sourcemap: "hidden" });
+    expect(config.vite.build).toMatchObject({
+      minify: false,
+      assetsInlineLimit: 0,
+      sourcemap: "hidden",
+    });
     expect(config.vite.define.__VOLATO_SERVER_RELEASE__).toBe('"astro-shared-release"');
     expect(JSON.parse(config.vite.define.__VOLATO_BROWSER_CONFIG__)).toEqual({
       dsn: "https://public@api.volato.dev/project",

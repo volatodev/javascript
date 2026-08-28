@@ -71,7 +71,6 @@ function generatedPaths(options: GenerateAstroOptions): Array<{
       "client.mjs",
       "middleware.mjs",
       "vue-client.mjs",
-      "vue-server.mjs",
       "vue-app.mjs",
       "build.mjs",
       "upload-sourcemaps.mjs",
@@ -134,7 +133,7 @@ function patchConfig(project: AstroProjectShape): PatchOutcome {
   if (project.renderer === "vue") {
     composed = composed.replace(
       /\bvue\s*\(\s*\)/,
-      'vue({ appEntrypoint: new URL("./volato-astro/vue-app.mjs", import.meta.url) })',
+      'vue({ appEntrypoint: "./volato-astro/vue-app.mjs" })',
     );
   }
   const exportPattern =

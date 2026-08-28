@@ -65,7 +65,7 @@ function errorShape(value: unknown): {
     return {
       type: value.name || "Error",
       message: value.message || "Unknown error",
-      stack: value.stack ?? null,
+      stack: scrubBrowserStack(value.stack),
     };
   }
   if (typeof value === "string") {
@@ -79,7 +79,8 @@ function errorShape(value: unknown): {
       const record = value as Record<string, unknown>;
       const message = typeof record.message === "string" ? record.message : "";
       const type = typeof record.name === "string" ? record.name : "Error";
-      const stack = typeof record.stack === "string" ? record.stack : null;
+      const stack =
+        typeof record.stack === "string" ? scrubBrowserStack(record.stack) : null;
       if (message || stack) {
         return { type, message: message || "Unknown error", stack };
       }
@@ -97,6 +98,32 @@ function errorShape(value: unknown): {
     message: `Rejected with non-Error ${typeof value}`,
     stack: null,
   };
+}
+
+function scrubBrowserStack(stack: string | undefined): string | null {
+  if (!stack) return null;
+  return stack.replace(/https?:\/\/[^\s)]+/g, (token) => {
+    const location = /^(.*?)(:\d+:\d+)$/.exec(token);
+    const rawUrl = location?.[1] ?? token;
+    const suffix = location?.[2] ?? "";
+    try {
+      const url = new URL(rawUrl);
+      url.username = "";
+      url.password = "";
+      url.search = "";
+      url.hash = "";
+      if (!/\.(?:c|m)?js$/i.test(url.pathname)) {
+        const depth = url.pathname.split("/").filter(Boolean).length;
+        url.pathname =
+          depth === 0
+            ? "/"
+            : `/${Array.from({ length: Math.min(depth, 64) }, () => ":segment").join("/")}`;
+      }
+      return `${url.href}${suffix}`;
+    } catch {
+      return token.replace(/[?#][^\s):]*/, "");
+    }
+  });
 }
 
 function alreadyCaptured(value: unknown): boolean {

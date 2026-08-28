@@ -84,6 +84,7 @@ export function withVolatoAstro(config, options = {}) {
       },
       build: {
         ...build,
+        assetsInlineLimit: 0,
         sourcemap: "hidden",
       },
     },

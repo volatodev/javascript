@@ -9,7 +9,6 @@ export type NodeCaptureContext = {
     | "nitro_error"
     | "sveltekit_server_handle_error"
     | "astro_middleware"
-    | "astro_vue_error_handler"
     | "invocation";
   method?: string;
   route?: string;
