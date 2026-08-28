@@ -2,11 +2,13 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   detectErrorsStack,
@@ -69,6 +71,22 @@ function writeNuxtFixture(
   ] as const) {
     writeInstalledPackage(name, version);
   }
+}
+
+function snapshot(root: string): Record<string, string> {
+  const entries: Record<string, string> = {};
+  const visit = (directory: string): void => {
+    for (const name of readdirSync(directory).sort()) {
+      const path = join(directory, name);
+      if (statSync(path).isDirectory()) visit(path);
+      else {
+        entries[relative(root, path).replaceAll("\\", "/")] =
+          readFileSync(path).toString("base64");
+      }
+    }
+  };
+  visit(root);
+  return entries;
 }
 
 beforeEach(() => {
@@ -149,10 +167,40 @@ describe("detectErrorsStack", () => {
       () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default async () => defineNuxtConfig({ nitro: { preset: 'node-server' } });\n"),
       /static defineNuxtConfig.*no files were modified/i,
     ],
+    [
+      "dynamic Vite config",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "const vite = () => ({});\nexport default defineNuxtConfig({ vite, nitro: { preset: 'node-server' } });\n"),
+      /Vite configuration.*static object.*no files were modified/i,
+    ],
+    [
+      "non-object sourcemap config",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default defineNuxtConfig({ sourcemap: true, nitro: { preset: 'node-server' } });\n"),
+      /sourcemap configuration.*static object.*no files were modified/i,
+    ],
+    [
+      "islands",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default defineNuxtConfig({ experimental: { componentIslands: true }, nitro: { preset: 'node-server' } });\n"),
+      /islands.*outside.*no files were modified/i,
+    ],
+    [
+      "custom output directory",
+      () => writeNuxtFixture("nuxt.config.ts", "24.19.0", "export default defineNuxtConfig({ nitro: { preset: 'node-server', output: { dir: './dist' } } });\n"),
+      /custom build or output directories.*no files were modified/i,
+    ],
+    [
+      "Bun runtime marker",
+      () => {
+        writeNuxtFixture();
+        writeFileSync(join(cwd, "bun.lock"), "");
+      },
+      /Bun and Deno.*outside.*no files were modified/i,
+    ],
   ] as const)("refuses %s before falling back to Vue", (_label, arrange, expected) => {
     arrange();
+    const before = snapshot(cwd);
 
     expect(() => detectErrorsStack(cwd)).toThrowError(expected);
+    expect(snapshot(cwd)).toEqual(before);
   });
 
   it("refuses a drifted installed Nuxt tuple", () => {
@@ -179,6 +227,20 @@ describe("detectErrorsStack", () => {
       configPath: join(cwd, "nuxt.config.ts"),
       configFormat: "ts",
     });
+  });
+
+  it("refuses an unowned Nuxt build wrapper before mutation", () => {
+    writeNuxtFixture(
+      "nuxt.config.ts",
+      "24.19.0",
+      "import { withVolatoNuxt } from './custom-build.mjs';\nexport default withVolatoNuxt(defineNuxtConfig({ nitro: { preset: 'node-server' } }));\n",
+    );
+    const before = snapshot(cwd);
+
+    expect(() => detectErrorsStack(cwd)).toThrowError(
+      /wrapper.*generated build helper.*no files were modified/i,
+    );
+    expect(snapshot(cwd)).toEqual(before);
   });
 
   it.each([

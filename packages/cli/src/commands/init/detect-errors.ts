@@ -283,6 +283,20 @@ function configProperty(source: string, name: string): RegExp {
   return new RegExp(`(?:^|[,{])\\s*(?:["']${escaped}["']|${escaped})\\s*:`, "m");
 }
 
+function nonObjectConfigProperty(source: string, name: string): boolean {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const explicit = new RegExp(
+    `(?:^|[,{])\\s*(?:["']${escaped}["']|${escaped})\\s*:\\s*(\\S)`,
+    "m",
+  );
+  const shorthand = new RegExp(
+    `(?:^|[,{])\\s*${escaped}\\s*(?:,|})`,
+    "m",
+  );
+  const match = explicit.exec(source);
+  return (match !== null && match[1] !== "{") || shorthand.test(source);
+}
+
 function nuxtShape(
   cwd: string,
   pkg: PackageJson,
@@ -300,6 +314,20 @@ function nuxtShape(
         `${name === "vue" ? "Vue" : "Vue Router"} must be pinned exactly to ${NUXT_DEPENDENCIES[name]} for the private Nuxt calibration; found ${deps[name] ?? "no exact pin"} and no files were modified.`,
       );
     }
+  }
+  if (deps["@nuxt/webpack-builder"] || deps["@nuxt/rspack-builder"]) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt Webpack and Rspack builders are outside the default Vite calibration; no files were modified.",
+    );
+  }
+  if (
+    ["bun.lock", "bun.lockb", "deno.json", "deno.jsonc"].some((name) =>
+      existsSync(join(cwd, name)),
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt Bun and Deno runtimes are outside the long-lived Node calibration; no files were modified.",
+    );
   }
 
   const installed = exactNuxtRuntimeVersions(cwd);
@@ -371,6 +399,22 @@ function nuxtShape(
       "Nuxt calibration requires one static defineNuxtConfig object export; dynamic configuration was not modified and no files were modified.",
     );
   }
+  if (source.includes("withVolatoNuxt")) {
+    const ownedImport =
+      /^import\s*\{\s*withVolatoNuxt\s*}\s*from\s*["']\.\/volato-nuxt\/build\.mjs["']\s*;?\s*$/m;
+    if (!ownedImport.test(source)) {
+      throw new ErrorsStackDetectionError(
+        "The Nuxt wrapper is not owned by the generated build helper; no files were modified.",
+      );
+    }
+  }
+  for (const name of ["nitro", "vite", "sourcemap"] as const) {
+    if (nonObjectConfigProperty(source, name)) {
+      throw new ErrorsStackDetectionError(
+        `Nuxt ${name === "vite" ? "Vite" : name} configuration must be one static object for exact composition; no files were modified.`,
+      );
+    }
+  }
   if (configProperty(source, "routeRules").test(source)) {
     throw new ErrorsStackDetectionError(
       "Nuxt route rules and hybrid rendering are outside the private calibration; no files were modified.",
@@ -398,12 +442,30 @@ function nuxtShape(
     );
   }
   if (
+    ["output", "outputDir", "buildDir", "serverDir"].some((name) =>
+      configProperty(source, name).test(source),
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt custom build or output directories are outside the conventional .output calibration; no files were modified.",
+    );
+  }
+  if (
     ["prerender", "isr", "static"].some((name) =>
       configProperty(source, name).test(source),
     )
   ) {
     throw new ErrorsStackDetectionError(
       "Nuxt prerender, ISR and static output are outside the long-lived Node calibration; no files were modified.",
+    );
+  }
+  if (
+    ["componentIslands", "islands", "serverComponents"].some((name) =>
+      configProperty(source, name).test(source),
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Nuxt islands and server-component modes are outside the private calibration; no files were modified.",
     );
   }
   const preset = /\bpreset\s*:\s*["']([^"']+)["']/.exec(source)?.[1];
