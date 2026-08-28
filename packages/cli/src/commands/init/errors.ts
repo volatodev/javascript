@@ -36,6 +36,7 @@ import { generateAngularIntegration } from "../../integrations/angular.js";
 import { generateFastApiIntegration } from "../../integrations/fastapi.js";
 import { generateNuxtIntegration } from "../../integrations/nuxt.js";
 import { generateSvelteKitIntegration } from "../../integrations/sveltekit.js";
+import { generateAstroIntegration } from "../../integrations/astro.js";
 import { generateNodeIntegration } from "../../integrations/node.js";
 import { generateFastifyIntegration } from "../../integrations/fastify.js";
 import { generateNestIntegration } from "../../integrations/nest.js";
@@ -164,6 +165,27 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
           path: generated.runtimeRoot,
           status: "created",
           detail: `${generated.generatedFiles.length} local SvelteKit browser + adapter-node files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
+    if (stack.astro) {
+      const generated = generateAstroIntegration({
+        cwd,
+        dsn: setup.dsn,
+        ingestToken: setup.ingestToken,
+        project: stack.astro,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Astro browser + standalone Node files`,
         },
         ...generated.outcomes,
         {
@@ -426,6 +448,9 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
     if (stack.sveltekit) {
       await reportIntegrationInstalled(projectLink.id, "errors-sveltekit");
     }
+    if (stack.astro) {
+      await reportIntegrationInstalled(projectLink.id, "errors-astro");
+    }
   }
 
   if (manualOutcomes.length === 0 && stack.nextjs && nextjsRuntimeRoot) {
@@ -463,6 +488,8 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         ? "Nuxt"
         : stack.sveltekit
           ? "SvelteKit"
+        : stack.astro
+          ? "Astro"
         : stack.browserReact
         ? "React"
         : stack.angular
@@ -476,6 +503,8 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         ? "Nuxt/Nitro"
         : stack.sveltekit
           ? "SvelteKit/adapter-node"
+        : stack.astro
+          ? "Astro/adapter-node"
         : stack.nest
         ? "NestJS"
         : stack.fastify
@@ -565,6 +594,7 @@ function printPortableNextSteps(
     | "Angular"
     | "Nuxt"
     | "SvelteKit"
+    | "Astro"
     | null,
   nodeSurface:
     | "Node/Express"
@@ -572,6 +602,7 @@ function printPortableNextSteps(
     | "NestJS"
     | "Nuxt/Nitro"
     | "SvelteKit/adapter-node"
+    | "Astro/adapter-node"
     | null,
   hasNodeInvocation: boolean,
   hasFastApi: boolean,

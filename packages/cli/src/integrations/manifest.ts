@@ -19,6 +19,7 @@ export const ERRORS_PYTHON_FASTAPI_INTEGRATION =
   "errors-python-fastapi" as const;
 export const ERRORS_NUXT_INTEGRATION = "errors-nuxt" as const;
 export const ERRORS_SVELTEKIT_INTEGRATION = "errors-sveltekit" as const;
+export const ERRORS_ASTRO_INTEGRATION = "errors-astro" as const;
 const RETIRED_INTEGRATION_IDS = new Set(["analytics-nextjs"]);
 
 export type IntegrationId =
@@ -33,7 +34,8 @@ export type IntegrationId =
   | typeof ERRORS_NODE_NESTJS_INTEGRATION
   | typeof ERRORS_PYTHON_FASTAPI_INTEGRATION
   | typeof ERRORS_NUXT_INTEGRATION
-  | typeof ERRORS_SVELTEKIT_INTEGRATION;
+  | typeof ERRORS_SVELTEKIT_INTEGRATION
+  | typeof ERRORS_ASTRO_INTEGRATION;
 
 export type GeneratedIntegration = {
   protocolVersion: 1;
@@ -130,7 +132,8 @@ function parseManifest(value: unknown, path: string): IntegrationManifest {
       id !== ERRORS_NODE_NESTJS_INTEGRATION &&
       id !== ERRORS_PYTHON_FASTAPI_INTEGRATION &&
       id !== ERRORS_NUXT_INTEGRATION &&
-      id !== ERRORS_SVELTEKIT_INTEGRATION
+      id !== ERRORS_SVELTEKIT_INTEGRATION &&
+      id !== ERRORS_ASTRO_INTEGRATION
     ) {
       throw new Error(`Unsupported Volato integration ${JSON.stringify(id)}: ${path}`);
     }

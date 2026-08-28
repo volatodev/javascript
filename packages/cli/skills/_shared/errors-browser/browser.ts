@@ -7,6 +7,7 @@ type CaptureSource =
   | "angular_error_handler"
   | "nuxt_app_error"
   | "sveltekit_client_handle_error"
+  | "astro_hydration_error"
   | "manual";
 
 export type BrowserCaptureContext = {

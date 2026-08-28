@@ -94,7 +94,8 @@ export async function reportIntegrationInstalled(
     | "errors-node-nestjs"
     | "errors-python-fastapi"
     | "errors-nuxt"
-    | "errors-sveltekit",
+    | "errors-sveltekit"
+    | "errors-astro",
 ): Promise<void> {
   try {
     await postJson(

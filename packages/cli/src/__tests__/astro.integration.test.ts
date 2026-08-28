@@ -11,6 +11,13 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { detectErrorsStack } from "../commands/init/detect-errors";
 import { installSkills } from "../commands/skills";
+import { generateAstroIntegration } from "../integrations/astro";
+import {
+  ERRORS_ASTRO_INTEGRATION,
+  linkProject,
+  modifiedGeneratedFiles,
+  readManifest,
+} from "../integrations/manifest";
 
 type Renderer = "core" | "react" | "vue" | "svelte";
 
@@ -82,6 +89,7 @@ function fixture(options: {
     })}\n`,
   );
   writeFileSync(join(cwd, ".node-version"), `${node}\n`);
+  writeFileSync(join(cwd, ".gitignore"), "node_modules/\ndist/\n.env*.local\n");
   writeFileSync(
     join(cwd, "astro.config.mjs"),
     options.config ??
@@ -93,6 +101,10 @@ function fixture(options: {
   for (const [name, version] of Object.entries(dependencies)) {
     installPackage(name, version);
   }
+  linkProject(cwd, {
+    id: "18181818-1818-4818-8818-181818181818",
+    name: "Astro fixture",
+  });
 }
 
 beforeEach(() => {
@@ -175,5 +187,101 @@ describe("Astro private standalone-node detection", () => {
         "utf8",
       ),
     ).toContain("private Astro candidate");
+  });
+});
+
+describe("Astro private generated integration", () => {
+  it.each(["core", "react", "vue", "svelte"] as const)(
+    "generates one dependency-free %s composition and converges",
+    (renderer) => {
+      fixture({ renderer });
+      const beforePackage = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+      const project = detectErrorsStack(cwd).astro!;
+      const options = {
+        cwd,
+        project,
+        dsn: "https://public@api.volato.dev/project",
+        ingestToken: "private-upload-token",
+      };
+
+      const result = generateAstroIntegration(options);
+
+      expect(result.outcomes.every((outcome) => outcome.status !== "manual")).toBe(true);
+      for (const path of [
+        "browser.mjs",
+        "node.mjs",
+        "client.mjs",
+        "middleware.mjs",
+        "vue-client.mjs",
+        "vue-server.mjs",
+        "vue-app.mjs",
+        "build.mjs",
+        "upload-sourcemaps.mjs",
+      ]) {
+        expect(join(cwd, "volato-astro", path)).toSatisfy((value: string) =>
+          readFileSync(value, "utf8").length > 0,
+        );
+      }
+      const config = readFileSync(project.configPath, "utf8");
+      expect(config).toContain(
+        'import { withVolatoAstro } from "./volato-astro/build.mjs";',
+      );
+      expect(config).toMatch(/export default withVolatoAstro\(defineConfig\(\{/);
+      expect(config.indexOf(`${renderer === "core" ? "integrations: []" : `integrations: [${renderer}(`}`)).toBeGreaterThan(-1);
+      if (renderer === "vue") {
+        expect(config).toContain(
+          'vue({ appEntrypoint: new URL("./volato-astro/vue-app.mjs", import.meta.url) })',
+        );
+      }
+      const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf8"));
+      expect(pkg.dependencies).toEqual(beforePackage.dependencies);
+      expect(pkg.scripts.build).toBe(
+        "astro build && node volato-astro/upload-sourcemaps.mjs",
+      );
+      const env = readFileSync(join(cwd, ".env.local"), "utf8");
+      expect(env).toContain("VITE_VOLATO_DSN=https://public@api.volato.dev/project");
+      expect(env).toContain("VOLATO_DSN=https://public@api.volato.dev/project");
+      expect(env).toContain("VOLATO_INGEST_TOKEN=private-upload-token");
+      expect(env).not.toMatch(/NEXT_PUBLIC_VOLATO/);
+      const integration = readManifest(cwd)?.integrations[ERRORS_ASTRO_INTEGRATION];
+      expect(integration?.recipe).toBe("errors-astro-private");
+      expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
+      expect(result.generatedFiles).toHaveLength(9);
+
+      const afterFirst = Object.fromEntries(
+        result.generatedFiles.map((path) => [path, readFileSync(path, "utf8")]),
+      );
+      const second = generateAstroIntegration({
+        ...options,
+        project: detectErrorsStack(cwd).astro!,
+      });
+      expect(second.outcomes.every((outcome) => outcome.status === "skipped")).toBe(true);
+      expect(
+        Object.fromEntries(
+          result.generatedFiles.map((path) => [path, readFileSync(path, "utf8")]),
+        ),
+      ).toEqual(afterFirst);
+    },
+  );
+
+  it("refuses an edited generated runtime before changing anything else", () => {
+    fixture();
+    const options = {
+      cwd,
+      project: detectErrorsStack(cwd).astro!,
+      dsn: "https://public@api.volato.dev/project",
+      ingestToken: "private-upload-token",
+    };
+    generateAstroIntegration(options);
+    writeFileSync(join(cwd, "volato-astro", "middleware.mjs"), "// application edit\n");
+    const config = readFileSync(options.project.configPath, "utf8");
+
+    expect(() =>
+      generateAstroIntegration({
+        ...options,
+        project: detectErrorsStack(cwd).astro!,
+      }),
+    ).toThrowError(/Astro files were edited or deleted/i);
+    expect(readFileSync(options.project.configPath, "utf8")).toBe(config);
   });
 });
