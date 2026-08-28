@@ -5,6 +5,7 @@ type CaptureSource =
   | "vue_error_handler"
   | "svelte_boundary"
   | "angular_error_handler"
+  | "nuxt_app_error"
   | "manual";
 
 export type BrowserCaptureContext = {

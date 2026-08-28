@@ -6,6 +6,7 @@ export type NodeCaptureContext = {
     | "express"
     | "fastify"
     | "nest_exception_filter"
+    | "nitro_error"
     | "invocation";
   method?: string;
   route?: string;

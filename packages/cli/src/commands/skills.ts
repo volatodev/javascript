@@ -31,6 +31,7 @@ function selectedSkills(cwd: string): readonly string[] {
     const stack = detectErrorsStack(cwd);
     if (stack.angular) selected.push("volato-angular");
     if (stack.fastapi) selected.push("volato-fastapi");
+    if (stack.nuxt) selected.push("volato-nuxt");
   } catch {
     // Generic skill installation must remain available in unsupported or
     // partially configured repositories. Exact detection reports the refusal

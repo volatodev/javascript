@@ -30,6 +30,9 @@ data path. Do not invent capture code from scratch.
    - NestJS 11/12 HTTP over Express 5 or Fastify 5: follow `volato-nestjs`.
    - Private FastAPI 0.141 HTTP calibration on maintained Python 3.10-3.14:
      follow `volato-fastapi` and retain its private/publication boundary.
+   - Private Nuxt 4.5.2 SSR calibration on the exact Vite + Nitro node-server
+     tuple: follow `volato-nuxt`, retain its private/publication boundary, and
+     never fall back to the Vite + Vue SPA skill after a Nuxt refusal.
 
    Inspect a repository's frontend and backend independently; one repository
    may need one browser renderer skill plus one Node HTTP skill. NestJS owns

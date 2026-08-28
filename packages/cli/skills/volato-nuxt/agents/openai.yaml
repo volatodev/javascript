@@ -1,0 +1,4 @@
+interface:
+  display_name: "Volato Nuxt calibration"
+  short_description: "Install and verify the private Nuxt/Nitro Errors candidate."
+  default_prompt: "Use $volato-nuxt to install and verify the private Volato Errors calibration in this Nuxt application."

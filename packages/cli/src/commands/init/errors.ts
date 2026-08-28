@@ -34,6 +34,7 @@ import { generateViteVueIntegration } from "../../integrations/vite-vue.js";
 import { generateViteSvelteIntegration } from "../../integrations/vite-svelte.js";
 import { generateAngularIntegration } from "../../integrations/angular.js";
 import { generateFastApiIntegration } from "../../integrations/fastapi.js";
+import { generateNuxtIntegration } from "../../integrations/nuxt.js";
 import { generateNodeIntegration } from "../../integrations/node.js";
 import { generateFastifyIntegration } from "../../integrations/fastify.js";
 import { generateNestIntegration } from "../../integrations/nest.js";
@@ -129,6 +130,27 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       },
     );
   } else {
+    if (stack.nuxt) {
+      const generated = generateNuxtIntegration({
+        cwd,
+        dsn: setup.dsn,
+        ingestToken: setup.ingestToken,
+        project: stack.nuxt,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Nuxt browser + Nitro files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
     if (stack.angular) {
       const generated = generateAngularIntegration({
         cwd,
@@ -376,6 +398,9 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         "errors-python-fastapi",
       );
     }
+    if (stack.nuxt) {
+      await reportIntegrationInstalled(projectLink.id, "errors-nuxt");
+    }
   }
 
   if (manualOutcomes.length === 0 && stack.nextjs && nextjsRuntimeRoot) {
@@ -409,7 +434,9 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
   } else {
     printPortableNextSteps(
       cwd,
-      stack.browserReact
+      stack.nuxt
+        ? "Nuxt"
+        : stack.browserReact
         ? "React"
         : stack.angular
           ? "Angular"
@@ -418,7 +445,9 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
           : stack.browserSvelte
             ? "Svelte"
             : null,
-      stack.nest
+      stack.nuxt
+        ? "Nuxt/Nitro"
+        : stack.nest
         ? "NestJS"
         : stack.fastify
           ? "Fastify"
@@ -500,8 +529,8 @@ function localModule(fromFile: string, target: string): string {
 
 function printPortableNextSteps(
   cwd: string,
-  browserRenderer: "React" | "Vue" | "Svelte" | "Angular" | null,
-  nodeSurface: "Node/Express" | "Fastify" | "NestJS" | null,
+  browserRenderer: "React" | "Vue" | "Svelte" | "Angular" | "Nuxt" | null,
+  nodeSurface: "Node/Express" | "Fastify" | "NestJS" | "Nuxt/Nitro" | null,
   hasNodeInvocation: boolean,
   hasFastApi: boolean,
   complete: boolean,

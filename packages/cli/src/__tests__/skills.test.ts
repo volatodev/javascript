@@ -243,4 +243,55 @@ describe("installSkills", () => {
       ),
     ).toBe("private-fastapi");
   });
+
+  it("installs the private Nuxt skill only when the exact full-stack tuple is detected", () => {
+    addSkill("volato-nuxt", "private-nuxt");
+    mkdirSync(join(cwd, "app"), { recursive: true });
+    writeFileSync(join(cwd, "app", "app.vue"), "<template><NuxtPage /></template>\n");
+    writeFileSync(join(cwd, ".node-version"), "24.19.0\n");
+    writeFileSync(
+      join(cwd, "package.json"),
+      `${JSON.stringify({
+        name: "nuxt-private-fixture",
+        type: "module",
+        engines: { node: "24.19.0" },
+        scripts: { build: "nuxt build" },
+        dependencies: {
+          nuxt: "4.5.2",
+          vue: "3.5.42",
+          "vue-router": "5.2.0",
+        },
+      })}\n`,
+    );
+    writeFileSync(
+      join(cwd, "nuxt.config.ts"),
+      "export default defineNuxtConfig({ nitro: { preset: 'node-server' } });\n",
+    );
+    for (const [name, version] of [
+      ["nuxt", "4.5.2"],
+      ["@nuxt/nitro-server", "4.5.2"],
+      ["@nuxt/vite-builder", "4.5.2"],
+      ["nitropack", "2.13.4"],
+      ["vue", "3.5.42"],
+      ["vue-router", "5.2.0"],
+      ["vite", "8.2.2"],
+    ] as const) {
+      const root = join(cwd, "node_modules", ...name.split("/"));
+      mkdirSync(root, { recursive: true });
+      writeFileSync(join(root, "package.json"), JSON.stringify({ name, version }));
+    }
+
+    const outcomes = installSkills({ cwd, sourceRoot });
+
+    expect(outcomes.at(-1)).toMatchObject({
+      skill: "volato-nuxt",
+      status: "created",
+    });
+    expect(
+      readFileSync(
+        join(cwd, ".agents", "skills", "volato-nuxt", "SKILL.md"),
+        "utf8",
+      ),
+    ).toBe("private-nuxt");
+  });
 });
