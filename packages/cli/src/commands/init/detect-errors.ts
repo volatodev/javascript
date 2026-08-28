@@ -251,6 +251,24 @@ function resolvePackageVersion(
     const version = packageVersion(path);
     return version ? { path, version } : null;
   } catch {
+    try {
+      let directory = dirname(requireFrom.resolve(name));
+      while (dirname(directory) !== directory) {
+        const path = join(directory, "package.json");
+        if (existsSync(path)) {
+          const value = JSON.parse(readFileSync(path, "utf8")) as {
+            name?: unknown;
+            version?: unknown;
+          };
+          if (value.name === name && typeof value.version === "string") {
+            return { path, version: value.version };
+          }
+        }
+        directory = dirname(directory);
+      }
+    } catch {
+      // The dependency is either absent or exposes no resolvable entry.
+    }
     return null;
   }
 }

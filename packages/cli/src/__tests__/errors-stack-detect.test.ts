@@ -169,6 +169,28 @@ describe("detectErrorsStack", () => {
     },
   );
 
+  it("resolves the exact Svelte Vite plugin when package exports hide package.json", () => {
+    writeSvelteKitFixture();
+    const pluginRoot = join(
+      cwd,
+      "node_modules",
+      "@sveltejs",
+      "vite-plugin-svelte",
+    );
+    writeFileSync(
+      join(pluginRoot, "package.json"),
+      `${JSON.stringify({
+        name: "@sveltejs/vite-plugin-svelte",
+        version: "7.3.0",
+        type: "module",
+        exports: { ".": "./index.js" },
+      })}\n`,
+    );
+    writeFileSync(join(pluginRoot, "index.js"), "export {};\n");
+
+    expect(detectErrorsStack(cwd).sveltekit?.vitePluginVersion).toBe("7.3.0");
+  });
+
   it.each([
     [
       "SvelteKit version drift",
