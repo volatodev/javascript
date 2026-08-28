@@ -35,6 +35,11 @@ const versions = {
   svelteKit: ["2.70.3"],
   svelteKitAdapterNode: ["5.5.7"],
   svelteKitVitePlugin: ["7.3.0"],
+  astro: ["7.2.9"],
+  astroNodeAdapter: ["11.1.4"],
+  astroReact: ["6.0.4"],
+  astroVue: ["7.0.2"],
+  astroSvelte: ["9.0.1"],
   viteSveltePlugin: {
     6: "6.2.4",
     7: "6.2.4",
@@ -461,6 +466,63 @@ const svelteKitCells = versions.node.flatMap((node) =>
   ),
 );
 
+const astroNodeCells = versions.node.flatMap((node) =>
+  ["ts", "js"].flatMap((language) =>
+    ["core", "react", "vue", "svelte"].map((renderer) =>
+      withGates({
+        id: `astro7.node${node.split(".")[0]}.${language}.${renderer}`,
+        wave: "calibration-astro",
+        family: "astro-node",
+        visibility: "private-calibration",
+        astro: versions.astro[0],
+        adapter: "@astrojs/node",
+        adapterVersion: versions.astroNodeAdapter[0],
+        adapterMode: "standalone",
+        renderer,
+        rendererVersion:
+          renderer === "react"
+            ? versions.astroReact[0]
+            : renderer === "vue"
+              ? versions.astroVue[0]
+              : renderer === "svelte"
+                ? versions.astroSvelte[0]
+                : null,
+        runtimeVersion:
+          renderer === "react"
+            ? versions.react[1]
+            : renderer === "vue"
+              ? versions.vue[0]
+              : renderer === "svelte"
+                ? versions.svelte[0]
+                : null,
+        vite: versions.vite[2],
+        node,
+        config: "astro.config.mjs",
+        language,
+        module: "esm",
+        topology: "on-demand-standalone-node",
+        outputTopology: "dist-client-and-dist-server",
+        hydration: renderer === "core" ? [] : ["client:load"],
+        capture: [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          ...(renderer === "react"
+            ? ["react-hydration"]
+            : renderer === "vue"
+              ? ["vue-error-handler"]
+              : renderer === "svelte"
+                ? ["astro-hydration-error"]
+                : []),
+        ],
+      }),
+    ),
+  ),
+);
+
 const refusals = [
   {
     id: "next.version-or-root",
@@ -593,6 +655,26 @@ const refusals = [
     id: "sveltekit.lifecycle-or-hooks",
     visibility: "private-calibration",
     reason: "SSR-disabled, prerendered, service-worker, remote-function, experimental rendering, ambiguous hook, streaming, WebSocket, background and process-fatal lifecycles are refused before mutation.",
+  },
+  {
+    id: "astro.version-or-config",
+    visibility: "private-calibration",
+    reason: "Astro, Vite, Node or renderer dependency drift, dynamic configuration, custom roots and multi-application repositories are refused before mutation.",
+  },
+  {
+    id: "astro.output-or-adapter",
+    visibility: "private-calibration",
+    reason: "Static output, prerendering, adapter middleware mode, provider, edge, Deno, Bun, custom adapters and custom output directories are outside the standalone Node calibration.",
+  },
+  {
+    id: "astro.renderer-or-hydration",
+    visibility: "private-calibration",
+    reason: "Mixed renderers, renderer options and hydration directives other than client:load are refused until independently conformed.",
+  },
+  {
+    id: "astro.lifecycle-or-actions",
+    visibility: "private-calibration",
+    reason: "Astro Actions, streaming-after-commit, background work and process-fatal failures are outside the middleware and island lifecycle calibration.",
   },
 ];
 
@@ -798,6 +880,11 @@ export const runtimeMatrix = {
     "svelteKit",
     "svelteKitAdapterNode",
     "svelteKitVitePlugin",
+    "astro",
+    "astroNodeAdapter",
+    "astroReact",
+    "astroVue",
+    "astroSvelte",
   ],
   versions,
   supportGates,
@@ -814,6 +901,7 @@ export const runtimeMatrix = {
     ...pythonFastApiCells,
     ...nuxtNitroCells,
     ...svelteKitCells,
+    ...astroNodeCells,
   ],
   refusals,
   quickstarts,

@@ -96,6 +96,22 @@ export type SvelteKitProjectShape = {
   intermediateOutputRoot: string;
 };
 
+export type AstroRenderer = "core" | "react" | "vue" | "svelte";
+
+export type AstroProjectShape = {
+  cwd: string;
+  configPath: string;
+  language: SourceLanguage;
+  nodeVersion: "22.23.2" | "24.19.0";
+  astroVersion: "7.2.9";
+  adapterNodeVersion: "11.1.4";
+  viteVersion: "8.2.2";
+  renderer: AstroRenderer;
+  rendererIntegrationVersion?: "6.0.4" | "7.0.2" | "9.0.1";
+  rendererRuntimeVersion?: "19.2.8" | "3.5.42" | "5.56.10";
+  outputRoot: string;
+};
+
 export type NodeProjectShape = {
   cwd: string;
   entryPath: string;
@@ -142,6 +158,7 @@ export type ErrorsStackShape = {
   nextjs?: ProjectShape;
   nuxt?: NuxtProjectShape;
   sveltekit?: SvelteKitProjectShape;
+  astro?: AstroProjectShape;
   browserReact?: BrowserReactProjectShape;
   viteReact?: ViteReactProjectShape;
   browserVue?: ViteVueProjectShape;
@@ -230,6 +247,35 @@ const SVELTEKIT_NODE_VERSIONS = ["22.23.2", "24.19.0"] as const;
 const SVELTEKIT_BUILD_COMMAND = "vite build";
 const SVELTEKIT_GENERATED_BUILD_COMMAND =
   "vite build && node volato-sveltekit/upload-sourcemaps.mjs";
+
+const ASTRO_DEPENDENCIES = {
+  astro: "7.2.9",
+  "@astrojs/node": "11.1.4",
+  vite: "8.2.2",
+} as const;
+const ASTRO_RENDERER_DEPENDENCIES = {
+  react: {
+    "@astrojs/react": "6.0.4",
+    react: "19.2.8",
+    "react-dom": "19.2.8",
+    "@vitejs/plugin-react": "5.2.0",
+  },
+  vue: {
+    "@astrojs/vue": "7.0.2",
+    vue: "3.5.42",
+    "@vitejs/plugin-vue": "6.0.8",
+  },
+  svelte: {
+    "@astrojs/svelte": "9.0.1",
+    svelte: "5.56.10",
+    "@sveltejs/vite-plugin-svelte": "7.3.0",
+    typescript: "5.9.3",
+  },
+} as const;
+const ASTRO_NODE_VERSIONS = ["22.23.2", "24.19.0"] as const;
+const ASTRO_BUILD_COMMAND = "astro build";
+const ASTRO_GENERATED_BUILD_COMMAND =
+  "astro build && node volato-astro/upload-sourcemaps.mjs";
 
 function packageVersion(path: string): string | null {
   try {
@@ -796,6 +842,279 @@ function svelteKitShape(
     serverHooksPath: join(cwd, "src", `hooks.server.${language}`),
     outputRoot: join(cwd, "build"),
     intermediateOutputRoot: join(cwd, ".svelte-kit", "output"),
+  };
+}
+
+function exactAstroRuntimeVersions(
+  cwd: string,
+  renderer: AstroRenderer,
+): void {
+  const rootRequire = createRequire(join(cwd, "package.json"));
+  const expected: Record<string, string> = {
+    ...ASTRO_DEPENDENCIES,
+    ...(renderer === "core" ? {} : ASTRO_RENDERER_DEPENDENCIES[renderer]),
+  };
+  for (const [name, version] of Object.entries(expected)) {
+    const actual = resolvePackageVersion(rootRequire, name)?.version;
+    if (actual !== version) {
+      throw new ErrorsStackDetectionError(
+        `${name} ${actual ?? "could not be resolved"} is outside the private Astro calibration, which requires ${version}; install the exact application dependencies and no files were modified.`,
+      );
+    }
+  }
+}
+
+function astroShape(
+  cwd: string,
+  pkg: PackageJson,
+  deps: Record<string, string>,
+): AstroProjectShape {
+  for (const [name, expected] of Object.entries(ASTRO_DEPENDENCIES)) {
+    if (deps[name] !== expected) {
+      const label = name === "@astrojs/node" ? "@astrojs/node" : name[0]!.toUpperCase() + name.slice(1);
+      throw new ErrorsStackDetectionError(
+        `${label} ${deps[name] ?? "unknown"} is outside the private Astro calibration, which requires ${expected}; no files were modified.`,
+      );
+    }
+  }
+  if (
+    ["bun.lock", "bun.lockb", "deno.json", "deno.jsonc"].some((name) =>
+      existsSync(join(cwd, name)),
+    )
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Astro Bun and Deno runtimes are outside the standalone Node calibration; no files were modified.",
+    );
+  }
+  if (pkg.type !== "module") {
+    throw new ErrorsStackDetectionError(
+      "Astro calibration requires a repository-root ESM package with type: module; no files were modified.",
+    );
+  }
+  if (pkg.workspaces) {
+    throw new ErrorsStackDetectionError(
+      "Astro monorepo and multi-application roots are outside the private calibration; run from one conventional application root and no files were modified.",
+    );
+  }
+  const nodeVersion = existsSync(join(cwd, ".node-version"))
+    ? readFileSync(join(cwd, ".node-version"), "utf8").trim()
+    : "";
+  if (!(ASTRO_NODE_VERSIONS as readonly string[]).includes(nodeVersion)) {
+    throw new ErrorsStackDetectionError(
+      `Node ${nodeVersion || "unknown"} is outside the private Astro calibration; .node-version must be exactly 22.23.2 or 24.19.0 and no files were modified.`,
+    );
+  }
+  const engines =
+    pkg.engines && typeof pkg.engines === "object" && !Array.isArray(pkg.engines)
+      ? (pkg.engines as Record<string, unknown>)
+      : null;
+  if (engines?.node !== nodeVersion) {
+    throw new ErrorsStackDetectionError(
+      `Astro calibration requires package.json engines.node = ${JSON.stringify(nodeVersion)} to match .node-version exactly; no files were modified.`,
+    );
+  }
+  const scripts =
+    pkg.scripts && typeof pkg.scripts === "object" && !Array.isArray(pkg.scripts)
+      ? (pkg.scripts as Record<string, unknown>)
+      : null;
+  if (
+    scripts?.build !== ASTRO_BUILD_COMMAND &&
+    scripts?.build !== ASTRO_GENERATED_BUILD_COMMAND
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Astro calibration requires the conventional `astro build` production command; custom build and deployment commands were not modified.",
+    );
+  }
+
+  const supportedConfigs = ["astro.config.mjs"].filter((name) =>
+    existsSync(join(cwd, name)),
+  );
+  const unsupportedConfigs = [
+    "astro.config.ts",
+    "astro.config.js",
+    "astro.config.cjs",
+    "astro.config.mts",
+  ].filter((name) => existsSync(join(cwd, name)));
+  if (supportedConfigs.length !== 1 || unsupportedConfigs.length > 0) {
+    const found = [...supportedConfigs, ...unsupportedConfigs];
+    throw new ErrorsStackDetectionError(
+      `${found.length === 0 ? "No" : `Multiple or unsupported (${found.join(", ")})`} Astro config was detected; exactly one astro.config.mjs is required and no files were modified.`,
+    );
+  }
+  const configPath = join(cwd, "astro.config.mjs");
+  const source = readFileSync(configPath, "utf8");
+  const staticConfig =
+    /export\s+default\s+(?:withVolatoAstro\(\s*)?defineConfig\(\s*\{[\s\S]*\}\s*\)\s*\)?\s*;?\s*$/.test(
+      source,
+    );
+  if ((source.match(/\bexport\s+default\b/g) ?? []).length !== 1 || !staticConfig) {
+    throw new ErrorsStackDetectionError(
+      "Astro calibration requires one static defineConfig object export; dynamic configuration was not modified and no files were modified.",
+    );
+  }
+  if (!/from\s*["']astro\/config["']/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "Astro calibration requires the official defineConfig import; no files were modified.",
+    );
+  }
+  if (!/import\s+node\s+from\s*["']@astrojs\/node["']/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "Astro calibration requires one direct official @astrojs/node import; custom adapters were not modified and no files were modified.",
+    );
+  }
+  if ((source.match(/\bnode\s*\(/g) ?? []).length !== 1) {
+    throw new ErrorsStackDetectionError(
+      "Astro calibration requires exactly one official Node adapter call; no files were modified.",
+    );
+  }
+  if (!/adapter\s*:\s*node\s*\(\s*\{\s*mode\s*:\s*["']standalone["']\s*\}\s*\)/.test(source)) {
+    if (/mode\s*:\s*["']middleware["']/.test(source)) {
+      throw new ErrorsStackDetectionError(
+        "Astro adapter middleware mode is outside the standalone Node calibration; no files were modified.",
+      );
+    }
+    throw new ErrorsStackDetectionError(
+      "Astro calibration requires node({ mode: \"standalone\" }) as its direct adapter; custom adapter options were not modified and no files were modified.",
+    );
+  }
+  if (!/\boutput\s*:\s*["']server["']/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "Astro static output and build-only failures are outside the standalone Node calibration; no files were modified.",
+    );
+  }
+  for (const name of ["root", "srcDir", "publicDir", "outDir", "cacheDir"] as const) {
+    if (configProperty(source, name).test(source)) {
+      throw new ErrorsStackDetectionError(
+        "Astro custom source and output roots are outside the conventional src/dist calibration; no files were modified.",
+      );
+    }
+  }
+  if (nonObjectConfigProperty(source, "vite")) {
+    throw new ErrorsStackDetectionError(
+      "Astro Vite configuration must be one static object for exact composition; no files were modified.",
+    );
+  }
+  if (source.includes("withVolatoAstro")) {
+    const ownedImport =
+      /^import\s*\{\s*withVolatoAstro\s*}\s*from\s*["']\.\/volato-astro\/build\.mjs["']\s*;?\s*$/m;
+    if (!ownedImport.test(source)) {
+      throw new ErrorsStackDetectionError(
+        "The Astro wrapper is not owned by the generated build helper; no files were modified.",
+      );
+    }
+  }
+
+  const installedRenderers = (["react", "vue", "svelte"] as const).filter(
+    (renderer) =>
+      typeof deps[
+        renderer === "react"
+          ? "@astrojs/react"
+          : renderer === "vue"
+            ? "@astrojs/vue"
+            : "@astrojs/svelte"
+      ] === "string",
+  );
+  const unsupportedRenderer = Object.keys(deps).find(
+    (name) =>
+      ["@astrojs/preact", "@astrojs/solid-js", "@astrojs/lit", "@astrojs/alpinejs"].includes(name),
+  );
+  if (unsupportedRenderer) {
+    throw new ErrorsStackDetectionError(
+      `${unsupportedRenderer} is outside the private Astro renderer calibration; no files were modified.`,
+    );
+  }
+  if (installedRenderers.length > 1) {
+    throw new ErrorsStackDetectionError(
+      `Multiple Astro renderers were detected (${installedRenderers.join(", ")}); exactly zero or one conformed renderer is required and no files were modified.`,
+    );
+  }
+  const renderer: AstroRenderer = installedRenderers[0] ?? "core";
+  if (renderer !== "core") {
+    const expected = ASTRO_RENDERER_DEPENDENCIES[renderer];
+    for (const [name, version] of Object.entries(expected)) {
+      if (deps[name] !== version) {
+        throw new ErrorsStackDetectionError(
+          `${name} ${deps[name] ?? "unknown"} is outside the private Astro ${renderer} calibration, which requires ${version}; no files were modified.`,
+        );
+      }
+    }
+    const packageName = `@astrojs/${renderer}`;
+    if (!new RegExp(`import\\s+${renderer}\\s+from\\s*["']${packageName.replace("/", "\\/")}["']`).test(source)) {
+      throw new ErrorsStackDetectionError(
+        `Astro ${renderer} requires one direct default ${packageName} import; no files were modified.`,
+      );
+    }
+    const calls = source.match(new RegExp(`\\b${renderer}\\s*\\(`, "g")) ?? [];
+    const optionless = new RegExp(`\\b${renderer}\\s*\\(\\s*\\)`).test(source);
+    const ownedVue =
+      renderer === "vue" &&
+      /\bvue\s*\(\s*\{\s*appEntrypoint\s*:\s*new\s+URL\(\s*["']\.\/volato-astro\/vue-app\.mjs["']\s*,\s*import\.meta\.url\s*\)\s*\}\s*\)/.test(source);
+    if (calls.length !== 1 || (!optionless && !ownedVue)) {
+      throw new ErrorsStackDetectionError(
+        `Astro ${renderer} calibration requires one direct optionless ${renderer}() integration; renderer options were not modified and no files were modified.`,
+      );
+    }
+  }
+  if (!/\bintegrations\s*:\s*\[[\s\S]*\]/.test(source)) {
+    throw new ErrorsStackDetectionError(
+      "Astro calibration requires one static integrations array; dynamic integration composition was not modified and no files were modified.",
+    );
+  }
+
+  if (!existsSync(join(cwd, "src", "pages"))) {
+    throw new ErrorsStackDetectionError(
+      "Astro calibration requires the conventional src/pages application root; no files were modified.",
+    );
+  }
+  if (existsSync(join(cwd, "src", "actions"))) {
+    throw new ErrorsStackDetectionError(
+      "Astro Actions are outside the middleware-observable calibration; no files were modified.",
+    );
+  }
+  const files = svelteKitSourceFiles(join(cwd, "src"));
+  const fileSources = files.map((path) => readFileSync(path, "utf8"));
+  if (fileSources.some((value) => /\bexport\s+const\s+prerender\s*=/.test(value))) {
+    throw new ErrorsStackDetectionError(
+      "Astro per-route prerendering is outside the on-demand standalone Node calibration; no files were modified.",
+    );
+  }
+  if (fileSources.some((value) => /client:(?:idle|visible|media|only)\b/.test(value))) {
+    throw new ErrorsStackDetectionError(
+      "Astro hydration directives other than client:load are outside the private renderer calibration; no files were modified.",
+    );
+  }
+  const language: SourceLanguage = files.some((path) => /\.(?:ts|tsx)$/.test(path))
+    ? "ts"
+    : "js";
+  exactAstroRuntimeVersions(cwd, renderer);
+  const rendererExpected =
+    renderer === "core" ? null : ASTRO_RENDERER_DEPENDENCIES[renderer];
+  const integrationKey = renderer === "core" ? null : `@astrojs/${renderer}`;
+  const runtimeKey = renderer === "core" ? null : renderer;
+  return {
+    cwd,
+    configPath,
+    language,
+    nodeVersion: nodeVersion as AstroProjectShape["nodeVersion"],
+    astroVersion: ASTRO_DEPENDENCIES.astro,
+    adapterNodeVersion: ASTRO_DEPENDENCIES["@astrojs/node"],
+    viteVersion: ASTRO_DEPENDENCIES.vite,
+    renderer,
+    ...(rendererExpected && integrationKey
+      ? {
+          rendererIntegrationVersion: rendererExpected[
+            integrationKey as keyof typeof rendererExpected
+          ] as AstroProjectShape["rendererIntegrationVersion"],
+        }
+      : {}),
+    ...(rendererExpected && runtimeKey
+      ? {
+          rendererRuntimeVersion: rendererExpected[
+            runtimeKey as keyof typeof rendererExpected
+          ] as AstroProjectShape["rendererRuntimeVersion"],
+        }
+      : {}),
+    outputRoot: join(cwd, "dist"),
   };
 }
 
@@ -1934,6 +2253,7 @@ function looksSupported(root: string): boolean {
       deps.next ||
         deps.nuxt ||
         deps["@sveltejs/kit"] ||
+        deps.astro ||
         deps["@angular/core"] ||
         deps.express ||
         deps.fastify ||
@@ -1967,6 +2287,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     !deps.next &&
     !deps.nuxt &&
     !deps["@sveltejs/kit"] &&
+    !deps.astro &&
     !deps.vite &&
     !deps.express
   ) {
@@ -1985,6 +2306,10 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
 
   if (deps["@sveltejs/kit"]) {
     return { cwd, sveltekit: svelteKitShape(cwd, pkg, deps), notices: [] };
+  }
+
+  if (deps.astro) {
+    return { cwd, astro: astroShape(cwd, pkg, deps), notices: [] };
   }
 
   const angular = angularShape(cwd, pkg, deps);

@@ -13,7 +13,8 @@ type MatrixCell = {
     | "calibration-angular"
     | "calibration-fastapi"
     | "calibration-nuxt"
-    | "calibration-sveltekit";
+    | "calibration-sveltekit"
+    | "calibration-astro";
   family:
     | "browser-react"
     | "node-long-lived"
@@ -25,6 +26,7 @@ type MatrixCell = {
     | "python-fastapi"
     | "nuxt-nitro"
     | "sveltekit-node"
+    | "astro-node"
     | "fastify"
     | "nest-http";
   gates: string[];
@@ -168,7 +170,8 @@ describe("Errors JavaScript runtime conformance matrix", () => {
         (cell) =>
           cell.family !== "python-fastapi" &&
           cell.family !== "nuxt-nitro" &&
-          cell.family !== "sveltekit-node",
+          cell.family !== "sveltekit-node" &&
+          cell.family !== "astro-node",
       ),
     ).toHaveLength(112);
     expect(matrix.refusals).toEqual(
@@ -221,7 +224,8 @@ describe("Errors JavaScript runtime conformance matrix", () => {
         (cell) =>
           cell.family !== "python-fastapi" &&
           cell.family !== "nuxt-nitro" &&
-          cell.family !== "sveltekit-node",
+          cell.family !== "sveltekit-node" &&
+          cell.family !== "astro-node",
       ),
     ).toHaveLength(112);
     expect(matrix.quickstarts.some(({ id }) => id === "angular")).toBe(false);
@@ -270,7 +274,9 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     expect(
       matrix.cells.filter(
         (cell) =>
-          cell.family !== "nuxt-nitro" && cell.family !== "sveltekit-node",
+          cell.family !== "nuxt-nitro" &&
+          cell.family !== "sveltekit-node" &&
+          cell.family !== "astro-node",
       ),
     ).toHaveLength(117);
     expect(matrix.quickstarts.some(({ id }) => id === "fastapi")).toBe(false);
@@ -315,7 +321,9 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       ]),
     );
     expect(
-      matrix.cells.filter((cell) => cell.family !== "sveltekit-node"),
+      matrix.cells.filter(
+        (cell) => cell.family !== "sveltekit-node" && cell.family !== "astro-node",
+      ),
     ).toHaveLength(123);
     expect(matrix.quickstarts.some(({ id }) => id === "nuxt")).toBe(false);
     expect(matrix.targets.some(({ id }) => id === "nuxt")).toBe(false);
@@ -358,8 +366,67 @@ describe("Errors JavaScript runtime conformance matrix", () => {
         expect.objectContaining({ id: "sveltekit.lifecycle-or-hooks" }),
       ]),
     );
-    expect(matrix.cells).toHaveLength(127);
+    expect(matrix.cells.filter((cell) => cell.family !== "astro-node")).toHaveLength(127);
     expect(matrix.quickstarts.some(({ id }) => id === "sveltekit")).toBe(false);
     expect(matrix.targets.some(({ id }) => id === "sveltekit")).toBe(false);
+  });
+
+  it("freezes Astro as sixteen private standalone-node renderer cells", () => {
+    const matrix = readMatrix() as RuntimeMatrix & {
+      quickstarts: Array<{ id: string }>;
+      targets: Array<{ id: string }>;
+    };
+    const astro = matrix.cells.filter((cell) => cell.family === "astro-node");
+
+    expect(matrix.versions).toMatchObject({
+      astro: ["7.2.9"],
+      astroNodeAdapter: ["11.1.4"],
+      astroReact: ["6.0.4"],
+      astroVue: ["7.0.2"],
+      astroSvelte: ["9.0.1"],
+      react: ["18.3.1", "19.2.8"],
+      vue: ["3.5.42"],
+      svelte: ["5.56.10"],
+      vite: ["6.4.3", "7.3.6", "8.2.2"],
+    });
+    expect(astro).toHaveLength(16);
+    expect(
+      astro.every(
+        (cell) =>
+          cell.wave === "calibration-astro" &&
+          cell.visibility === "private-calibration" &&
+          cell.adapter === "@astrojs/node" &&
+          cell.adapterMode === "standalone",
+      ),
+    ).toBe(true);
+    expect(astro.map((cell) => cell.id)).toEqual([
+      "astro7.node22.ts.core",
+      "astro7.node22.ts.react",
+      "astro7.node22.ts.vue",
+      "astro7.node22.ts.svelte",
+      "astro7.node22.js.core",
+      "astro7.node22.js.react",
+      "astro7.node22.js.vue",
+      "astro7.node22.js.svelte",
+      "astro7.node24.ts.core",
+      "astro7.node24.ts.react",
+      "astro7.node24.ts.vue",
+      "astro7.node24.ts.svelte",
+      "astro7.node24.js.core",
+      "astro7.node24.js.react",
+      "astro7.node24.js.vue",
+      "astro7.node24.js.svelte",
+    ]);
+    expect(matrix.refusals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "astro.version-or-config" }),
+        expect.objectContaining({ id: "astro.output-or-adapter" }),
+        expect.objectContaining({ id: "astro.renderer-or-hydration" }),
+        expect.objectContaining({ id: "astro.lifecycle-or-actions" }),
+      ]),
+    );
+    expect(matrix.cells).toHaveLength(143);
+    expect(matrix.quickstarts.some(({ id }) => id === "astro")).toBe(false);
+    expect(matrix.targets.some(({ id }) => id === "astro")).toBe(false);
   });
 });

@@ -37,6 +37,10 @@ data path. Do not invent capture code from scratch.
      adapter-node tuple: follow `volato-sveltekit`, retain its private/publication
      boundary, and never fall back to the Vite + Svelte SPA skill after a
      SvelteKit refusal.
+   - Private Astro 7.2.9 on-demand calibration on the exact official standalone
+     Node adapter tuple: follow `volato-astro`, retain its private/publication
+     boundary, and never fall back to a generic Vite renderer skill after an
+     Astro refusal.
 
    Inspect a repository's frontend and backend independently; one repository
    may need one browser renderer skill plus one Node HTTP skill. NestJS owns

@@ -22,6 +22,7 @@ describe("framework integration skill contracts", () => {
     ["volato-angular", "Angular 20/21/22"],
     ["volato-fastapi", "FastAPI 0.141"],
     ["volato-sveltekit", "SvelteKit 2.70.3"],
+    ["volato-astro", "Astro 7.2.9"],
   ])("ships %s as a discoverable bounded skill", (name, scope) => {
     const source = skill(name);
     const metadata = source.slice(0, source.indexOf("---", 4));
@@ -63,6 +64,7 @@ describe("framework integration skill contracts", () => {
     const angular = skill("volato-angular");
     const fastapi = skill("volato-fastapi");
     const sveltekit = skill("volato-sveltekit");
+    const astro = skill("volato-astro");
 
     expect(vue).toMatch(/component instance/i);
     expect(vue).toMatch(/Vue 2|Nuxt/);
@@ -90,5 +92,10 @@ describe("framework integration skill contracts", () => {
     expect(sveltekit).toMatch(/service workers.*remote functions.*prerender/is);
     expect(setup).toContain("`volato-sveltekit`");
     expect(cliReadme).not.toContain("`volato-sveltekit`");
+    expect(astro).toMatch(/private Astro candidate/i);
+    expect(astro).toMatch(/static.*Actions.*alternate adapters.*mixed renderers/is);
+    expect(astro).toMatch(/URL.*params.*query.*body.*cookies.*sessions/is);
+    expect(setup).toContain("`volato-astro`");
+    expect(cliReadme).not.toContain("`volato-astro`");
   });
 });
