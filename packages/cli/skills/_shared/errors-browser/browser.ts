@@ -6,6 +6,7 @@ type CaptureSource =
   | "svelte_boundary"
   | "angular_error_handler"
   | "nuxt_app_error"
+  | "sveltekit_client_handle_error"
   | "manual";
 
 export type BrowserCaptureContext = {

@@ -7,6 +7,7 @@ export type NodeCaptureContext = {
     | "fastify"
     | "nest_exception_filter"
     | "nitro_error"
+    | "sveltekit_server_handle_error"
     | "invocation";
   method?: string;
   route?: string;
