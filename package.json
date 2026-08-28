@@ -30,6 +30,7 @@
     "smoke:vite-vue": "pnpm --filter @volatodev/cli build && node scripts/browser-react-conformance.mjs --family=browser-vue",
     "smoke:vite-svelte": "pnpm --filter @volatodev/cli build && node scripts/browser-react-conformance.mjs --family=browser-svelte",
     "smoke:angular-calibration": "pnpm --filter @volatodev/cli build && node scripts/angular-conformance.mjs",
+    "smoke:fastapi-calibration": "pnpm --filter @volatodev/cli build && node scripts/fastapi-conformance.mjs",
     "smoke:express": "pnpm --filter @volatodev/cli build && node scripts/express-conformance.mjs",
     "smoke:fastify": "pnpm --filter @volatodev/cli build && node scripts/express-conformance.mjs --family=fastify",
     "smoke:nest": "pnpm --filter @volatodev/cli build && node scripts/nest-conformance.mjs",

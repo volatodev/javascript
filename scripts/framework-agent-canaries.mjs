@@ -83,6 +83,18 @@ const targets = {
     language: "ts",
     release: "2052052052052052052052052052052052052052",
   },
+  fastapi: {
+    label: "FastAPI 0.141 private calibration",
+    projectId: "10000000-0000-4000-8000-000000000206",
+    groupId: "20000000-0000-4000-8000-000000000206",
+    integrationId: "errors-python-fastapi",
+    skill: "volato-fastapi",
+    runtime: "python",
+    capturedVia: "asgi_http",
+    route: "/checkout",
+    language: "py",
+    release: "2062062062062062062062062062062062062062",
+  },
 };
 
 function assert(condition, message) {
@@ -511,7 +523,33 @@ void bootstrap();
   );
 }
 
+function writeFastApiFixture(root) {
+  writeFileSync(join(root, ".python-version"), "3.12\n");
+  writeFileSync(
+    join(root, "pyproject.toml"),
+    `[project]\nname = "volato-fastapi-agent-canary"\nrequires-python = "==3.12.*"\ndependencies = [\n  "fastapi==0.141.1",\n  "starlette==1.6.0",\n  "uvicorn==0.52.4",\n  "pydantic==2.13.5",\n  "anyio==4.14.2",\n]\n`,
+  );
+  writeFileSync(
+    join(root, "app.py"),
+    `from fastapi import FastAPI\nfrom checkout import checkout_total\n\napp = FastAPI()\n\n@app.get("/checkout")\nasync def checkout():\n    return {"total": checkout_total([])}\n`,
+  );
+}
+
 function verifySetupSource(target) {
+  if (target === targets.fastapi) {
+    return `from pathlib import Path
+import json
+import py_compile
+
+source = Path("app.py").read_text()
+assert "VolatoASGIMiddleware" in source
+assert "init_volato" in source
+assert json.loads(Path(".volato/manifest.json").read_text())["integrations"]["errors-python-fastapi"]
+for path in ["app.py", "checkout.py", "volato_errors/__init__.py", "volato_errors/runtime.py", "volato_errors/asgi.py"]:
+    py_compile.compile(path, doraise=True)
+Path(".volato-eval-build").write_text("ok\\n")
+`;
+  }
   if (target === targets.angular) {
     return `import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -557,6 +595,31 @@ assert.ok(JSON.parse(readFileSync(".volato/manifest.json", "utf8")).integrations
 }
 
 function captureTestSource(target) {
+  if (target === targets.fastapi) {
+    return `import asyncio
+import unittest
+from pathlib import Path
+
+from checkout import checkout_total
+from volato_errors import capture_exception, init_volato
+
+
+class CheckoutTest(unittest.TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        Path(".volato-eval-test").write_text("ok\\n")
+
+    def test_empty_checkout(self):
+        self.assertEqual(checkout_total([]), 0)
+
+    def test_generated_capture(self):
+        init_volato()
+        try:
+            raise RuntimeError("FastAPI setup canary")
+        except RuntimeError as error:
+            self.assertTrue(asyncio.run(capture_exception(error)))
+`;
+  }
   if (target === targets.angular) {
     return `import assert from "node:assert/strict";
 import test from "node:test";
@@ -609,37 +672,62 @@ function writeFixture(root, target, skillRoot, realCli) {
   }
   writeFileSync(
     join(root, "AGENTS.md"),
-    `# Canary context\n\nThe human already selected and authorized Volato project \`${target.projectId}\`. Work autonomously, use the installed Volato skills, run the production build and tests, and do not ask for another authorization.\n`,
+    `# Canary context\n\nThe human already selected and authorized Volato project \`${target.projectId}\`. Work autonomously, use the installed Volato skills, run the production build and tests, and do not ask for another authorization.${target === targets.fastapi ? " Use `.venv/bin/python scripts/verify_setup.py` as the production import check and `.venv/bin/python -m unittest` as the repository-native test command." : ""}\n`,
   );
   writeFileSync(
     join(root, ".gitignore"),
-    "node_modules/\ndist/\n.angular/\n.env*.local\n.volato-eval-*\n",
+    "node_modules/\ndist/\n.angular/\n.venv/\n__pycache__/\n.env*.local\n.volato-eval-*\n",
   );
-  writeFileSync(join(root, "package.json"), `${JSON.stringify(commonPackage(target), null, 2)}\n`);
-  if (target === targets.angular) writeAngularFixture(root);
+  if (target !== targets.fastapi) {
+    writeFileSync(
+      join(root, "package.json"),
+      `${JSON.stringify(commonPackage(target), null, 2)}\n`,
+    );
+  }
+  if (target === targets.fastapi) writeFastApiFixture(root);
+  else if (target === targets.angular) writeAngularFixture(root);
   else if (target.runtime === "browser") writeBrowserFixture(root, target);
   else if (target === targets.fastify) writeFastifyFixture(root);
   else writeNestFixture(root);
-  const extension = target.language === "js" ? "js" : "ts";
-  writeFileSync(
-    join(root, "src", `checkout.${extension}`),
-    `export function checkoutTotal(lines${extension === "ts" ? ": Array<{ price: number }>" : ""}) {
+  const extension = target.language === "js" ? "js" : target.language === "py" ? "py" : "ts";
+  if (target === targets.fastapi) {
+    writeFileSync(
+      join(root, "checkout.py"),
+      `from functools import reduce\n\ndef checkout_total(lines):\n    return reduce(lambda total, line: total + line["price"], lines, 0)\n`,
+    );
+  } else {
+    writeFileSync(
+      join(root, "src", `checkout.${extension}`),
+      `export function checkoutTotal(lines${extension === "ts" ? ": Array<{ price: number }>" : ""}) {
   return lines.map((line) => line.price).reduce((sum, price) => sum + price, 0);
 }
 `,
-  );
-  writeFileSync(
-    join(root, "scripts", "verify-setup.mjs"),
-    verifySetupSource(target),
-  );
-  writeFileSync(
-    join(root, "scripts", "mark.mjs"),
-    'import { writeFileSync } from "node:fs";\nwriteFileSync(`.volato-eval-${process.argv[2]}`, "ok\\n");\n',
-  );
-  writeFileSync(
-    join(root, "test", target === targets.angular ? "capture.test.ts" : "capture.test.mjs"),
-    captureTestSource(target),
-  );
+    );
+  }
+  if (target === targets.fastapi) {
+    writeFileSync(
+      join(root, "scripts", "verify_setup.py"),
+      verifySetupSource(target),
+    );
+    writeFileSync(
+      join(root, "test", "test_checkout.py"),
+      captureTestSource(target),
+    );
+    writeFileSync(join(root, "test", "__init__.py"), "");
+  } else {
+    writeFileSync(
+      join(root, "scripts", "verify-setup.mjs"),
+      verifySetupSource(target),
+    );
+    writeFileSync(
+      join(root, "scripts", "mark.mjs"),
+      'import { writeFileSync } from "node:fs";\nwriteFileSync(`.volato-eval-${process.argv[2]}`, "ok\\n");\n',
+    );
+    writeFileSync(
+      join(root, "test", target === targets.angular ? "capture.test.ts" : "capture.test.mjs"),
+      captureTestSource(target),
+    );
+  }
   for (const name of ["volato-setup", "volato-errors", target.skill]) {
     cpSync(join(skillRoot, name), join(root, ".agents", "skills", name), {
       recursive: true,
@@ -657,7 +745,26 @@ process.exit(status);
   writeFileSync(join(root, "bin", "volato"), wrapper);
   chmodSync(join(root, "bin", "volato"), 0o755);
 
-  run("pnpm", ["install", "--ignore-scripts"], { cwd: root, timeout: 300_000 });
+  if (target === targets.fastapi) {
+    run("python3", ["-m", "venv", ".venv"], { cwd: root, timeout: 120_000 });
+    run(
+      join(root, ".venv", "bin", "python"),
+      [
+        "-m",
+        "pip",
+        "install",
+        "--quiet",
+        "fastapi==0.141.1",
+        "starlette==1.6.0",
+        "uvicorn==0.52.4",
+        "pydantic==2.13.5",
+        "anyio==4.14.2",
+      ],
+      { cwd: root, timeout: 300_000 },
+    );
+  } else {
+    run("pnpm", ["install", "--ignore-scripts"], { cwd: root, timeout: 300_000 });
+  }
   run("git", ["init", "--quiet"], { cwd: root });
   run("git", ["config", "user.email", "canary@volato.dev"], { cwd: root });
   run("git", ["config", "user.name", "Volato Canary"], { cwd: root });
@@ -902,6 +1009,13 @@ async function runTargetCanaries(name, target, packaged) {
       productionBuildPassed: existsSync(join(root, ".volato-eval-build")),
       captureCheckPassed: existsSync(join(root, ".volato-eval-test")) && state.events.length > 0,
       sourcemapUploaded: state.maps.length > 0,
+      directSourceCaptured:
+        target === targets.fastapi &&
+        state.events.some(
+          (event) =>
+            event.runtime === "python" &&
+            String(event.stack ?? "").includes('File "test/test_checkout.py"'),
+        ),
       wallClockMs: Date.now() - setupStarted,
     };
     for (const [passed, message] of [
@@ -914,17 +1028,28 @@ async function runTargetCanaries(name, target, packaged) {
       [setupResult.activationReported, `${target.label} activation was not reported`],
       [setupResult.productionBuildPassed, `${target.label} production build was not run`],
       [setupResult.captureCheckPassed, `${target.label} capture check did not deliver an event`],
-      [setupResult.sourcemapUploaded, `${target.label} build uploaded no sourcemap`],
+      [
+        setupResult.sourcemapUploaded || setupResult.directSourceCaptured,
+        `${target.label} build proved neither sourcemap nor direct source`,
+      ],
     ]) assert(passed, message);
 
     run("git", ["add", "."], { cwd: root });
     run("git", ["commit", "--quiet", "-m", `chore: install Volato for ${target.label}`], { cwd: root });
     const priorCleanCommit = run("git", ["rev-parse", "HEAD"], { cwd: root }).stdout.trim();
-    const extension = target.language === "js" ? "js" : "ts";
-    const causalPath = `src/checkout.${extension}`;
+    const extension =
+      target.language === "js" ? "js" : target.language === "py" ? "py" : "ts";
+    const causalPath =
+      target === targets.fastapi ? "checkout.py" : `src/checkout.${extension}`;
     writeFileSync(
       join(root, causalPath),
-      `export function checkoutTotal(lines${extension === "ts" ? ": Array<{ price: number }>" : ""}) {
+      target === targets.fastapi
+        ? `from functools import reduce
+
+def checkout_total(lines):
+    return reduce(lambda total, line: total + line["price"], lines)
+`
+        : `export function checkoutTotal(lines${extension === "ts" ? ": Array<{ price: number }>" : ""}) {
   return lines.map((line) => line.price).reduce((sum, price) => sum + price);
 }
 `,
@@ -944,7 +1069,11 @@ async function runTargetCanaries(name, target, packaged) {
         },
       ],
       commitTransition: { priorCleanCommit, firstSeenCommit },
-      resolvedFrame: { original_path: causalPath, original_line: 2, original_column: 35 },
+      resolvedFrame: {
+        original_path: causalPath,
+        original_line: target === targets.fastapi ? 4 : 2,
+        original_column: target === targets.fastapi ? 1 : 35,
+      },
       resolutionState: "unresolved",
       history: [],
       affectedUsers: { count: 4 },
@@ -964,7 +1093,11 @@ async function runTargetCanaries(name, target, packaged) {
       .split("\n")
       .filter(Boolean);
     const verification = run(
-      target === targets.angular ? "pnpm" : process.execPath,
+      target === targets.angular
+        ? "pnpm"
+        : target === targets.fastapi
+          ? join(root, ".venv", "bin", "python")
+          : process.execPath,
       target === targets.angular
         ? [
             "exec",
@@ -973,11 +1106,17 @@ async function runTargetCanaries(name, target, packaged) {
             "--test-name-pattern=empty checkout remains valid",
             "test/capture.test.ts",
           ]
-        : [
+        : target === targets.fastapi
+          ? [
+              "-m",
+              "unittest",
+              "test.test_checkout.CheckoutTest.test_empty_checkout",
+            ]
+          : [
             "--test",
             "--test-name-pattern=empty checkout remains valid",
             "test/capture.test.mjs",
-          ],
+            ],
       { cwd: root, allowFailure: true, env },
     );
     const recoveryResult = {
