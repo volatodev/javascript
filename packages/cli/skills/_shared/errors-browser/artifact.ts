@@ -69,7 +69,7 @@ function sourcemapEndpoint(dsn: string): string {
 }
 
 export async function uploadVolatoBrowserSourceMaps(args: {
-  adapter: "Vite" | "Webpack" | "Rspack";
+  adapter: "Vite" | "Webpack" | "Rspack" | "Angular";
   outDir: string;
   projectRoot: string;
   dsn?: string;

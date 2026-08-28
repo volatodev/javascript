@@ -41,6 +41,12 @@ describe("generated documentation contract", () => {
       ).not.toThrow();
     }
     expect(contract.support.totalCells).toBe(108);
+    expect(contract.support.families["browser-angular"]).toBeUndefined();
+    expect(contract.support.versions.angular).toBeUndefined();
+    expect(contract.support.versions.angularBuild).toBeUndefined();
+    expect(
+      contract.support.refusals.some(({ id }) => id.startsWith("angular.")),
+    ).toBe(false);
     expect(contract.support.families).toMatchObject({
       "browser-react": 28,
       "node-long-lived": 24,

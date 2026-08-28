@@ -87,6 +87,7 @@ export async function reportIntegrationInstalled(
     | "errors-vite-react"
     | "errors-browser-vue"
     | "errors-browser-svelte"
+    | "errors-browser-angular"
     | "errors-node"
     | "errors-node-invocation"
     | "errors-node-fastify"

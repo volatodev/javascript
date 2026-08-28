@@ -4,6 +4,7 @@ type CaptureSource =
   | "error_boundary"
   | "vue_error_handler"
   | "svelte_boundary"
+  | "angular_error_handler"
   | "manual";
 
 export type BrowserCaptureContext = {

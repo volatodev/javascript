@@ -40,6 +40,19 @@ export type ViteSvelteProjectShape = BrowserProjectShape & {
   rootComponentVariable: string;
 };
 
+export type AngularProjectShape = {
+  cwd: string;
+  projectName: string;
+  entryPath: string;
+  appConfigPath: string;
+  angularConfigPath: string;
+  angularVersion: 20 | 21 | 22;
+  buildAdapter: "angular";
+  changeDetection: "zonejs" | "zoneless";
+  language: "ts";
+  outputRoot: string;
+};
+
 export type NodeProjectShape = {
   cwd: string;
   entryPath: string;
@@ -88,6 +101,7 @@ export type ErrorsStackShape = {
   viteReact?: ViteReactProjectShape;
   browserVue?: ViteVueProjectShape;
   browserSvelte?: ViteSvelteProjectShape;
+  angular?: AngularProjectShape;
   node?: NodeProjectShape;
   fastify?: FastifyProjectShape;
   nest?: NestProjectShape;
@@ -404,6 +418,217 @@ function browserShapes(
   throw new ErrorsStackDetectionError(
     `${build.buildAdapter} + ${renderer} browser capture is not supported in this release; no files were modified.`,
   );
+}
+
+type AngularBuildTarget = {
+  builder?: unknown;
+  options?: unknown;
+  configurations?: unknown;
+  defaultConfiguration?: unknown;
+};
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function angularAppConfigPath(cwd: string, entryPath: string): string {
+  const entry = readFileSync(entryPath, "utf8");
+  const bootstrapCalls = entry.match(/\bbootstrapApplication\s*\(/g) ?? [];
+  if (bootstrapCalls.length !== 1) {
+    throw new ErrorsStackDetectionError(
+      "Angular setup requires exactly one static bootstrapApplication call; NgModule, dynamic or multiple bootstraps are not supported and no files were modified.",
+    );
+  }
+  const call = /\bbootstrapApplication\s*\(\s*[^,]+,\s*([A-Za-z_$][\w$]*)\s*\)/s.exec(
+    entry,
+  );
+  const configVariable = call?.[1];
+  if (!configVariable) {
+    throw new ErrorsStackDetectionError(
+      "Angular setup requires bootstrapApplication with one imported ApplicationConfig; no files were modified.",
+    );
+  }
+  const imports = [
+    ...entry.matchAll(
+      /import\s*\{([^}]+)\}\s*from\s*["']([^"']+)["']/g,
+    ),
+  ];
+  const configImport = imports.find(([_, names]) =>
+    (names ?? "")
+      .split(",")
+      .map((name) => name.trim().split(/\s+as\s+/).at(-1))
+      .includes(configVariable),
+  );
+  const modulePath = configImport?.[2];
+  if (!modulePath?.startsWith(".")) {
+    throw new ErrorsStackDetectionError(
+      "Angular setup requires the ApplicationConfig to be imported from one local static module; no files were modified.",
+    );
+  }
+  const path = resolve(dirname(entryPath), `${modulePath}.ts`);
+  if (!existsSync(path)) {
+    throw new ErrorsStackDetectionError(
+      `The Angular ApplicationConfig module ${modulePath} does not exist; no files were modified.`,
+    );
+  }
+  const config = readFileSync(path, "utf8");
+  if (/\bprovideClientHydration\b/.test(config)) {
+    throw new ErrorsStackDetectionError(
+      "Angular SSR and hydration are not supported by the client-rendered calibration; no files were modified.",
+    );
+  }
+  const exportedConfig = new RegExp(
+    `export\\s+const\\s+${configVariable.replace(/[$]/g, "\\$")}\\s*:\\s*ApplicationConfig\\s*=\\s*\\{[\\s\\S]*?providers\\s*:\\s*\\[`,
+  );
+  if (!exportedConfig.test(config)) {
+    throw new ErrorsStackDetectionError(
+      "Angular setup requires one statically declared ApplicationConfig providers array; no files were modified.",
+    );
+  }
+  return path;
+}
+
+function angularShape(
+  cwd: string,
+  pkg: PackageJson,
+  deps: Record<string, string>,
+): AngularProjectShape | undefined {
+  const core = deps["@angular/core"];
+  if (!core) return undefined;
+  const angularVersion = dependencyMajor(core);
+  if (angularVersion !== 20 && angularVersion !== 21 && angularVersion !== 22) {
+    throw new ErrorsStackDetectionError(
+      `Angular ${angularVersion ?? JSON.stringify(core)} is not supported by the private calibration; no files were modified.`,
+    );
+  }
+  const buildVersion = dependencyMajor(deps["@angular/build"] ?? "");
+  const cliVersion = dependencyMajor(deps["@angular/cli"] ?? "");
+  if (buildVersion !== angularVersion || cliVersion !== angularVersion) {
+    throw new ErrorsStackDetectionError(
+      `Angular ${angularVersion} requires matching @angular/build and @angular/cli majors for this calibration; no files were modified.`,
+    );
+  }
+  const angularConfigPath = join(cwd, "angular.json");
+  if (!existsSync(angularConfigPath)) {
+    throw new ErrorsStackDetectionError(
+      "Angular was detected without angular.json at the application root; no files were modified.",
+    );
+  }
+  let workspace: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(readFileSync(angularConfigPath, "utf8")) as unknown;
+    const record = objectRecord(parsed);
+    if (!record) throw new Error("workspace is not an object");
+    workspace = record;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new ErrorsStackDetectionError(
+      `Cannot read ${angularConfigPath}: ${detail}; no files were modified.`,
+    );
+  }
+  const projects = objectRecord(workspace.projects);
+  const entries = projects ? Object.entries(projects) : [];
+  const applications = entries.filter(
+    ([, value]) => objectRecord(value)?.projectType === "application",
+  );
+  if (entries.length !== 1 || applications.length !== 1) {
+    throw new ErrorsStackDetectionError(
+      "Angular setup requires exactly one application project in the workspace; no files were modified.",
+    );
+  }
+  const [projectName, rawProject] = applications[0]!;
+  const project = objectRecord(rawProject)!;
+  if (project.root !== "" || project.sourceRoot !== "src") {
+    throw new ErrorsStackDetectionError(
+      "Angular setup currently requires the conventional root application with sourceRoot src; no files were modified.",
+    );
+  }
+  const architect = objectRecord(project.architect ?? project.targets);
+  const build = objectRecord(architect?.build) as AngularBuildTarget | null;
+  if (!build || build.builder !== "@angular/build:application") {
+    throw new ErrorsStackDetectionError(
+      `The detected Angular builder ${JSON.stringify(build?.builder)} is not supported; @angular/build:application is required and no files were modified.`,
+    );
+  }
+  const options = objectRecord(build.options) ?? {};
+  const configurations = objectRecord(build.configurations) ?? {};
+  const production = objectRecord(configurations.production) ?? {};
+  if (
+    deps["@angular/ssr"] ||
+    "server" in options ||
+    "ssr" in options ||
+    "prerender" in options ||
+    "outputMode" in options ||
+    "server" in production ||
+    "ssr" in production ||
+    "prerender" in production ||
+    "outputMode" in production
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Angular SSR, prerendering and hydration are not supported by the client-rendered calibration; no files were modified.",
+    );
+  }
+  if ("outputPath" in options || "outputPath" in production) {
+    throw new ErrorsStackDetectionError(
+      "Angular custom outputPath configuration is not supported by the private-map calibration; no files were modified.",
+    );
+  }
+  const browser = options.browser;
+  if (browser !== "src/main.ts") {
+    throw new ErrorsStackDetectionError(
+      "Angular setup requires the conventional TypeScript browser entry src/main.ts; no files were modified.",
+    );
+  }
+  const entryPath = join(cwd, browser);
+  if (!existsSync(entryPath)) {
+    throw new ErrorsStackDetectionError(
+      "Angular src/main.ts is missing; no files were modified.",
+    );
+  }
+  const appConfigPath = angularAppConfigPath(cwd, entryPath);
+  const appConfig = readFileSync(appConfigPath, "utf8");
+  const polyfills = Array.isArray(options.polyfills) ? options.polyfills : [];
+  const hasZone =
+    typeof deps["zone.js"] === "string" ||
+    polyfills.some((value) => value === "zone.js") ||
+    /\bprovideZoneChangeDetection\s*\(/.test(appConfig);
+  const explicitZoneless = /\bprovideZonelessChangeDetection\s*\(/.test(
+    appConfig,
+  );
+  if (angularVersion >= 21 && hasZone) {
+    throw new ErrorsStackDetectionError(
+      `Angular ${angularVersion} Zone.js override is not supported by the frozen zoneless calibration; no files were modified.`,
+    );
+  }
+  if (angularVersion === 20 && !hasZone && !explicitZoneless) {
+    throw new ErrorsStackDetectionError(
+      "Angular 20 without Zone.js requires provideZonelessChangeDetection for this calibration; no files were modified.",
+    );
+  }
+  const scripts = objectRecord(pkg.scripts);
+  const buildScript = scripts?.build;
+  if (
+    buildScript !== "ng build" &&
+    buildScript !== "node src/volato/angular-build.mjs"
+  ) {
+    throw new ErrorsStackDetectionError(
+      "Angular build script must be the conventional `ng build` command; no files were modified.",
+    );
+  }
+  return {
+    cwd,
+    projectName,
+    entryPath,
+    appConfigPath,
+    angularConfigPath,
+    angularVersion,
+    buildAdapter: "angular",
+    changeDetection: hasZone ? "zonejs" : "zoneless",
+    language: "ts",
+    outputRoot: join(cwd, "dist", projectName),
+  };
 }
 
 function nodeShape(
@@ -954,6 +1179,7 @@ function looksSupported(root: string): boolean {
     const deps = dependencies(readPackageJson(root));
     return Boolean(
       deps.next ||
+        deps["@angular/core"] ||
         deps.express ||
         deps.fastify ||
         deps["@nestjs/core"] ||
@@ -983,6 +1209,8 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     return { cwd, nextjs: detectProject(cwd), notices: [] };
   }
 
+  const angular = angularShape(cwd, pkg, deps);
+
   const { browserReact, browserVue, browserSvelte } = browserShapes(cwd, deps);
   const viteReact =
     browserReact?.buildAdapter === "vite"
@@ -1000,7 +1228,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
         cwd,
         pkg,
         deps,
-        Boolean(browserReact || browserVue || browserSvelte),
+        Boolean(browserReact || browserVue || browserSvelte || angular),
       );
   const nodeInvocation = nodeInvocationShape(cwd, pkg);
   const unsupportedBackends = unsupportedBackendLabels(cwd);
@@ -1008,6 +1236,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
     ([dependency]) => typeof deps[dependency] === "string",
   );
   if (
+    !angular &&
     !browserReact &&
     !browserVue &&
     !browserSvelte &&
@@ -1052,6 +1281,7 @@ export function detectErrorsStack(cwd: string): ErrorsStackShape {
   }
   return {
     cwd,
+    angular,
     browserReact,
     viteReact,
     browserVue,

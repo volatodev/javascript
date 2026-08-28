@@ -21,6 +21,8 @@ data path. Do not invent capture code from scratch.
      `volato-vite-react`.
    - Vue 3 browser capture with Vite: follow `volato-vite-vue`.
    - Svelte 5 browser capture with Vite: follow `volato-vite-svelte`.
+   - Private Angular 20/21/22 calibration on the official application builder:
+     follow `volato-angular` and retain its private/publication boundary.
    - Generic long-lived Node servers/jobs/scripts, Express, or a
      provider-neutral asynchronous `handler.{ts,js}` invocation: follow
      `volato-node`.

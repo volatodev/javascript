@@ -19,6 +19,7 @@ describe("framework integration skill contracts", () => {
     ["volato-vite-svelte", "Vite + Svelte 5"],
     ["volato-fastify", "Fastify 5"],
     ["volato-nestjs", "NestJS 11/12 HTTP"],
+    ["volato-angular", "Angular 20/21/22"],
   ])("ships %s as a discoverable bounded skill", (name, scope) => {
     const source = skill(name);
     const metadata = source.slice(0, source.indexOf("---", 4));
@@ -57,6 +58,7 @@ describe("framework integration skill contracts", () => {
     const svelte = skill("volato-vite-svelte");
     const fastify = skill("volato-fastify");
     const nest = skill("volato-nestjs");
+    const angular = skill("volato-angular");
 
     expect(vue).toMatch(/component instance/i);
     expect(vue).toMatch(/Vue 2|Nuxt/);
@@ -67,5 +69,10 @@ describe("framework integration skill contracts", () => {
     expect(nest).toMatch(/BaseExceptionFilter/);
     expect(nest).toMatch(/do not install.*Fastify.*Express/is);
     expect(nest).toMatch(/GraphQL|WebSockets|microservices/);
+    expect(angular).toMatch(/private Angular candidate/i);
+    expect(angular).toMatch(/SSR.*hydration.*NgModule/is);
+    expect(angular).toMatch(/custom root `ErrorHandler`/i);
+    expect(setup).toContain("`volato-angular`");
+    expect(cliReadme).not.toContain("`volato-angular`");
   });
 });

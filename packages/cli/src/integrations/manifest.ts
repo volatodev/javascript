@@ -11,6 +11,8 @@ export const ERRORS_NODE_INVOCATION_INTEGRATION =
 export const ERRORS_BROWSER_VUE_INTEGRATION = "errors-browser-vue" as const;
 export const ERRORS_BROWSER_SVELTE_INTEGRATION =
   "errors-browser-svelte" as const;
+export const ERRORS_BROWSER_ANGULAR_INTEGRATION =
+  "errors-browser-angular" as const;
 export const ERRORS_NODE_FASTIFY_INTEGRATION = "errors-node-fastify" as const;
 export const ERRORS_NODE_NESTJS_INTEGRATION = "errors-node-nestjs" as const;
 const RETIRED_INTEGRATION_IDS = new Set(["analytics-nextjs"]);
@@ -22,6 +24,7 @@ export type IntegrationId =
   | typeof ERRORS_NODE_INVOCATION_INTEGRATION
   | typeof ERRORS_BROWSER_VUE_INTEGRATION
   | typeof ERRORS_BROWSER_SVELTE_INTEGRATION
+  | typeof ERRORS_BROWSER_ANGULAR_INTEGRATION
   | typeof ERRORS_NODE_FASTIFY_INTEGRATION
   | typeof ERRORS_NODE_NESTJS_INTEGRATION;
 
@@ -115,6 +118,7 @@ function parseManifest(value: unknown, path: string): IntegrationManifest {
       id !== ERRORS_NODE_INVOCATION_INTEGRATION &&
       id !== ERRORS_BROWSER_VUE_INTEGRATION &&
       id !== ERRORS_BROWSER_SVELTE_INTEGRATION &&
+      id !== ERRORS_BROWSER_ANGULAR_INTEGRATION &&
       id !== ERRORS_NODE_FASTIFY_INTEGRATION &&
       id !== ERRORS_NODE_NESTJS_INTEGRATION
     ) {

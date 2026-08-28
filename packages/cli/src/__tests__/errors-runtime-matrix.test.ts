@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 type MatrixCell = {
   id: string;
-  wave: "1B" | "1C" | "1D" | "2A" | "2B";
+  wave: "1B" | "1C" | "1D" | "2A" | "2B" | "calibration-angular";
   family:
     | "browser-react"
     | "node-long-lived"
@@ -12,6 +12,7 @@ type MatrixCell = {
     | "node-invocation"
     | "browser-vue"
     | "browser-svelte"
+    | "browser-angular"
     | "fastify"
     | "nest-http";
   gates: string[];
@@ -43,7 +44,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     const matrix = readMatrix();
     const ids = matrix.cells.map((cell) => cell.id);
 
-    expect(matrix.frozenAt).toBe("2026-08-27");
+    expect(matrix.frozenAt).toBe("2026-08-28");
     expect(matrix.supportGates).toEqual([
       "exact-detection",
       "deterministic-installation",
@@ -150,7 +151,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       fastify: 16,
       "nest-http": 8,
     });
-    expect(matrix.cells).toHaveLength(108);
+    expect(matrix.cells).toHaveLength(112);
     expect(matrix.refusals).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "vue.ssr-or-ambiguous-root" }),
@@ -161,5 +162,43 @@ describe("Errors JavaScript runtime conformance matrix", () => {
         expect.objectContaining({ id: "nest.ambiguous-filter-or-application" }),
       ]),
     );
+  });
+
+  it("freezes Angular as a private four-cell calibration without a public target", () => {
+    const matrix = readMatrix() as RuntimeMatrix & {
+      quickstarts: Array<{ id: string }>;
+      targets: Array<{ id: string }>;
+    };
+    const angular = matrix.cells.filter(
+      (cell) => cell.family === "browser-angular",
+    );
+
+    expect(matrix.versions).toMatchObject({
+      angular: ["20.3.0", "21.2.0", "22.1.0"],
+      angularBuild: {
+        "20": "20.3.35",
+        "21": "21.2.22",
+        "22": "22.1.6",
+      },
+    });
+    expect(angular).toHaveLength(4);
+    expect(angular.every((cell) => cell.wave === "calibration-angular")).toBe(true);
+    expect(angular.every((cell) => cell.visibility === "private-calibration")).toBe(true);
+    expect(angular.map((cell) => cell.id)).toEqual([
+      "angular20.zone.ts",
+      "angular20.zoneless.ts",
+      "angular21.zoneless.ts",
+      "angular22.zoneless.ts",
+    ]);
+    expect(matrix.refusals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "angular.version-or-mode" }),
+        expect.objectContaining({ id: "angular.ssr-or-workspace" }),
+        expect.objectContaining({ id: "angular.builder-or-bootstrap" }),
+      ]),
+    );
+    expect(matrix.cells).toHaveLength(112);
+    expect(matrix.quickstarts.some(({ id }) => id === "angular")).toBe(false);
+    expect(matrix.targets.some(({ id }) => id === "angular")).toBe(false);
   });
 });

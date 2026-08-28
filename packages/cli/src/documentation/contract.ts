@@ -18,6 +18,7 @@ import { cliDocumentationModel } from "./commander.js";
 type RuntimeCell = {
   id: string;
   family: string;
+  visibility?: "private-calibration";
   [key: string]: unknown;
 };
 
@@ -32,10 +33,16 @@ type SupportTarget = {
 
 type RuntimeMatrix = {
   frozenAt: string;
+  publicFrozenAt?: string;
+  privateVersionKeys?: string[];
   versions: Record<string, unknown>;
   supportGates: string[];
   cells: RuntimeCell[];
-  refusals: Array<{ id: string; reason: string }>;
+  refusals: Array<{
+    id: string;
+    reason: string;
+    visibility?: "private-calibration";
+  }>;
   quickstarts: Array<{
     id: string;
     families: string[];
@@ -210,12 +217,24 @@ function readModel() {
 
 export function buildDocumentationContract(runtimeMatrix: unknown) {
   assertRuntimeMatrix(runtimeMatrix);
+  const publicCells = runtimeMatrix.cells.filter(
+    (cell) => cell.visibility !== "private-calibration",
+  );
+  const privateVersionKeys = new Set(runtimeMatrix.privateVersionKeys ?? []);
+  const publicVersions = Object.fromEntries(
+    Object.entries(runtimeMatrix.versions).filter(
+      ([key]) => !privateVersionKeys.has(key),
+    ),
+  );
+  const publicRefusals = runtimeMatrix.refusals.filter(
+    (refusal) => refusal.visibility !== "private-calibration",
+  );
   const families: Record<string, number> = {};
-  for (const cell of runtimeMatrix.cells) {
+  for (const cell of publicCells) {
     families[cell.family] = (families[cell.family] ?? 0) + 1;
   }
   const refusalById = new Map(
-    runtimeMatrix.refusals.map((refusal) => [refusal.id, refusal.reason]),
+    publicRefusals.map((refusal) => [refusal.id, refusal.reason]),
   );
   const targets = runtimeMatrix.targets.map((target) => ({
     id: target.id,
@@ -245,13 +264,13 @@ export function buildDocumentationContract(runtimeMatrix: unknown) {
     cli: cliDocumentationModel(cliProgram),
     reads: readModel(),
     support: {
-      frozenAt: runtimeMatrix.frozenAt,
-      totalCells: runtimeMatrix.cells.length,
+      frozenAt: runtimeMatrix.publicFrozenAt ?? runtimeMatrix.frozenAt,
+      totalCells: publicCells.length,
       families,
-      versions: runtimeMatrix.versions,
+      versions: publicVersions,
       gates: runtimeMatrix.supportGates,
-      cells: runtimeMatrix.cells,
-      refusals: runtimeMatrix.refusals,
+      cells: publicCells,
+      refusals: publicRefusals,
       quickstarts: runtimeMatrix.quickstarts,
       targets,
     },

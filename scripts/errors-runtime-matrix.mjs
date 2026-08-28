@@ -48,6 +48,12 @@ const versions = {
     11: "5.11.3",
     12: "5.12.1",
   },
+  angular: ["20.3.0", "21.2.0", "22.1.0"],
+  angularBuild: {
+    20: "20.3.35",
+    21: "21.2.22",
+    22: "22.1.6",
+  },
   typescript: ["5.9.3"],
 };
 
@@ -316,6 +322,48 @@ for (const nest of versions.nest) {
   }
 }
 
+const browserAngularCells = [
+  {
+    id: "angular20.zone.ts",
+    angular: versions.angular[0],
+    changeDetection: "zonejs",
+  },
+  {
+    id: "angular20.zoneless.ts",
+    angular: versions.angular[0],
+    changeDetection: "zoneless",
+  },
+  {
+    id: "angular21.zoneless.ts",
+    angular: versions.angular[1],
+    changeDetection: "zoneless",
+  },
+  {
+    id: "angular22.zoneless.ts",
+    angular: versions.angular[2],
+    changeDetection: "zoneless",
+  },
+].map((cell) =>
+  withGates({
+    ...cell,
+    wave: "calibration-angular",
+    family: "browser-angular",
+    visibility: "private-calibration",
+    adapter: "angular-application",
+    adapterVersion: versions.angularBuild[cell.angular.split(".")[0]],
+    language: "ts",
+    module: "esm",
+    topology: "standalone-application-config",
+    outputTopology: "default-dist-project-browser",
+    capture: [
+      "manual",
+      "window-error",
+      "unhandled-rejection",
+      "angular-error-handler",
+    ],
+  }),
+);
+
 const refusals = [
   {
     id: "next.version-or-root",
@@ -388,6 +436,21 @@ const refusals = [
   {
     id: "nest.ambiguous-filter-or-application",
     reason: "Multiple applications, custom HTTP adapters and non-composable exception filters require an exact manual outcome before any mutation.",
+  },
+  {
+    id: "angular.version-or-mode",
+    visibility: "private-calibration",
+    reason: "Angular outside 20/21/22, ambiguous Angular 20 change detection and Angular 21/22 Zone.js overrides are refused before mutation.",
+  },
+  {
+    id: "angular.ssr-or-workspace",
+    visibility: "private-calibration",
+    reason: "Angular SSR, prerendering, hydration, libraries, nested roots and zero or multiple application projects are outside the private client-rendered calibration.",
+  },
+  {
+    id: "angular.builder-or-bootstrap",
+    visibility: "private-calibration",
+    reason: "Alternate builders, custom output paths or build scripts, NgModule/dynamic bootstrap and non-static ApplicationConfig ownership are refused before mutation.",
   },
 ];
 
@@ -574,7 +637,9 @@ const supportTargets = [
 ];
 
 export const runtimeMatrix = {
-  frozenAt: "2026-08-27",
+  frozenAt: "2026-08-28",
+  publicFrozenAt: "2026-08-27",
+  privateVersionKeys: ["angular", "angularBuild"],
   versions,
   supportGates,
   cells: [
@@ -586,6 +651,7 @@ export const runtimeMatrix = {
     ...browserSvelteCells,
     ...fastifyCells,
     ...nestHttpCells,
+    ...browserAngularCells,
   ],
   refusals,
   quickstarts,

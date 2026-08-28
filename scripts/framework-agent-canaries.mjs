@@ -71,6 +71,18 @@ const targets = {
     language: "ts",
     release: "2042042042042042042042042042042042042042",
   },
+  angular: {
+    label: "Angular 22 private calibration",
+    projectId: "10000000-0000-4000-8000-000000000205",
+    groupId: "20000000-0000-4000-8000-000000000205",
+    integrationId: "errors-browser-angular",
+    skill: "volato-angular",
+    runtime: "browser",
+    capturedVia: "angular_error_handler",
+    route: "/:segment",
+    language: "ts",
+    release: "2052052052052052052052052052052052052052",
+  },
 };
 
 function assert(condition, message) {
@@ -199,6 +211,33 @@ function commonPackage(target) {
   const scripts = {
     test: "node --test && node scripts/mark.mjs test",
   };
+  if (target === targets.angular) {
+    scripts.build = "ng build";
+    scripts.postbuild =
+      "node scripts/verify-setup.mjs && node scripts/mark.mjs build";
+    scripts.test =
+      "tsx --test test/capture.test.ts && node scripts/mark.mjs test";
+    return {
+      name: "volato-angular-agent-canary",
+      private: true,
+      scripts,
+      dependencies: {
+        "@angular/common": "22.1.0",
+        "@angular/compiler": "22.1.0",
+        "@angular/core": "22.1.0",
+        "@angular/platform-browser": "22.1.0",
+        rxjs: "7.8.2",
+        tslib: "2.8.1",
+      },
+      devDependencies: {
+        "@angular/build": "22.1.6",
+        "@angular/cli": "22.1.6",
+        "@angular/compiler-cli": "22.1.0",
+        tsx: "4.20.6",
+        typescript: "6.0.2",
+      },
+    };
+  }
   if (target === targets.vue) {
     scripts.build = "node scripts/verify-setup.mjs && vite build && node scripts/mark.mjs build";
     return {
@@ -293,6 +332,108 @@ function writeBrowserFixture(root, target) {
   }
 }
 
+function writeAngularFixture(root) {
+  mkdirSync(join(root, "src", "app"), { recursive: true });
+  writeFileSync(
+    join(root, "angular.json"),
+    `${JSON.stringify(
+      {
+        $schema: "./node_modules/@angular/cli/lib/config/schema.json",
+        version: 1,
+        projects: {
+          "angular-canary": {
+            projectType: "application",
+            root: "",
+            sourceRoot: "src",
+            prefix: "app",
+            architect: {
+              build: {
+                builder: "@angular/build:application",
+                options: {
+                  browser: "src/main.ts",
+                  tsConfig: "tsconfig.app.json",
+                  styles: ["src/styles.css"],
+                },
+                configurations: {
+                  production: { outputHashing: "all" },
+                  development: { optimization: false, sourceMap: true },
+                },
+                defaultConfiguration: "production",
+              },
+            },
+          },
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  writeFileSync(
+    join(root, "tsconfig.json"),
+    `${JSON.stringify(
+      {
+        compilerOptions: {
+          target: "ES2022",
+          module: "preserve",
+          moduleResolution: "bundler",
+          strict: true,
+          skipLibCheck: true,
+          experimentalDecorators: true,
+          useDefineForClassFields: false,
+        },
+        angularCompilerOptions: { strictTemplates: true },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  writeFileSync(
+    join(root, "tsconfig.app.json"),
+    `${JSON.stringify(
+      {
+        extends: "./tsconfig.json",
+        compilerOptions: { outDir: "./out-tsc/app", types: [] },
+        files: ["src/main.ts"],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  writeFileSync(
+    join(root, "src", "index.html"),
+    '<!doctype html><html><head><meta charset="utf-8"><base href="/"></head><body><app-root></app-root></body></html>\n',
+  );
+  writeFileSync(join(root, "src", "styles.css"), "body { font-family: sans-serif; }\n");
+  writeFileSync(
+    join(root, "src", "main.ts"),
+    `import { bootstrapApplication } from "@angular/platform-browser";
+import { appConfig } from "./app/app.config";
+import { App } from "./app/app";
+bootstrapApplication(App, appConfig).catch((error) => console.error(error));
+`,
+  );
+  writeFileSync(
+    join(root, "src", "app", "app.config.ts"),
+    `import { ApplicationConfig, provideBrowserGlobalErrorListeners } from "@angular/core";
+export const appConfig: ApplicationConfig = {
+  providers: [provideBrowserGlobalErrorListeners()],
+};
+`,
+  );
+  writeFileSync(
+    join(root, "src", "app", "app.ts"),
+    `import { Component } from "@angular/core";
+import { checkoutTotal } from "../checkout";
+@Component({
+  selector: "app-root",
+  standalone: true,
+  template: "<main>{{ total }}</main>",
+})
+export class App { readonly total = checkoutTotal([]); }
+`,
+  );
+}
+
 function writeFastifyFixture(root) {
   writeFileSync(
     join(root, "src", "server.ts"),
@@ -371,6 +512,15 @@ void bootstrap();
 }
 
 function verifySetupSource(target) {
+  if (target === targets.angular) {
+    return `import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+assert.match(readFileSync("src/app/app.config.ts", "utf8"), /provideVolatoAngular/);
+assert.match(readFileSync("package.json", "utf8"), /angular-build\\.mjs/);
+assert.deepEqual(JSON.parse(readFileSync("angular.json", "utf8")).projects["angular-canary"].architect.build.configurations.production.sourceMap, { scripts: true, styles: false, hidden: true, sourcesContent: true });
+assert.ok(JSON.parse(readFileSync(".volato/manifest.json", "utf8")).integrations["errors-browser-angular"]);
+`;
+  }
   if (target === targets.vue) {
     return `import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -407,6 +557,24 @@ assert.ok(JSON.parse(readFileSync(".volato/manifest.json", "utf8")).integrations
 }
 
 function captureTestSource(target) {
+  if (target === targets.angular) {
+    return `import assert from "node:assert/strict";
+import test from "node:test";
+import { checkoutTotal } from "../src/checkout.ts";
+
+test("empty checkout remains valid", () => {
+  assert.equal(checkoutTotal([]), 0);
+});
+
+test("generated Angular runtime delivers a bounded event", async () => {
+  globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  const runtime = await import("../src/volato/browser.ts");
+  runtime.initVolatoBrowser({ dsn: process.env.VOLATO_TEST_DSN, environment: "production", release: process.env.VOLATO_RELEASE });
+  const delivered = await runtime.captureBrowserError(new Error("Angular setup canary"), { capturedVia: "angular_error_handler" });
+  assert.equal(delivered, true);
+});
+`;
+  }
   const extension = target.language === "js" ? "js" : "ts";
   const runtimeRoot = target.runtime === "browser" ? "volato" : "volato-node";
   const runtimeFile = target.runtime === "browser" ? "browser.js" : "node.ts";
@@ -445,10 +613,11 @@ function writeFixture(root, target, skillRoot, realCli) {
   );
   writeFileSync(
     join(root, ".gitignore"),
-    "node_modules/\ndist/\n.env*.local\n.volato-eval-*\n",
+    "node_modules/\ndist/\n.angular/\n.env*.local\n.volato-eval-*\n",
   );
   writeFileSync(join(root, "package.json"), `${JSON.stringify(commonPackage(target), null, 2)}\n`);
-  if (target.runtime === "browser") writeBrowserFixture(root, target);
+  if (target === targets.angular) writeAngularFixture(root);
+  else if (target.runtime === "browser") writeBrowserFixture(root, target);
   else if (target === targets.fastify) writeFastifyFixture(root);
   else writeNestFixture(root);
   const extension = target.language === "js" ? "js" : "ts";
@@ -468,7 +637,7 @@ function writeFixture(root, target, skillRoot, realCli) {
     'import { writeFileSync } from "node:fs";\nwriteFileSync(`.volato-eval-${process.argv[2]}`, "ok\\n");\n',
   );
   writeFileSync(
-    join(root, "test", "capture.test.mjs"),
+    join(root, "test", target === targets.angular ? "capture.test.ts" : "capture.test.mjs"),
     captureTestSource(target),
   );
   for (const name of ["volato-setup", "volato-errors", target.skill]) {
@@ -776,7 +945,7 @@ async function runTargetCanaries(name, target, packaged) {
       ],
       commitTransition: { priorCleanCommit, firstSeenCommit },
       resolvedFrame: { original_path: causalPath, original_line: 2, original_column: 35 },
-      resolutionState: "resolved",
+      resolutionState: "unresolved",
       history: [],
       affectedUsers: { count: 4 },
       similarResolved: [],
@@ -795,12 +964,20 @@ async function runTargetCanaries(name, target, packaged) {
       .split("\n")
       .filter(Boolean);
     const verification = run(
-      process.execPath,
-      [
-        "--test",
-        "--test-name-pattern=empty checkout remains valid",
-        "test/capture.test.mjs",
-      ],
+      target === targets.angular ? "pnpm" : process.execPath,
+      target === targets.angular
+        ? [
+            "exec",
+            "tsx",
+            "--test",
+            "--test-name-pattern=empty checkout remains valid",
+            "test/capture.test.ts",
+          ]
+        : [
+            "--test",
+            "--test-name-pattern=empty checkout remains valid",
+            "test/capture.test.mjs",
+          ],
       { cwd: root, allowFailure: true, env },
     );
     const recoveryResult = {

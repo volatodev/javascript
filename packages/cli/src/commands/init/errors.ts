@@ -32,6 +32,7 @@ import { generateNextjsIntegration } from "../../integrations/nextjs";
 import { generateBrowserReactIntegration } from "../../integrations/vite-react.js";
 import { generateViteVueIntegration } from "../../integrations/vite-vue.js";
 import { generateViteSvelteIntegration } from "../../integrations/vite-svelte.js";
+import { generateAngularIntegration } from "../../integrations/angular.js";
 import { generateNodeIntegration } from "../../integrations/node.js";
 import { generateFastifyIntegration } from "../../integrations/fastify.js";
 import { generateNestIntegration } from "../../integrations/nest.js";
@@ -127,6 +128,27 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       },
     );
   } else {
+    if (stack.angular) {
+      const generated = generateAngularIntegration({
+        cwd,
+        dsn: setup.dsn,
+        ingestToken: setup.ingestToken,
+        project: stack.angular,
+      });
+      outcomes.push(
+        {
+          path: generated.runtimeRoot,
+          status: "created",
+          detail: `${generated.generatedFiles.length} local Angular browser files`,
+        },
+        ...generated.outcomes,
+        {
+          path: generated.manifestPath,
+          status: "created",
+          detail: "generated-file integrity manifest",
+        },
+      );
+    }
     if (stack.browserReact) {
       const generated = generateBrowserReactIntegration({
         cwd,
@@ -306,6 +328,12 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
         "errors-browser-svelte",
       );
     }
+    if (stack.angular) {
+      await reportIntegrationInstalled(
+        projectLink.id,
+        "errors-browser-angular",
+      );
+    }
     if (stack.node) {
       await reportIntegrationInstalled(projectLink.id, "errors-node");
     }
@@ -356,6 +384,8 @@ export async function runErrorsInit(options: ErrorsInitOptions): Promise<void> {
       cwd,
       stack.browserReact
         ? "React"
+        : stack.angular
+          ? "Angular"
         : stack.browserVue
           ? "Vue"
           : stack.browserSvelte
@@ -442,7 +472,7 @@ function localModule(fromFile: string, target: string): string {
 
 function printPortableNextSteps(
   cwd: string,
-  browserRenderer: "React" | "Vue" | "Svelte" | null,
+  browserRenderer: "React" | "Vue" | "Svelte" | "Angular" | null,
   nodeSurface: "Node/Express" | "Fastify" | "NestJS" | null,
   hasNodeInvocation: boolean,
   complete: boolean,
