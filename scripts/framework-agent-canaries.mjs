@@ -107,6 +107,18 @@ const targets = {
     language: "ts",
     release: "2072072072072072072072072072072072072072",
   },
+  sveltekit: {
+    label: "SvelteKit 2.70/adapter-node 5 private calibration",
+    projectId: "10000000-0000-4000-8000-000000000208",
+    groupId: "20000000-0000-4000-8000-000000000208",
+    integrationId: "errors-sveltekit",
+    skill: "volato-sveltekit",
+    runtime: "node",
+    capturedVia: "sveltekit_server_handle_error",
+    route: "/checkout",
+    language: "ts",
+    release: "2082082082082082082082082082082082082082",
+  },
 };
 
 function assert(condition, message) {
@@ -251,6 +263,28 @@ function commonPackage(target) {
         nuxt: "4.5.2",
         vue: "3.5.42",
         "vue-router": "5.2.0",
+      },
+      devDependencies: { tsx: "4.20.6" },
+    };
+  }
+  if (target === targets.sveltekit) {
+    scripts.build = "vite build";
+    scripts.postbuild =
+      "node scripts/verify-setup.mjs && node scripts/mark.mjs build";
+    scripts.test =
+      "tsx --test test/capture.test.ts && node scripts/mark.mjs test";
+    return {
+      name: "volato-sveltekit-agent-canary",
+      private: true,
+      type: "module",
+      engines: { node: "24.19.0" },
+      scripts,
+      dependencies: {
+        svelte: "5.56.10",
+        "@sveltejs/kit": "2.70.3",
+        "@sveltejs/adapter-node": "5.5.7",
+        "@sveltejs/vite-plugin-svelte": "7.3.0",
+        vite: "8.2.2",
       },
       devDependencies: { tsx: "4.20.6" },
     };
@@ -531,6 +565,57 @@ const total = checkoutTotal([]);
   );
 }
 
+function writeSvelteKitFixture(root) {
+  for (const directory of [join("src", "lib"), join("src", "routes")]) {
+    mkdirSync(join(root, directory), { recursive: true });
+  }
+  writeFileSync(join(root, ".node-version"), "24.19.0\n");
+  writeFileSync(
+    join(root, "vite.config.ts"),
+    `import adapter from "@sveltejs/adapter-node";
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [sveltekit({ adapter: adapter() })],
+});
+`,
+  );
+  writeFileSync(
+    join(root, "tsconfig.json"),
+    `${JSON.stringify(
+      {
+        extends: "./.svelte-kit/tsconfig.json",
+        compilerOptions: {
+          allowJs: true,
+          esModuleInterop: true,
+          forceConsistentCasingInFileNames: true,
+          resolveJsonModule: true,
+          skipLibCheck: true,
+          sourceMap: true,
+          strict: true,
+          moduleResolution: "bundler",
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  writeFileSync(
+    join(root, "src", "app.html"),
+    '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">%sveltekit.head%</head><body><div style="display: contents">%sveltekit.body%</div></body></html>\n',
+  );
+  writeFileSync(
+    join(root, "src", "routes", "+page.svelte"),
+    `<script lang="ts">
+  import { checkoutTotal } from "../lib/checkout";
+  const total = checkoutTotal([]);
+</script>
+<main>{total}</main>
+`,
+  );
+}
+
 function writeFastifyFixture(root) {
   writeFileSync(
     join(root, "src", "server.ts"),
@@ -633,6 +718,30 @@ assert json.loads(Path(".volato/manifest.json").read_text())["integrations"]["er
 for path in ["app.py", "checkout.py", "volato_errors/__init__.py", "volato_errors/runtime.py", "volato_errors/asgi.py"]:
     py_compile.compile(path, doraise=True)
 Path(".volato-eval-build").write_text("ok\\n")
+`;
+  }
+  if (target === targets.sveltekit) {
+    return `import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+
+assert.match(readFileSync("vite.config.ts", "utf8"), /withVolatoSvelteKit/);
+assert.match(readFileSync("src/hooks.client.ts", "utf8"), /createVolatoSvelteKitClientHandleError/);
+assert.match(readFileSync("src/hooks.server.ts", "utf8"), /createVolatoSvelteKitServerHandleError/);
+assert.match(readFileSync("package.json", "utf8"), /upload-sourcemaps[.]mjs/);
+assert.ok(JSON.parse(readFileSync(".volato/manifest.json", "utf8")).integrations["errors-sveltekit"]);
+
+function files(root) {
+  const found = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) found.push(...files(path));
+    else found.push(path);
+  }
+  return found;
+}
+assert.equal(files("build").some((path) => path.endsWith(".map")), false);
+assert.equal(files(".svelte-kit/output").some((path) => path.endsWith(".map")), false);
 `;
   }
   if (target === targets.angular) {
@@ -754,6 +863,27 @@ test("generated Nuxt browser and Nitro runtimes deliver bounded events", async (
 });
 `;
   }
+  if (target === targets.sveltekit) {
+    return `import assert from "node:assert/strict";
+import test from "node:test";
+import { checkoutTotal } from "../src/lib/checkout.ts";
+
+test("empty checkout remains valid", () => {
+  assert.equal(checkoutTotal([]), 0);
+});
+
+test("generated SvelteKit browser and server runtimes deliver bounded events", async () => {
+  globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  const browser = await import("../volato-sveltekit/browser.ts");
+  browser.initVolatoBrowser({ dsn: process.env.VOLATO_TEST_DSN, environment: "production", release: process.env.VOLATO_RELEASE });
+  assert.equal(await browser.captureBrowserError(new Error("SvelteKit browser setup canary"), { capturedVia: "sveltekit_client_handle_error" }), true);
+
+  const node = await import("../volato-sveltekit/node.ts");
+  node.initVolatoNode({ dsn: process.env.VOLATO_TEST_DSN, environment: "production", release: process.env.VOLATO_RELEASE, installFatalHandlers: false });
+  assert.equal(await node.captureNodeException(new Error("SvelteKit server setup canary"), { capturedVia: "sveltekit_server_handle_error", method: "POST", route: "/checkout", status: 500, requestId: "sveltekit-canary" }), true);
+});
+`;
+  }
   const extension = target.language === "js" ? "js" : "ts";
   const runtimeRoot = target.runtime === "browser" ? "volato" : "volato-node";
   const runtimeFile = target.runtime === "browser" ? "browser.js" : "node.ts";
@@ -792,7 +922,7 @@ function writeFixture(root, target, skillRoot, realCli) {
   );
   writeFileSync(
     join(root, ".gitignore"),
-    "node_modules/\ndist/\n.angular/\n.nuxt/\n.output/\n.venv/\n__pycache__/\n.env*.local\n.volato-eval-*\n",
+    "node_modules/\ndist/\nbuild/\n.angular/\n.nuxt/\n.output/\n.svelte-kit/\n.venv/\n__pycache__/\n.env*.local\n.volato-eval-*\n",
   );
   if (target !== targets.fastapi) {
     writeFileSync(
@@ -802,13 +932,16 @@ function writeFixture(root, target, skillRoot, realCli) {
   }
   if (target === targets.fastapi) writeFastApiFixture(root);
   else if (target === targets.nuxt) writeNuxtFixture(root);
+  else if (target === targets.sveltekit) writeSvelteKitFixture(root);
   else if (target === targets.angular) writeAngularFixture(root);
   else if (target.runtime === "browser") writeBrowserFixture(root, target);
   else if (target === targets.fastify) writeFastifyFixture(root);
   else writeNestFixture(root);
   const extension = target.language === "js" ? "js" : target.language === "py" ? "py" : "ts";
   const testName =
-    target === targets.angular || target === targets.nuxt
+    target === targets.angular ||
+    target === targets.nuxt ||
+    target === targets.sveltekit
       ? "capture.test.ts"
       : "capture.test.mjs";
   if (target === targets.fastapi) {
@@ -819,6 +952,14 @@ function writeFixture(root, target, skillRoot, realCli) {
   } else if (target === targets.nuxt) {
     writeFileSync(
       join(root, "app", "lib", "checkout.ts"),
+      `export function checkoutTotal(lines: Array<{ price: number }>) {
+  return lines.map((line) => line.price).reduce((sum, price) => sum + price, 0);
+}
+`,
+    );
+  } else if (target === targets.sveltekit) {
+    writeFileSync(
+      join(root, "src", "lib", "checkout.ts"),
       `export function checkoutTotal(lines: Array<{ price: number }>) {
   return lines.map((line) => line.price).reduce((sum, price) => sum + price, 0);
 }
@@ -909,6 +1050,13 @@ function readJsonLines(path) {
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line));
+}
+
+function multipartField(body, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(
+    `name="${escaped}"(?:; filename="[^"]+")?\\r\\n(?:Content-Type:[^\\r]+\\r\\n)?\\r\\n([\\s\\S]*?)\\r\\n--`,
+  ).exec(body)?.[1];
 }
 
 function errorGroup(target) {
@@ -1084,6 +1232,7 @@ function agentEnvironment(root, target, realCli, port, commandLog) {
     VOLATO_RELEASE: target.release,
     VOLATO_DSN: dsn,
     VITE_VOLATO_DSN: dsn,
+    VITE_VOLATO_ENVIRONMENT: "production",
     VOLATO_TEST_DSN: dsn,
     VOLATO_INGEST_TOKEN: ingestToken,
   };
@@ -1156,6 +1305,28 @@ async function runTargetCanaries(name, target, packaged) {
         state.events.some(
           (event) => event.runtime === "node" && event.capturedVia === "nitro_error",
         ),
+      svelteKitBrowserCaptured:
+        target === targets.sveltekit &&
+        state.events.some(
+          (event) =>
+            event.runtime === "browser" &&
+            event.capturedVia === "sveltekit_client_handle_error",
+        ),
+      svelteKitServerCaptured:
+        target === targets.sveltekit &&
+        state.events.some(
+          (event) =>
+            event.runtime === "node" &&
+            event.capturedVia === "sveltekit_server_handle_error",
+        ),
+      svelteKitMapFamiliesUploaded:
+        target === targets.sveltekit &&
+        ["_app/", "build/server/", ".svelte-kit/output/server/"].every(
+          (prefix) =>
+            state.maps.some((body) =>
+              multipartField(body, "display_path")?.startsWith(prefix),
+            ),
+        ),
       wallClockMs: Date.now() - setupStarted,
     };
     for (const [passed, message] of [
@@ -1180,6 +1351,19 @@ async function runTargetCanaries(name, target, packaged) {
         target !== targets.nuxt || setupResult.nuxtNitroCaptured,
         `${target.label} setup did not exercise the generated Nitro runtime`,
       ],
+      [
+        target !== targets.sveltekit || setupResult.svelteKitBrowserCaptured,
+        `${target.label} setup did not exercise the generated browser runtime`,
+      ],
+      [
+        target !== targets.sveltekit || setupResult.svelteKitServerCaptured,
+        `${target.label} setup did not exercise the generated server runtime`,
+      ],
+      [
+        target !== targets.sveltekit ||
+          setupResult.svelteKitMapFamiliesUploaded,
+        `${target.label} setup did not upload all three sourcemap families`,
+      ],
     ]) assert(passed, message);
 
     run("git", ["add", "."], { cwd: root });
@@ -1192,7 +1376,9 @@ async function runTargetCanaries(name, target, packaged) {
         ? "checkout.py"
         : target === targets.nuxt
           ? "app/lib/checkout.ts"
-          : `src/checkout.${extension}`;
+          : target === targets.sveltekit
+            ? "src/lib/checkout.ts"
+            : `src/checkout.${extension}`;
     writeFileSync(
       join(root, causalPath),
       target === targets.fastapi
@@ -1249,9 +1435,11 @@ def checkout_total(lines):
         ? "pnpm"
         : target === targets.nuxt
           ? "pnpm"
-        : target === targets.fastapi
-          ? join(root, ".venv", "bin", "python")
-          : process.execPath,
+          : target === targets.sveltekit
+            ? "pnpm"
+            : target === targets.fastapi
+              ? join(root, ".venv", "bin", "python")
+              : process.execPath,
       target === targets.angular
         ? [
             "exec",
@@ -1268,17 +1456,25 @@ def checkout_total(lines):
               "--test-name-pattern=empty checkout remains valid",
               "test/capture.test.ts",
             ]
-        : target === targets.fastapi
-          ? [
-              "-m",
-              "unittest",
-              "test.test_checkout.CheckoutTest.test_empty_checkout",
-            ]
-          : [
-            "--test",
-            "--test-name-pattern=empty checkout remains valid",
-            "test/capture.test.mjs",
-            ],
+          : target === targets.sveltekit
+            ? [
+                "exec",
+                "tsx",
+                "--test",
+                "--test-name-pattern=empty checkout remains valid",
+                "test/capture.test.ts",
+              ]
+            : target === targets.fastapi
+              ? [
+                  "-m",
+                  "unittest",
+                  "test.test_checkout.CheckoutTest.test_empty_checkout",
+                ]
+              : [
+                  "--test",
+                  "--test-name-pattern=empty checkout remains valid",
+                  "test/capture.test.mjs",
+                ],
       { cwd: root, allowFailure: true, env },
     );
     const recoveryResult = {
