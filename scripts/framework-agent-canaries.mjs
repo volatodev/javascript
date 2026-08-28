@@ -95,6 +95,18 @@ const targets = {
     language: "py",
     release: "2062062062062062062062062062062062062062",
   },
+  nuxt: {
+    label: "Nuxt 4.5/Nitro 2.13 private calibration",
+    projectId: "10000000-0000-4000-8000-000000000207",
+    groupId: "20000000-0000-4000-8000-000000000207",
+    integrationId: "errors-nuxt",
+    skill: "volato-nuxt",
+    runtime: "node",
+    capturedVia: "nitro_error",
+    route: "/checkout",
+    language: "ts",
+    release: "2072072072072072072072072072072072072072",
+  },
 };
 
 function assert(condition, message) {
@@ -223,6 +235,26 @@ function commonPackage(target) {
   const scripts = {
     test: "node --test && node scripts/mark.mjs test",
   };
+  if (target === targets.nuxt) {
+    scripts.build = "nuxt build";
+    scripts.postbuild =
+      "node scripts/verify-setup.mjs && node scripts/mark.mjs build";
+    scripts.test =
+      "tsx --test test/capture.test.ts && node scripts/mark.mjs test";
+    return {
+      name: "volato-nuxt-agent-canary",
+      private: true,
+      type: "module",
+      engines: { node: "24.19.0" },
+      scripts,
+      dependencies: {
+        nuxt: "4.5.2",
+        vue: "3.5.42",
+        "vue-router": "5.2.0",
+      },
+      devDependencies: { tsx: "4.20.6" },
+    };
+  }
   if (target === targets.angular) {
     scripts.build = "ng build";
     scripts.postbuild =
@@ -446,6 +478,59 @@ export class App { readonly total = checkoutTotal([]); }
   );
 }
 
+function writeNuxtFixture(root) {
+  for (const directory of [
+    join("app", "lib"),
+    join("app", "pages"),
+    join("app", "plugins"),
+    join("server", "plugins"),
+  ]) {
+    mkdirSync(join(root, directory), { recursive: true });
+  }
+  writeFileSync(join(root, ".node-version"), "24.19.0\n");
+  writeFileSync(
+    join(root, "nuxt.config.ts"),
+    `export default defineNuxtConfig({
+  compatibilityDate: "2026-08-28",
+  devtools: { enabled: false },
+  nitro: { preset: "node-server" },
+});
+`,
+  );
+  writeFileSync(
+    join(root, "tsconfig.json"),
+    '{"files":[],"references":[{"path":"./.nuxt/tsconfig.app.json"},{"path":"./.nuxt/tsconfig.server.json"}]}\n',
+  );
+  writeFileSync(
+    join(root, "app", "app.vue"),
+    "<template><NuxtPage /></template>\n",
+  );
+  writeFileSync(
+    join(root, "app", "pages", "index.vue"),
+    `<script setup lang="ts">
+import { checkoutTotal } from "~/lib/checkout";
+const total = checkoutTotal([]);
+</script>
+<template><main>{{ total }}</main></template>
+`,
+  );
+  writeFileSync(
+    join(root, "app", "plugins", "10.application.client.ts"),
+    `export default defineNuxtPlugin({
+  name: "application-observer",
+  hooks: { "app:error": () => undefined },
+});
+`,
+  );
+  writeFileSync(
+    join(root, "server", "plugins", "10.application.ts"),
+    `export default defineNitroPlugin((nitroApp) => {
+  nitroApp.hooks.hook("error", () => undefined);
+});
+`,
+  );
+}
+
 function writeFastifyFixture(root) {
   writeFileSync(
     join(root, "src", "server.ts"),
@@ -559,6 +644,16 @@ assert.deepEqual(JSON.parse(readFileSync("angular.json", "utf8")).projects["angu
 assert.ok(JSON.parse(readFileSync(".volato/manifest.json", "utf8")).integrations["errors-browser-angular"]);
 `;
   }
+  if (target === targets.nuxt) {
+    return `import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+assert.match(readFileSync("nuxt.config.ts", "utf8"), /withVolatoNuxt/);
+assert.match(readFileSync("app/plugins/00.volato-errors.client.ts", "utf8"), /installVolatoNuxtClient/);
+assert.match(readFileSync("server/plugins/00.volato-errors.ts", "utf8"), /installVolatoNitro/);
+assert.match(readFileSync("package.json", "utf8"), /upload-sourcemaps[.]mjs/);
+assert.ok(JSON.parse(readFileSync(".volato/manifest.json", "utf8")).integrations["errors-nuxt"]);
+`;
+  }
   if (target === targets.vue) {
     return `import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -638,6 +733,27 @@ test("generated Angular runtime delivers a bounded event", async () => {
 });
 `;
   }
+  if (target === targets.nuxt) {
+    return `import assert from "node:assert/strict";
+import test from "node:test";
+import { checkoutTotal } from "../app/lib/checkout.ts";
+
+test("empty checkout remains valid", () => {
+  assert.equal(checkoutTotal([]), 0);
+});
+
+test("generated Nuxt browser and Nitro runtimes deliver bounded events", async () => {
+  globalThis.window = { addEventListener() {}, removeEventListener() {} };
+  const browser = await import("../volato-nuxt/browser.ts");
+  browser.initVolatoBrowser({ dsn: process.env.VOLATO_TEST_DSN, environment: "production", release: process.env.VOLATO_RELEASE });
+  assert.equal(await browser.captureBrowserError(new Error("Nuxt browser setup canary"), { capturedVia: "nuxt_app_error" }), true);
+
+  const node = await import("../volato-nuxt/node.ts");
+  node.initVolatoNode({ dsn: process.env.VOLATO_TEST_DSN, environment: "production", release: process.env.VOLATO_RELEASE, installFatalHandlers: false });
+  assert.equal(await node.captureNodeException(new Error("Nuxt Nitro setup canary"), { capturedVia: "nitro_error" }), true);
+});
+`;
+  }
   const extension = target.language === "js" ? "js" : "ts";
   const runtimeRoot = target.runtime === "browser" ? "volato" : "volato-node";
   const runtimeFile = target.runtime === "browser" ? "browser.js" : "node.ts";
@@ -676,7 +792,7 @@ function writeFixture(root, target, skillRoot, realCli) {
   );
   writeFileSync(
     join(root, ".gitignore"),
-    "node_modules/\ndist/\n.angular/\n.venv/\n__pycache__/\n.env*.local\n.volato-eval-*\n",
+    "node_modules/\ndist/\n.angular/\n.nuxt/\n.output/\n.venv/\n__pycache__/\n.env*.local\n.volato-eval-*\n",
   );
   if (target !== targets.fastapi) {
     writeFileSync(
@@ -685,15 +801,28 @@ function writeFixture(root, target, skillRoot, realCli) {
     );
   }
   if (target === targets.fastapi) writeFastApiFixture(root);
+  else if (target === targets.nuxt) writeNuxtFixture(root);
   else if (target === targets.angular) writeAngularFixture(root);
   else if (target.runtime === "browser") writeBrowserFixture(root, target);
   else if (target === targets.fastify) writeFastifyFixture(root);
   else writeNestFixture(root);
   const extension = target.language === "js" ? "js" : target.language === "py" ? "py" : "ts";
+  const testName =
+    target === targets.angular || target === targets.nuxt
+      ? "capture.test.ts"
+      : "capture.test.mjs";
   if (target === targets.fastapi) {
     writeFileSync(
       join(root, "checkout.py"),
       `from functools import reduce\n\ndef checkout_total(lines):\n    return reduce(lambda total, line: total + line["price"], lines, 0)\n`,
+    );
+  } else if (target === targets.nuxt) {
+    writeFileSync(
+      join(root, "app", "lib", "checkout.ts"),
+      `export function checkoutTotal(lines: Array<{ price: number }>) {
+  return lines.map((line) => line.price).reduce((sum, price) => sum + price, 0);
+}
+`,
     );
   } else {
     writeFileSync(
@@ -724,7 +853,7 @@ function writeFixture(root, target, skillRoot, realCli) {
       'import { writeFileSync } from "node:fs";\nwriteFileSync(`.volato-eval-${process.argv[2]}`, "ok\\n");\n',
     );
     writeFileSync(
-      join(root, "test", target === targets.angular ? "capture.test.ts" : "capture.test.mjs"),
+      join(root, "test", testName),
       captureTestSource(target),
     );
   }
@@ -1016,6 +1145,17 @@ async function runTargetCanaries(name, target, packaged) {
             event.runtime === "python" &&
             String(event.stack ?? "").includes('File "test/test_checkout.py"'),
         ),
+      nuxtBrowserCaptured:
+        target === targets.nuxt &&
+        state.events.some(
+          (event) =>
+            event.runtime === "browser" && event.capturedVia === "nuxt_app_error",
+        ),
+      nuxtNitroCaptured:
+        target === targets.nuxt &&
+        state.events.some(
+          (event) => event.runtime === "node" && event.capturedVia === "nitro_error",
+        ),
       wallClockMs: Date.now() - setupStarted,
     };
     for (const [passed, message] of [
@@ -1032,6 +1172,14 @@ async function runTargetCanaries(name, target, packaged) {
         setupResult.sourcemapUploaded || setupResult.directSourceCaptured,
         `${target.label} build proved neither sourcemap nor direct source`,
       ],
+      [
+        target !== targets.nuxt || setupResult.nuxtBrowserCaptured,
+        `${target.label} setup did not exercise the generated browser runtime`,
+      ],
+      [
+        target !== targets.nuxt || setupResult.nuxtNitroCaptured,
+        `${target.label} setup did not exercise the generated Nitro runtime`,
+      ],
     ]) assert(passed, message);
 
     run("git", ["add", "."], { cwd: root });
@@ -1040,7 +1188,11 @@ async function runTargetCanaries(name, target, packaged) {
     const extension =
       target.language === "js" ? "js" : target.language === "py" ? "py" : "ts";
     const causalPath =
-      target === targets.fastapi ? "checkout.py" : `src/checkout.${extension}`;
+      target === targets.fastapi
+        ? "checkout.py"
+        : target === targets.nuxt
+          ? "app/lib/checkout.ts"
+          : `src/checkout.${extension}`;
     writeFileSync(
       join(root, causalPath),
       target === targets.fastapi
@@ -1095,6 +1247,8 @@ def checkout_total(lines):
     const verification = run(
       target === targets.angular
         ? "pnpm"
+        : target === targets.nuxt
+          ? "pnpm"
         : target === targets.fastapi
           ? join(root, ".venv", "bin", "python")
           : process.execPath,
@@ -1106,6 +1260,14 @@ def checkout_total(lines):
             "--test-name-pattern=empty checkout remains valid",
             "test/capture.test.ts",
           ]
+        : target === targets.nuxt
+          ? [
+              "exec",
+              "tsx",
+              "--test",
+              "--test-name-pattern=empty checkout remains valid",
+              "test/capture.test.ts",
+            ]
         : target === targets.fastapi
           ? [
               "-m",
