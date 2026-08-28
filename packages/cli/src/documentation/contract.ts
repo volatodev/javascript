@@ -21,6 +21,15 @@ type RuntimeCell = {
   [key: string]: unknown;
 };
 
+type SupportTarget = {
+  id: string;
+  label: string;
+  description: string;
+  versions: string[];
+  surfaces: string[];
+  refusalIds: string[];
+};
+
 type RuntimeMatrix = {
   frozenAt: string;
   versions: Record<string, unknown>;
@@ -33,6 +42,7 @@ type RuntimeMatrix = {
     skill: string;
     conformance: string[];
   }>;
+  targets: SupportTarget[];
 };
 
 const UUID = "11111111-1111-4111-8111-111111111111";
@@ -142,7 +152,8 @@ function assertRuntimeMatrix(value: unknown): asserts value is RuntimeMatrix {
     !Array.isArray(matrix.supportGates) ||
     !Array.isArray(matrix.cells) ||
     !Array.isArray(matrix.refusals) ||
-    !Array.isArray(matrix.quickstarts)
+    !Array.isArray(matrix.quickstarts) ||
+    !Array.isArray(matrix.targets)
   ) {
     throw new Error("Documentation support authority is incomplete.");
   }
@@ -154,6 +165,20 @@ function assertRuntimeMatrix(value: unknown): asserts value is RuntimeMatrix {
       typeof cell.family !== "string"
     ) {
       throw new Error("Documentation support authority contains an invalid cell.");
+    }
+  }
+  for (const target of matrix.targets) {
+    if (
+      !target ||
+      typeof target !== "object" ||
+      typeof target.id !== "string" ||
+      typeof target.label !== "string" ||
+      typeof target.description !== "string" ||
+      !Array.isArray(target.versions) ||
+      !Array.isArray(target.surfaces) ||
+      !Array.isArray(target.refusalIds)
+    ) {
+      throw new Error("Documentation support authority contains an invalid target.");
     }
   }
 }
@@ -189,6 +214,26 @@ export function buildDocumentationContract(runtimeMatrix: unknown) {
   for (const cell of runtimeMatrix.cells) {
     families[cell.family] = (families[cell.family] ?? 0) + 1;
   }
+  const refusalById = new Map(
+    runtimeMatrix.refusals.map((refusal) => [refusal.id, refusal.reason]),
+  );
+  const targets = runtimeMatrix.targets.map((target) => ({
+    id: target.id,
+    label: target.label,
+    description: target.description,
+    versions: target.versions,
+    surfaces: target.surfaces,
+    exclusions: target.refusalIds.map((refusalId) => {
+      const reason = refusalById.get(refusalId);
+      if (!reason) {
+        throw new Error(
+          `Documentation support target ${target.id} maps unknown refusal ${refusalId}.`,
+        );
+      }
+      return reason;
+    }),
+    quickstart: `/docs/start/${target.id}`,
+  }));
 
   return {
     schemaVersion: 1 as const,
@@ -208,6 +253,7 @@ export function buildDocumentationContract(runtimeMatrix: unknown) {
       cells: runtimeMatrix.cells,
       refusals: runtimeMatrix.refusals,
       quickstarts: runtimeMatrix.quickstarts,
+      targets,
     },
   };
 }

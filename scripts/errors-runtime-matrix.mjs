@@ -1,4 +1,13 @@
 import { fileURLToPath } from "node:url";
+import { NEXTJS_CONFORMANCE_MATRIX } from "./nextjs-conformance-matrix.mjs";
+
+function unique(values) {
+  return [...new Set(values)];
+}
+
+function majorVersions(values) {
+  return unique(values.map((value) => value.split(".")[0])).join("/");
+}
 
 const supportGates = [
   "exact-detection",
@@ -12,6 +21,7 @@ const supportGates = [
 ];
 
 const versions = {
+  next: unique(NEXTJS_CONFORMANCE_MATRIX.map(({ next }) => next)),
   node: ["22.23.2", "24.19.0"],
   react: ["18.3.1", "19.2.8"],
   vite: ["6.4.3", "7.3.6", "8.2.2"],
@@ -308,6 +318,14 @@ for (const nest of versions.nest) {
 
 const refusals = [
   {
+    id: "next.version-or-root",
+    reason: "Next.js versions outside 15/16 and Next.js 16 mixed-root hybrid applications are refused before mutation.",
+  },
+  {
+    id: "next.manual-composition",
+    reason: "Existing unwrapped middleware or proxy, an existing App Router error boundary, and custom Next.js 16 build commands require reviewed manual composition.",
+  },
+  {
     id: "browser.non-react-renderer",
     reason: "Angular, vanilla-browser and other renderers require their own adapter gates.",
   },
@@ -318,6 +336,10 @@ const refusals = [
   {
     id: "browser.ambiguous-root-or-boundary",
     reason: "Multiple roots or an existing React boundary require one precise manual composition before setup can be ready.",
+  },
+  {
+    id: "browser.server-not-implied",
+    reason: "Browser capture does not imply capture for a Node.js backend; that application must be selected and integrated independently.",
   },
   {
     id: "node.ambiguous-entry",
@@ -345,11 +367,11 @@ const refusals = [
   },
   {
     id: "vue.ssr-or-ambiguous-root",
-    reason: "Vue SSR, Nuxt, multiple roots and dynamic createApp composition are outside the Vite client promise.",
+    reason: "Vue 2, Vue SSR, Nuxt, hydration, multiple roots and dynamic createApp composition are outside the Vite client promise.",
   },
   {
     id: "svelte.ssr-or-ambiguous-root",
-    reason: "SvelteKit, SSR, hydration, multiple roots and dynamic mount composition are outside the Vite client promise.",
+    reason: "Svelte 4, SvelteKit, SSR, hydration, multiple roots and dynamic mount composition are outside the Vite client promise.",
   },
   {
     id: "fastify.v4-or-ambiguous-instance",
@@ -361,7 +383,7 @@ const refusals = [
   },
   {
     id: "nest.pre-v11-or-non-http",
-    reason: "Nest versions before 11 and GraphQL, gateways, microservices, hybrid or standalone application contexts are outside the HTTP promise.",
+    reason: "Nest versions before 11 and GraphQL, gateways, WebSockets, microservices, hybrid, serverless or standalone application contexts are outside the HTTP promise.",
   },
   {
     id: "nest.ambiguous-filter-or-application",
@@ -417,6 +439,140 @@ const quickstarts = [
   },
 ];
 
+const conformedNextRouters = unique(
+  NEXTJS_CONFORMANCE_MATRIX.map(({ router }) => router),
+);
+const expectedNextRouters = ["app", "pages", "hybrid"];
+if (
+  conformedNextRouters.length !== expectedNextRouters.length ||
+  expectedNextRouters.some((router) => !conformedNextRouters.includes(router))
+) {
+  throw new Error(
+    `Public Next.js router projection is incomplete: ${conformedNextRouters.join(", ")}`,
+  );
+}
+
+const supportTargets = [
+  {
+    id: "nextjs",
+    label: "Next.js",
+    description: "App Router, Pages Router, or a hybrid application",
+    versions: [`Next.js ${majorVersions(versions.next)}`],
+    surfaces: [
+      "App Router, Pages Router and hybrid App + Pages applications in TypeScript or JavaScript.",
+      "Browser and React render failures; App Router RSC, server actions, route handlers, middleware and Next.js 16 proxy.",
+      "Pages Router render, SSR and API Routes; build identity and browser/server sourcemap upload.",
+    ],
+    refusalIds: ["next.version-or-root", "next.manual-composition"],
+  },
+  {
+    id: "vite-react",
+    label: "Vite + React",
+    description: "React browser application on Vite, Webpack, or Rspack",
+    versions: [
+      `React ${majorVersions(versions.react)}`,
+      `Vite ${majorVersions(versions.vite)}`,
+      `Webpack ${majorVersions(versions.webpack)}`,
+      `Rspack ${majorVersions(versions.rspack)}`,
+    ],
+    surfaces: [
+      "Browser manual capture, window errors, unhandled rejections and React render failures.",
+      "TypeScript or JavaScript client applications built with Vite, Webpack or Rspack.",
+    ],
+    refusalIds: [
+      "browser.dynamic-build-config",
+      "browser.ambiguous-root-or-boundary",
+      "browser.server-not-implied",
+    ],
+  },
+  {
+    id: "vite-vue",
+    label: "Vite + Vue",
+    description: "Vue 3 single-page application on Vite",
+    versions: [
+      `Vue ${majorVersions(versions.vue)}`,
+      `Vite ${majorVersions(versions.vite)}`,
+    ],
+    surfaces: [
+      "Client-rendered TypeScript or JavaScript Vue single-page applications on Vite.",
+      "Browser manual capture, window errors, unhandled rejections and Vue render failures.",
+    ],
+    refusalIds: ["vue.ssr-or-ambiguous-root", "browser.server-not-implied"],
+  },
+  {
+    id: "vite-svelte",
+    label: "Vite + Svelte",
+    description: "Svelte 5 single-page application on Vite",
+    versions: [
+      `Svelte ${majorVersions(versions.svelte)}`,
+      `Vite ${majorVersions(versions.vite)}`,
+    ],
+    surfaces: [
+      "Client-rendered TypeScript or JavaScript Svelte single-page applications on Vite.",
+      "Browser manual capture, window errors, unhandled rejections and Svelte render failures.",
+    ],
+    refusalIds: ["svelte.ssr-or-ambiguous-root", "browser.server-not-implied"],
+  },
+  {
+    id: "node-express",
+    label: "Node.js / Express",
+    description: "Server, job, async function, or Express 4/5",
+    versions: [
+      `Node.js ${majorVersions(versions.node)}`,
+      `Express ${majorVersions(versions.express)}`,
+    ],
+    surfaces: [
+      "Long-lived Node.js servers, jobs and scripts in TypeScript or JavaScript with package-declared ESM or CommonJS.",
+      "Express 4/5 same-file and split app/listen HTTP topologies while preserving application-owned handlers.",
+      "Provider-neutral asynchronous generic and Node HTTP invocation handlers with bounded end-of-invocation flush.",
+    ],
+    refusalIds: [
+      "node.ambiguous-entry",
+      "node.unknown-build-output",
+      "invocation.callback",
+      "invocation.sync",
+      "invocation.streaming",
+      "provider-presets",
+    ],
+  },
+  {
+    id: "fastify",
+    label: "Fastify",
+    description: "Fastify 5 standalone HTTP server",
+    versions: [
+      `Fastify ${majorVersions(versions.fastify)}`,
+      `Node.js ${majorVersions(versions.node)}`,
+    ],
+    surfaces: [
+      "Standalone long-lived Fastify HTTP applications in TypeScript or JavaScript with ESM or CommonJS.",
+      "Conventional same-file and split bootstrap topologies with framework-owned request lifecycle preserved.",
+    ],
+    refusalIds: [
+      "fastify.v4-or-ambiguous-instance",
+      "fastify.unsupported-lifecycle",
+    ],
+  },
+  {
+    id: "nestjs-http",
+    label: "NestJS HTTP",
+    description: "NestJS 11/12 HTTP on Express or Fastify",
+    versions: [
+      `NestJS ${majorVersions(versions.nest)}`,
+      `Node.js ${majorVersions(versions.node)}`,
+      `Express ${majorVersions(Object.values(versions.nestExpress))}`,
+      `Fastify ${majorVersions(Object.values(versions.nestFastify))}`,
+    ],
+    surfaces: [
+      "Conventional TypeScript/CommonJS NestJS HTTP applications using Express or Fastify.",
+      "Controller, guard, pipe and interceptor failures under one Nest-owned HTTP capture boundary.",
+    ],
+    refusalIds: [
+      "nest.pre-v11-or-non-http",
+      "nest.ambiguous-filter-or-application",
+    ],
+  },
+];
+
 export const runtimeMatrix = {
   frozenAt: "2026-08-27",
   versions,
@@ -433,6 +589,7 @@ export const runtimeMatrix = {
   ],
   refusals,
   quickstarts,
+  targets: supportTargets,
 };
 
 function validate(matrix) {
@@ -451,6 +608,27 @@ function validate(matrix) {
   const quickstartIds = matrix.quickstarts.map(({ id }) => id);
   if (new Set(quickstartIds).size !== quickstartIds.length) {
     throw new Error("Quickstart IDs must be unique");
+  }
+  const targetIds = matrix.targets.map(({ id }) => id);
+  if (JSON.stringify(targetIds) !== JSON.stringify(quickstartIds)) {
+    throw new Error("Public support targets must match quickstarts in exact order");
+  }
+  const refusalIds = new Set(matrix.refusals.map(({ id }) => id));
+  for (const target of matrix.targets) {
+    if (
+      !target.label ||
+      !target.description ||
+      target.versions.length === 0 ||
+      target.surfaces.length === 0 ||
+      target.refusalIds.length === 0
+    ) {
+      throw new Error(`Incomplete public support target: ${target.id}`);
+    }
+    for (const refusalId of target.refusalIds) {
+      if (!refusalIds.has(refusalId)) {
+        throw new Error(`${target.id} maps unknown refusal ${refusalId}`);
+      }
+    }
   }
   const families = new Set(matrix.cells.map((cell) => cell.family));
   for (const quickstart of matrix.quickstarts) {

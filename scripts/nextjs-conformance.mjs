@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import { TraceMap, originalPositionFor } from "@jridgewell/trace-mapping";
 import { chromium } from "playwright";
 import { projectFramePath } from "../packages/cli/skills/volato-nextjs/assets/runtime/protocol.ts";
+import { NEXTJS_CONFORMANCE_MATRIX } from "./nextjs-conformance-matrix.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = mkdtempSync(join(tmpdir(), "volato-nextjs-conformance-"));
@@ -89,57 +90,10 @@ function runCli(args, options) {
 }
 const AUTH_TOKEN = "conformance-agent-token";
 const INGEST_TOKEN = "conformance-ingest-token";
-const FULL_MATRIX = [
-  { next: "15.5.22", react: "19.2.8" },
-  { next: "16.2.12", react: "19.2.8" },
-].flatMap((version) =>
-  ["app", "pages", "hybrid"].flatMap((router) =>
-    ["ts", "js"].map((language) => ({
-      ...version,
-      router,
-      language,
-      appDir:
-        router === "pages"
-          ? null
-          : router === "hybrid" && language === "js"
-            ? version.next.startsWith("15.")
-              ? "app"
-              : "src/app"
-            : language === "js"
-              ? "src/app"
-              : "app",
-      pagesDir:
-        router === "app"
-          ? null
-          : router === "hybrid" && language === "js"
-            ? version.next.startsWith("15.")
-              ? "src/pages"
-              : "src/pages"
-            : language === "js"
-              ? "src/pages"
-              : "pages",
-      configKind:
-        language === "js"
-          ? "commonjs"
-          : version.next.startsWith("15.") && router === "pages"
-            ? "missing"
-            : "typescript",
-      existingInstrumentation:
-        version.next.startsWith("16.") && router === "app" && language === "ts",
-      label: `Next.js ${version.next.split(".")[0]} ${
-        router === "app"
-          ? "App Router"
-          : router === "pages"
-            ? "Pages Router"
-            : "App + Pages Router"
-      } ${language === "ts" ? "TypeScript" : "JavaScript"}`,
-    })),
-  ),
-);
 const requestedNextVersion = process.env.VOLATO_NEXTJS_VERSION;
 const requestedLanguage = process.env.VOLATO_NEXTJS_LANGUAGE;
 const requestedRouter = process.env.VOLATO_NEXTJS_ROUTER;
-const MATRIX = FULL_MATRIX.filter(
+const MATRIX = NEXTJS_CONFORMANCE_MATRIX.filter(
   (entry) =>
     (!requestedNextVersion || entry.next === requestedNextVersion) &&
     (!requestedLanguage || entry.language === requestedLanguage) &&
