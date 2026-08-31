@@ -1,5 +1,16 @@
 # @volatodev/cli
 
+## 0.1.0-beta.20
+
+### Minor Changes
+
+- Add exact, stack-detected calibration paths for Angular, FastAPI, Nuxt,
+  SvelteKit and bounded Astro Node SSR/islands without widening the 108-cell
+  public support contract. Each path owns its framework lifecycle, privacy-safe
+  source maps, explicit refusals and agent setup/recovery procedure.
+- Strengthen multi-runtime source resolution, release identity propagation and
+  exhaustive generated-map cleanup across browser, Node and Python evidence.
+
 ## 0.1.0-beta.19
 
 ### Minor Changes
