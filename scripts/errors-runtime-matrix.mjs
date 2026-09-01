@@ -387,7 +387,6 @@ const pythonFastApiCells = versions.python.map((python) =>
     id: `fastapi.py${python.replace(".", "")}.http`,
     wave: "calibration-fastapi",
     family: "python-fastapi",
-    visibility: "private-calibration",
     python,
     framework: "fastapi",
     frameworkVersion: versions.fastapi[0],
@@ -609,17 +608,14 @@ const refusals = [
   },
   {
     id: "fastapi.version-or-bootstrap",
-    visibility: "private-calibration",
     reason: "Python outside maintained 3.10-3.14, dependency drift, app factories and alternate or multiple FastAPI bootstraps are refused before mutation.",
   },
   {
     id: "fastapi.non-http-or-topology",
-    visibility: "private-calibration",
-    reason: "Direct Starlette, WSGI, mounted applications, WebSockets, streaming/SSE, serverless wrappers and multiple application topologies are outside the private FastAPI HTTP calibration.",
+    reason: "Direct Starlette, WSGI, mounted applications, WebSockets, streaming/SSE, serverless wrappers and multiple application topologies are outside the FastAPI HTTP support boundary.",
   },
   {
     id: "fastapi.lifespan-or-background",
-    visibility: "private-calibration",
     reason: "Lifespan and post-response background-task failures remain explicit refusals until their independent propagation and flush lifecycles are proven.",
   },
   {
@@ -725,6 +721,12 @@ const quickstarts = [
     families: ["browser-angular"],
     skill: "volato-angular",
     conformance: ["pnpm smoke:angular-calibration"],
+  },
+  {
+    id: "fastapi",
+    families: ["python-fastapi"],
+    skill: "volato-fastapi",
+    conformance: ["pnpm smoke:fastapi-calibration"],
   },
 ];
 
@@ -879,18 +881,31 @@ const supportTargets = [
       "angular.builder-or-bootstrap",
     ],
   },
+  {
+    id: "fastapi",
+    label: "FastAPI",
+    description: "Conventional long-lived FastAPI HTTP application",
+    versions: [
+      `FastAPI 0.141`,
+      `Python ${versions.python.join("/")}`,
+    ],
+    surfaces: [
+      "Conventional long-lived FastAPI HTTP applications on Python 3.10-3.14 with one module-level app bootstrap.",
+      "Manual capture and unexpected route, dependency and application-middleware failures through one pure ASGI boundary.",
+      "Concurrent request propagation with bounded method, matched route, status and existing request-id context.",
+    ],
+    refusalIds: [
+      "fastapi.version-or-bootstrap",
+      "fastapi.non-http-or-topology",
+      "fastapi.lifespan-or-background",
+    ],
+  },
 ];
 
 export const runtimeMatrix = {
   frozenAt: "2026-08-28",
   publicFrozenAt: "2026-09-01",
   privateVersionKeys: [
-    "python",
-    "fastapi",
-    "starlette",
-    "uvicorn",
-    "pydantic",
-    "anyio",
     "nuxt",
     "nuxtNitroServer",
     "nuxtViteBuilder",

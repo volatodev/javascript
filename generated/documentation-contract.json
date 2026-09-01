@@ -597,7 +597,7 @@
             "flags": "--runtime <runtime>",
             "short": null,
             "long": "--runtime",
-            "description": "scope runtime: browser, node, client, rsc, pages_render, server_action, route_handler, middleware",
+            "description": "scope runtime: browser, node, python, client, rsc, pages_render, server_action, route_handler, middleware",
             "required": true,
             "optional": false,
             "variadic": false,
@@ -1672,6 +1672,7 @@
               "client",
               "browser",
               "node",
+              "python",
               "rsc",
               "server_action",
               "route_handler",
@@ -2012,6 +2013,7 @@
               "client",
               "browser",
               "node",
+              "python",
               "rsc",
               "server_action",
               "route_handler",
@@ -2170,6 +2172,7 @@
               "client",
               "browser",
               "node",
+              "python",
               "rsc",
               "server_action",
               "route_handler",
@@ -2481,6 +2484,7 @@
               "client",
               "browser",
               "node",
+              "python",
               "rsc",
               "server_action",
               "route_handler",
@@ -2766,7 +2770,7 @@
   },
   "support": {
     "frozenAt": "2026-09-01",
-    "totalCells": 112,
+    "totalCells": 117,
     "families": {
       "browser-react": 28,
       "node-long-lived": 24,
@@ -2776,7 +2780,8 @@
       "browser-svelte": 6,
       "fastify": 16,
       "nest-http": 8,
-      "browser-angular": 4
+      "browser-angular": 4,
+      "python-fastapi": 5
     },
     "versions": {
       "next": [
@@ -2851,6 +2856,28 @@
         "21": "21.2.22",
         "22": "22.1.6"
       },
+      "python": [
+        "3.10",
+        "3.11",
+        "3.12",
+        "3.13",
+        "3.14"
+      ],
+      "fastapi": [
+        "0.141.1"
+      ],
+      "starlette": [
+        "1.6.0"
+      ],
+      "uvicorn": [
+        "0.52.4"
+      ],
+      "pydantic": [
+        "2.13.5"
+      ],
+      "anyio": [
+        "4.14.2"
+      ],
       "typescript": [
         "5.9.3"
       ]
@@ -5989,6 +6016,176 @@
           "version-conformance",
           "agent-recovery-canary"
         ]
+      },
+      {
+        "id": "fastapi.py310.http",
+        "wave": "calibration-fastapi",
+        "family": "python-fastapi",
+        "python": "3.10",
+        "framework": "fastapi",
+        "frameworkVersion": "0.141.1",
+        "adapter": "starlette-pure-asgi",
+        "adapterVersion": "1.6.0",
+        "server": "uvicorn",
+        "serverVersion": "0.52.4",
+        "topology": "module-app",
+        "artifact": "direct-python-source",
+        "capture": [
+          "manual",
+          "asgi-http"
+        ],
+        "explicitRefusals": [
+          "lifespan",
+          "background",
+          "websocket",
+          "streaming"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastapi.py311.http",
+        "wave": "calibration-fastapi",
+        "family": "python-fastapi",
+        "python": "3.11",
+        "framework": "fastapi",
+        "frameworkVersion": "0.141.1",
+        "adapter": "starlette-pure-asgi",
+        "adapterVersion": "1.6.0",
+        "server": "uvicorn",
+        "serverVersion": "0.52.4",
+        "topology": "module-app",
+        "artifact": "direct-python-source",
+        "capture": [
+          "manual",
+          "asgi-http"
+        ],
+        "explicitRefusals": [
+          "lifespan",
+          "background",
+          "websocket",
+          "streaming"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastapi.py312.http",
+        "wave": "calibration-fastapi",
+        "family": "python-fastapi",
+        "python": "3.12",
+        "framework": "fastapi",
+        "frameworkVersion": "0.141.1",
+        "adapter": "starlette-pure-asgi",
+        "adapterVersion": "1.6.0",
+        "server": "uvicorn",
+        "serverVersion": "0.52.4",
+        "topology": "module-app",
+        "artifact": "direct-python-source",
+        "capture": [
+          "manual",
+          "asgi-http"
+        ],
+        "explicitRefusals": [
+          "lifespan",
+          "background",
+          "websocket",
+          "streaming"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastapi.py313.http",
+        "wave": "calibration-fastapi",
+        "family": "python-fastapi",
+        "python": "3.13",
+        "framework": "fastapi",
+        "frameworkVersion": "0.141.1",
+        "adapter": "starlette-pure-asgi",
+        "adapterVersion": "1.6.0",
+        "server": "uvicorn",
+        "serverVersion": "0.52.4",
+        "topology": "module-app",
+        "artifact": "direct-python-source",
+        "capture": [
+          "manual",
+          "asgi-http"
+        ],
+        "explicitRefusals": [
+          "lifespan",
+          "background",
+          "websocket",
+          "streaming"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "fastapi.py314.http",
+        "wave": "calibration-fastapi",
+        "family": "python-fastapi",
+        "python": "3.14",
+        "framework": "fastapi",
+        "frameworkVersion": "0.141.1",
+        "adapter": "starlette-pure-asgi",
+        "adapterVersion": "1.6.0",
+        "server": "uvicorn",
+        "serverVersion": "0.52.4",
+        "topology": "module-app",
+        "artifact": "direct-python-source",
+        "capture": [
+          "manual",
+          "asgi-http"
+        ],
+        "explicitRefusals": [
+          "lifespan",
+          "background",
+          "websocket",
+          "streaming"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
       }
     ],
     "refusals": [
@@ -6075,6 +6272,18 @@
       {
         "id": "angular.builder-or-bootstrap",
         "reason": "Alternate builders, custom output paths or build scripts, NgModule/dynamic bootstrap and non-static ApplicationConfig ownership are refused before mutation."
+      },
+      {
+        "id": "fastapi.version-or-bootstrap",
+        "reason": "Python outside maintained 3.10-3.14, dependency drift, app factories and alternate or multiple FastAPI bootstraps are refused before mutation."
+      },
+      {
+        "id": "fastapi.non-http-or-topology",
+        "reason": "Direct Starlette, WSGI, mounted applications, WebSockets, streaming/SSE, serverless wrappers and multiple application topologies are outside the FastAPI HTTP support boundary."
+      },
+      {
+        "id": "fastapi.lifespan-or-background",
+        "reason": "Lifespan and post-response background-task failures remain explicit refusals until their independent propagation and flush lifecycles are proven."
       }
     ],
     "quickstarts": [
@@ -6156,6 +6365,16 @@
         "skill": "volato-angular",
         "conformance": [
           "pnpm smoke:angular-calibration"
+        ]
+      },
+      {
+        "id": "fastapi",
+        "families": [
+          "python-fastapi"
+        ],
+        "skill": "volato-fastapi",
+        "conformance": [
+          "pnpm smoke:fastapi-calibration"
         ]
       }
     ],
@@ -6315,6 +6534,26 @@
           "Alternate builders, custom output paths or build scripts, NgModule/dynamic bootstrap and non-static ApplicationConfig ownership are refused before mutation."
         ],
         "quickstart": "/docs/start/angular"
+      },
+      {
+        "id": "fastapi",
+        "label": "FastAPI",
+        "description": "Conventional long-lived FastAPI HTTP application",
+        "versions": [
+          "FastAPI 0.141",
+          "Python 3.10/3.11/3.12/3.13/3.14"
+        ],
+        "surfaces": [
+          "Conventional long-lived FastAPI HTTP applications on Python 3.10-3.14 with one module-level app bootstrap.",
+          "Manual capture and unexpected route, dependency and application-middleware failures through one pure ASGI boundary.",
+          "Concurrent request propagation with bounded method, matched route, status and existing request-id context."
+        ],
+        "exclusions": [
+          "Python outside maintained 3.10-3.14, dependency drift, app factories and alternate or multiple FastAPI bootstraps are refused before mutation.",
+          "Direct Starlette, WSGI, mounted applications, WebSockets, streaming/SSE, serverless wrappers and multiple application topologies are outside the FastAPI HTTP support boundary.",
+          "Lifespan and post-response background-task failures remain explicit refusals until their independent propagation and flush lifecycles are proven."
+        ],
+        "quickstart": "/docs/start/fastapi"
       }
     ]
   }

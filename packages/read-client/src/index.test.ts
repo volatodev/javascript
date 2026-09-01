@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { VolatoReadClient } from "./index";
+import { runtimeSchema } from "./contracts";
 
 describe("VolatoReadClient", () => {
+  it("accepts the public Python runtime filter", () => {
+    expect(runtimeSchema.parse("python")).toBe("python");
+  });
   it("sends the bearer and validates a bounded projects response", async () => {
     const fetch = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
       expect(new Headers(init?.headers).get("authorization")).toBe("Bearer oauth-token");

@@ -78,7 +78,7 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe("FastAPI private calibration", () => {
+describe("FastAPI integration", () => {
   it.each(["3.10", "3.11", "3.12", "3.13", "3.14"])(
     "detects the frozen Python %s HTTP cell without package.json",
     (python) => {
@@ -135,7 +135,7 @@ describe("FastAPI private calibration", () => {
     const integration = readManifest(cwd)?.integrations[
       ERRORS_PYTHON_FASTAPI_INTEGRATION
     ];
-    expect(integration?.recipe).toBe("errors-python-fastapi-private");
+    expect(integration?.recipe).toBe("errors-python-fastapi");
     expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
 
     const afterFirst = snapshot(cwd);

@@ -1131,7 +1131,7 @@ function fastApiShape(cwd: string): FastApiProjectShape {
   const entryPath = join(cwd, "app.py");
   if (!existsSync(pyprojectPath) || !existsSync(pythonVersionPath)) {
     throw new ErrorsStackDetectionError(
-      "FastAPI private calibration requires pyproject.toml and one exact .python-version at the application root; no files were modified.",
+      "FastAPI support requires pyproject.toml and one exact .python-version at the application root; no files were modified.",
     );
   }
   const manifest = [
@@ -1141,7 +1141,7 @@ function fastApiShape(cwd: string): FastApiProjectShape {
   const pythonVersion = readFileSync(pythonVersionPath, "utf8").trim();
   if (!["3.10", "3.11", "3.12", "3.13", "3.14"].includes(pythonVersion)) {
     throw new ErrorsStackDetectionError(
-      `Python ${pythonVersion || "unknown"} is not supported by the private FastAPI calibration; maintained Python 3.10-3.14 is required and no files were modified.`,
+      `Python ${pythonVersion || "unknown"} is not supported by the FastAPI integration; maintained Python 3.10-3.14 is required and no files were modified.`,
     );
   }
   const declaredPython = /requires-python\s*=\s*["']==([^"']+)\.\*["']/i.exec(
@@ -1149,14 +1149,14 @@ function fastApiShape(cwd: string): FastApiProjectShape {
   )?.[1];
   if (declaredPython !== pythonVersion) {
     throw new ErrorsStackDetectionError(
-      `FastAPI calibration requires requires-python = "==${pythonVersion}.*" to match .python-version exactly; no files were modified.`,
+      `FastAPI support requires requires-python = "==${pythonVersion}.*" to match .python-version exactly; no files were modified.`,
     );
   }
   const fastapi = exactPythonDependency(manifest, "fastapi");
   if (!fastapi) {
     if (/\bstarlette\b/i.test(manifest)) {
       throw new ErrorsStackDetectionError(
-        "A direct Starlette application was detected; direct Starlette is not supported by the private FastAPI calibration and no files were modified.",
+        "A direct Starlette application was detected; direct Starlette is not supported by the FastAPI integration and no files were modified.",
       );
     }
     throw new ErrorsStackDetectionError(
@@ -1165,14 +1165,14 @@ function fastApiShape(cwd: string): FastApiProjectShape {
   }
   if (fastapi !== FASTAPI_DEPENDENCIES.fastapi) {
     throw new ErrorsStackDetectionError(
-      `FastAPI ${fastapi} is not supported by the frozen 0.141.1 calibration; no files were modified.`,
+      `FastAPI ${fastapi} is not supported; the supported version is 0.141.1 and no files were modified.`,
     );
   }
   for (const name of ["starlette", "uvicorn", "pydantic", "anyio"] as const) {
     const actual = exactPythonDependency(manifest, name);
     if (actual !== FASTAPI_DEPENDENCIES[name]) {
       throw new ErrorsStackDetectionError(
-        `${name} must be pinned exactly to ${FASTAPI_DEPENDENCIES[name]} for this private calibration; found ${actual ?? "no exact pin"} and no files were modified.`,
+        `${name} must be pinned exactly to ${FASTAPI_DEPENDENCIES[name]} for the supported FastAPI integration; found ${actual ?? "no exact pin"} and no files were modified.`,
       );
     }
   }
@@ -1187,12 +1187,12 @@ function fastApiShape(cwd: string): FastApiProjectShape {
   ) ?? [];
   if (instances.length !== 1) {
     throw new ErrorsStackDetectionError(
-      `FastAPI calibration requires exactly one module-level app = FastAPI(...) statement; found ${instances.length} and no files were modified.`,
+      `FastAPI support requires exactly one module-level app = FastAPI(...) statement; found ${instances.length} and no files were modified.`,
     );
   }
   if (!/^\s*app\s*=\s*FastAPI\s*\([^\n]*\)\s*$/m.test(source)) {
     throw new ErrorsStackDetectionError(
-      "FastAPI calibration requires the conventional module-level app = FastAPI(...) bootstrap; no files were modified.",
+      "FastAPI support requires the conventional module-level app = FastAPI(...) bootstrap; no files were modified.",
     );
   }
   const unsupported: Array<[RegExp, string]> = [
@@ -1206,7 +1206,7 @@ function fastApiShape(cwd: string): FastApiProjectShape {
   for (const [pattern, reason] of unsupported) {
     if (pattern.test(source)) {
       throw new ErrorsStackDetectionError(
-        `FastAPI ${reason} by the frozen HTTP calibration; no files were modified.`,
+        `FastAPI ${reason} by the supported HTTP boundary; no files were modified.`,
       );
     }
   }

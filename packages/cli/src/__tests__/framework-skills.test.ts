@@ -49,6 +49,7 @@ describe("framework integration skill contracts", () => {
       "volato-fastify",
       "volato-nestjs",
       "volato-angular",
+      "volato-fastapi",
     ]) {
       expect(setup).toContain(`\`${name}\``);
       expect(cliReadme).toContain("\\`" + name + "\\`");
@@ -81,12 +82,12 @@ describe("framework integration skill contracts", () => {
     expect(angular).toMatch(/custom root `ErrorHandler`/i);
     expect(setup).toContain("`volato-angular`");
     expect(cliReadme).toContain("\\`volato-angular\\`");
-    expect(fastapi).toMatch(/private FastAPI candidate/i);
+    expect(fastapi).toMatch(/supported FastAPI integration/i);
     expect(fastapi).toMatch(/HTTPException.*validation/is);
     expect(fastapi).toMatch(/WebSocket.*streaming.*lifespan.*background/is);
     expect(fastapi).toMatch(/body.*cookies.*authorization.*query/is);
     expect(setup).toContain("`volato-fastapi`");
-    expect(cliReadme).not.toContain("`volato-fastapi`");
+    expect(cliReadme).toContain("\\`volato-fastapi\\`");
     expect(sveltekit).toMatch(/private SvelteKit candidate/i);
     expect(sveltekit).toMatch(/handleError.*return value/is);
     expect(sveltekit).toMatch(/expected.*error.*emit nothing/is);

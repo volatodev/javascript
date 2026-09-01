@@ -1,12 +1,12 @@
 ---
 name: volato-fastapi
-description: Generate, compose, and verify dependency-free Volato Errors capture for the private FastAPI 0.141 HTTP calibration on maintained Python 3.10-3.14. Use only when volato-setup detects one conventional module-level app = FastAPI() application with the exact frozen ASGI dependency tuple. Refuse direct Starlette, factories, multiple apps, WebSockets, streaming, lifespan and background-task surfaces before mutation.
+description: Generate, compose, and verify dependency-free Volato Errors capture for the supported FastAPI 0.141 HTTP integration on maintained Python 3.10-3.14. Use only when volato-setup detects one conventional module-level app = FastAPI() application with the exact frozen ASGI dependency tuple. Refuse direct Starlette, factories, multiple apps, WebSockets, streaming, lifespan and background-task surfaces before mutation.
 ---
 
-# Set up Volato for the FastAPI private calibration
+# Set up Volato for FastAPI
 
-Keep this private FastAPI candidate distinct from a public support claim. The
-CLI recipe is the only authority for generated Python capture.
+The CLI recipe is the only authority for generated Python capture. Keep the
+public support boundary exact.
 
 ## Workflow
 
@@ -58,9 +58,7 @@ CLI recipe is the only authority for generated Python capture.
 
 ## Completion
 
-The private candidate is locally ready only after all five maintained-Python
-cells pass exact detection, generation convergence, real ASGI capture, privacy,
-propagation, direct source, packed-skill selection and natural recovery. No
-public FastAPI label, icon, quickstart or support claim is authorized. Package
-publication, Platform deployment and the first external recovery remain
-unverified until separately authorized.
+The supported FastAPI integration is ready only after the selected maintained-
+Python cell passes exact detection, generation convergence, real ASGI capture,
+privacy, propagation, direct source and repository-native verification.
+Production recovery remains unresolved until the fix is deployed and verified.

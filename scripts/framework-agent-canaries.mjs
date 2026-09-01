@@ -84,7 +84,7 @@ const targets = {
     release: "2052052052052052052052052052052052052052",
   },
   fastapi: {
-    label: "FastAPI 0.141 private calibration",
+    label: "FastAPI 0.141 supported integration",
     projectId: "10000000-0000-4000-8000-000000000206",
     groupId: "20000000-0000-4000-8000-000000000206",
     integrationId: "errors-python-fastapi",

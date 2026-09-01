@@ -471,7 +471,7 @@ try {
     "FastAPI activation was not reported on both convergent runs for every cell",
   );
   process.stdout.write(
-    `✓ ${cells.length} private FastAPI cells passed packed detection, convergence, real framework capture, expected-error silence, propagation, concurrency, privacy, exact source and CLI retrieval\n`,
+    `✓ ${cells.length} supported FastAPI cells passed packed detection, convergence, real framework capture, expected-error silence, propagation, concurrency, privacy, exact source and CLI retrieval\n`,
   );
 } catch (error) {
   keepScratch = true;

@@ -218,8 +218,8 @@ describe("installSkills", () => {
     ).toBe("generic");
   });
 
-  it("installs a private FastAPI skill only when exact repository evidence selects it", () => {
-    addSkill("volato-fastapi", "private-fastapi");
+  it("installs the FastAPI skill only when exact repository evidence selects it", () => {
+    addSkill("volato-fastapi", "fastapi-skill");
     writeFileSync(join(cwd, ".python-version"), "3.12\n");
     writeFileSync(
       join(cwd, "pyproject.toml"),
@@ -241,7 +241,7 @@ describe("installSkills", () => {
         join(cwd, ".agents", "skills", "volato-fastapi", "SKILL.md"),
         "utf8",
       ),
-    ).toBe("private-fastapi");
+    ).toBe("fastapi-skill");
   });
 
   it("installs the private Nuxt skill only when the exact full-stack tuple is detected", () => {

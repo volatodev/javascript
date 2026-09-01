@@ -40,8 +40,9 @@ describe("generated documentation contract", () => {
         schema.parse(contract.reads[operation as keyof typeof resultSchemas].example),
       ).not.toThrow();
     }
-    expect(contract.support.totalCells).toBe(112);
+    expect(contract.support.totalCells).toBe(117);
     expect(contract.support.families["browser-angular"]).toBe(4);
+    expect(contract.support.families["python-fastapi"]).toBe(5);
     expect(contract.support.versions.angular).toEqual([
       "20.3.0",
       "21.2.0",
@@ -54,6 +55,17 @@ describe("generated documentation contract", () => {
     });
     expect(
       contract.support.refusals.some(({ id }) => id.startsWith("angular.")),
+    ).toBe(true);
+    expect(contract.support.versions.python).toEqual([
+      "3.10",
+      "3.11",
+      "3.12",
+      "3.13",
+      "3.14",
+    ]);
+    expect(contract.support.versions.fastapi).toEqual(["0.141.1"]);
+    expect(
+      contract.support.refusals.some(({ id }) => id.startsWith("fastapi.")),
     ).toBe(true);
     expect(contract.support.families).toMatchObject({
       "browser-react": 28,
@@ -74,6 +86,7 @@ describe("generated documentation contract", () => {
       "fastify",
       "nestjs-http",
       "angular",
+      "fastapi",
     ]);
     expect(contract.support.targets.map(({ id }) => id)).toEqual(
       contract.support.quickstarts.map(({ id }) => id),
@@ -87,6 +100,7 @@ describe("generated documentation contract", () => {
       "Fastify",
       "NestJS HTTP",
       "Angular",
+      "FastAPI",
     ]);
 
     const next = contract.support.targets[0];
@@ -153,6 +167,6 @@ describe("generated documentation contract", () => {
     ) as ReturnType<typeof buildDocumentationContract>;
     expect(committed.schemaVersion).toBe(1);
     expect(committed.cli.version).toMatch(/^\d+\.\d+\.\d+/);
-    expect(committed.support.totalCells).toBe(112);
+    expect(committed.support.totalCells).toBe(117);
   });
 });

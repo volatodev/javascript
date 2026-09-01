@@ -236,7 +236,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     );
   });
 
-  it("freezes FastAPI as five private maintained-Python cells", () => {
+  it("publishes FastAPI as five maintained-Python cells", () => {
     const matrix = readMatrix() as RuntimeMatrix & {
       quickstarts: Array<{ id: string }>;
       targets: Array<{ id: string }>;
@@ -257,8 +257,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     expect(
       fastapi.every(
         (cell) =>
-          cell.wave === "calibration-fastapi" &&
-          cell.visibility === "private-calibration",
+          cell.wave === "calibration-fastapi" && cell.visibility === undefined,
       ),
     ).toBe(true);
     expect(fastapi.map((cell) => cell.id)).toEqual([
@@ -283,8 +282,12 @@ describe("Errors JavaScript runtime conformance matrix", () => {
           cell.family !== "astro-node",
       ),
     ).toHaveLength(117);
-    expect(matrix.quickstarts.some(({ id }) => id === "fastapi")).toBe(false);
-    expect(matrix.targets.some(({ id }) => id === "fastapi")).toBe(false);
+    expect(matrix.quickstarts).toContainEqual(
+      expect.objectContaining({ id: "fastapi", skill: "volato-fastapi" }),
+    );
+    expect(matrix.targets).toContainEqual(
+      expect.objectContaining({ id: "fastapi", label: "FastAPI" }),
+    );
   });
 
   it("freezes Nuxt/Nitro as six private full-stack cells", () => {

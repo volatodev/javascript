@@ -1,4 +1,4 @@
 interface:
-  display_name: "Volato FastAPI calibration"
-  short_description: "Install and verify the private FastAPI HTTP Errors candidate."
-  default_prompt: "Use $volato-fastapi to install and verify the private Volato Errors calibration in this FastAPI application."
+  display_name: "Volato FastAPI"
+  short_description: "Install and verify Volato Errors in a supported FastAPI application."
+  default_prompt: "Use $volato-fastapi to install and verify Volato Errors in this supported FastAPI application."

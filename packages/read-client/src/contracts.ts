@@ -12,6 +12,7 @@ export const runtimeSchema = z.enum([
   "client",
   "browser",
   "node",
+  "python",
   "rsc",
   "server_action",
   "route_handler",

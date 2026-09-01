@@ -15,7 +15,7 @@ import {
   writeIntegration,
 } from "./manifest.js";
 
-export const FASTAPI_RECIPE_VERSION = "0.1.0-private";
+export const FASTAPI_RECIPE_VERSION = "0.1.0";
 
 export type GenerateFastApiOptions = {
   cwd: string;
@@ -47,7 +47,7 @@ function assetsRoot(): string {
 
 function copyRuntime(targetRoot: string, sourceRoot: string): string[] {
   if (!existsSync(sourceRoot)) {
-    throw new Error(`FastAPI calibration recipe assets are missing: ${sourceRoot}`);
+    throw new Error(`FastAPI integration recipe assets are missing: ${sourceRoot}`);
   }
   return ["__init__.py", "runtime.py", "asgi.py"].map((name) => {
     const path = join(targetRoot, name);
@@ -124,7 +124,7 @@ export function generateFastApiIntegration(options: GenerateFastApiOptions): {
     patchFastApiApplication(options.project),
   ];
   const integration = createGeneratedIntegration(options.cwd, {
-    recipe: "errors-python-fastapi-private",
+    recipe: "errors-python-fastapi",
     recipeVersion: FASTAPI_RECIPE_VERSION,
     files: generatedFiles,
   });
