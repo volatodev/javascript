@@ -186,7 +186,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     );
   });
 
-  it("freezes Angular as a private four-cell calibration without a public target", () => {
+  it("publishes the four frozen Angular cells as one bounded target", () => {
     const matrix = readMatrix() as RuntimeMatrix & {
       quickstarts: Array<{ id: string }>;
       targets: Array<{ id: string }>;
@@ -205,7 +205,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     });
     expect(angular).toHaveLength(4);
     expect(angular.every((cell) => cell.wave === "calibration-angular")).toBe(true);
-    expect(angular.every((cell) => cell.visibility === "private-calibration")).toBe(true);
+    expect(angular.every((cell) => cell.visibility === undefined)).toBe(true);
     expect(angular.map((cell) => cell.id)).toEqual([
       "angular20.zone.ts",
       "angular20.zoneless.ts",
@@ -228,8 +228,12 @@ describe("Errors JavaScript runtime conformance matrix", () => {
           cell.family !== "astro-node",
       ),
     ).toHaveLength(112);
-    expect(matrix.quickstarts.some(({ id }) => id === "angular")).toBe(false);
-    expect(matrix.targets.some(({ id }) => id === "angular")).toBe(false);
+    expect(matrix.quickstarts).toContainEqual(
+      expect.objectContaining({ id: "angular", skill: "volato-angular" }),
+    );
+    expect(matrix.targets).toContainEqual(
+      expect.objectContaining({ id: "angular", label: "Angular" }),
+    );
   });
 
   it("freezes FastAPI as five private maintained-Python cells", () => {

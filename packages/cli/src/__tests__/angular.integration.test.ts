@@ -158,7 +158,7 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe("Angular private calibration", () => {
+describe("Angular integration", () => {
   it.each([
     ["20 Zone.js", { angular: "20.3.0", changeDetection: "zone" }, "zonejs"],
     ["20 zoneless", { angular: "20.3.0", changeDetection: "zoneless" }, "zoneless"],
@@ -217,7 +217,7 @@ describe("Angular private calibration", () => {
     const integration = readManifest(cwd)?.integrations[
       ERRORS_BROWSER_ANGULAR_INTEGRATION
     ];
-    expect(integration?.recipe).toBe("errors-browser-angular-private");
+    expect(integration?.recipe).toBe("errors-browser-angular");
     expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
 
     const afterFirst = snapshot(cwd);

@@ -72,7 +72,7 @@ const targets = {
     release: "2042042042042042042042042042042042042042",
   },
   angular: {
-    label: "Angular 22 private calibration",
+    label: "Angular 22 supported integration",
     projectId: "10000000-0000-4000-8000-000000000205",
     groupId: "20000000-0000-4000-8000-000000000205",
     integrationId: "errors-browser-angular",

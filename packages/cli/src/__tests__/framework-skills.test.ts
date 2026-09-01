@@ -48,6 +48,7 @@ describe("framework integration skill contracts", () => {
       "volato-node",
       "volato-fastify",
       "volato-nestjs",
+      "volato-angular",
     ]) {
       expect(setup).toContain(`\`${name}\``);
       expect(cliReadme).toContain("\\`" + name + "\\`");
@@ -75,11 +76,11 @@ describe("framework integration skill contracts", () => {
     expect(nest).toMatch(/BaseExceptionFilter/);
     expect(nest).toMatch(/do not install.*Fastify.*Express/is);
     expect(nest).toMatch(/GraphQL|WebSockets|microservices/);
-    expect(angular).toMatch(/private Angular candidate/i);
+    expect(angular).toMatch(/supported Angular integration/i);
     expect(angular).toMatch(/SSR.*hydration.*NgModule/is);
     expect(angular).toMatch(/custom root `ErrorHandler`/i);
     expect(setup).toContain("`volato-angular`");
-    expect(cliReadme).not.toContain("`volato-angular`");
+    expect(cliReadme).toContain("\\`volato-angular\\`");
     expect(fastapi).toMatch(/private FastAPI candidate/i);
     expect(fastapi).toMatch(/HTTPException.*validation/is);
     expect(fastapi).toMatch(/WebSocket.*streaming.*lifespan.*background/is);

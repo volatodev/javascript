@@ -1,12 +1,12 @@
 ---
 name: volato-angular
-description: Generate, compose, and verify dependency-free Volato Errors browser capture for the private Angular 20/21/22 calibration. Use only when volato-setup detects one client-rendered standalone TypeScript Angular CLI application using @angular/build:application. Refuse SSR, hydration, NgModule or dynamic bootstrap, multiple projects, alternate builders, custom output paths, and unsupported change-detection shapes.
+description: Generate, compose, and verify dependency-free Volato Errors browser capture for the supported Angular 20/21/22 integration. Use only when volato-setup detects one client-rendered standalone TypeScript Angular CLI application using @angular/build:application. Refuse SSR, hydration, NgModule or dynamic bootstrap, multiple projects, alternate builders, custom output paths, and unsupported change-detection shapes.
 ---
 
-# Set up Volato for the Angular private calibration
+# Set up Volato for Angular
 
-Keep this calibration distinct from a public Angular support claim. Use the CLI
-recipe as the only source of generated code.
+Use the CLI recipe as the only source of generated code and keep the public
+support boundary exact.
 
 ## Workflow
 
@@ -52,8 +52,7 @@ recipe as the only source of generated code.
 
 ## Completion
 
-The private Angular candidate is locally ready only after setup converges, all
-four frozen cells build and capture, privacy and exact source resolution pass,
-and the natural setup/recovery canaries leave production unresolved. Package
-publication, Platform deployment and the first external recovery remain
-unverified until separately authorized.
+The supported Angular integration is ready only after setup converges, the
+application's frozen cell builds and captures, privacy and exact source
+resolution pass, and the production recovery remains unresolved until the
+fix is deployed and verified.

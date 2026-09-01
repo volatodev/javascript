@@ -1,4 +1,4 @@
 interface:
-  display_name: "Volato Angular calibration"
-  short_description: "Install and verify the private Angular browser Errors candidate."
-  default_prompt: "Use $volato-angular to install and verify the private Volato Errors calibration in this Angular application."
+  display_name: "Volato Angular"
+  short_description: "Install and verify Volato Errors in a supported Angular application."
+  default_prompt: "Use $volato-angular to install and verify Volato Errors in this supported Angular application."

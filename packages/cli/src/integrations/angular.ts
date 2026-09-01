@@ -20,7 +20,7 @@ import {
   writeIntegration,
 } from "./manifest.js";
 
-export const ANGULAR_RECIPE_VERSION = "0.1.0-private";
+export const ANGULAR_RECIPE_VERSION = "0.1.0";
 
 export type GenerateAngularOptions = {
   cwd: string;
@@ -70,7 +70,7 @@ function copyRuntime(
 ): string[] {
   const sharedRoot = sharedAssetsRoot();
   if (!existsSync(sharedRoot) || !existsSync(angularSourceRoot)) {
-    throw new Error("Angular calibration recipe assets are missing.");
+    throw new Error("Angular integration recipe assets are missing.");
   }
   const files = [
     ["browser.ts", readFileSync(join(sharedRoot, "browser.ts"), "utf8")],
@@ -250,11 +250,11 @@ export function generateAngularIntegration(options: GenerateAngularOptions): {
   ];
   if (outcomes.some((outcome) => outcome.status === "manual")) {
     throw new Error(
-      "Angular calibration unexpectedly required manual composition after detection.",
+      "Angular integration unexpectedly required manual composition after detection.",
     );
   }
   const integration = createGeneratedIntegration(options.cwd, {
-    recipe: "errors-browser-angular-private",
+    recipe: "errors-browser-angular",
     recipeVersion: ANGULAR_RECIPE_VERSION,
     files: generatedFiles,
   });

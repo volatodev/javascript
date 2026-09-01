@@ -1572,14 +1572,14 @@ function angularShape(
   const angularVersion = dependencyMajor(core);
   if (angularVersion !== 20 && angularVersion !== 21 && angularVersion !== 22) {
     throw new ErrorsStackDetectionError(
-      `Angular ${angularVersion ?? JSON.stringify(core)} is not supported by the private calibration; no files were modified.`,
+      `Angular ${angularVersion ?? JSON.stringify(core)} is not supported; the supported versions are Angular 20/21/22 and no files were modified.`,
     );
   }
   const buildVersion = dependencyMajor(deps["@angular/build"] ?? "");
   const cliVersion = dependencyMajor(deps["@angular/cli"] ?? "");
   if (buildVersion !== angularVersion || cliVersion !== angularVersion) {
     throw new ErrorsStackDetectionError(
-      `Angular ${angularVersion} requires matching @angular/build and @angular/cli majors for this calibration; no files were modified.`,
+      `Angular ${angularVersion} requires matching @angular/build and @angular/cli majors; no files were modified.`,
     );
   }
   const angularConfigPath = join(cwd, "angular.json");

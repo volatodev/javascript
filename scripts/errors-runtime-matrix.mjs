@@ -367,7 +367,6 @@ const browserAngularCells = [
     ...cell,
     wave: "calibration-angular",
     family: "browser-angular",
-    visibility: "private-calibration",
     adapter: "angular-application",
     adapterVersion: versions.angularBuild[cell.angular.split(".")[0]],
     language: "ts",
@@ -534,7 +533,7 @@ const refusals = [
   },
   {
     id: "browser.non-react-renderer",
-    reason: "Angular, vanilla-browser and other renderers require their own adapter gates.",
+    reason: "Vanilla-browser and other renderers require their own adapter gates.",
   },
   {
     id: "browser.dynamic-build-config",
@@ -598,17 +597,14 @@ const refusals = [
   },
   {
     id: "angular.version-or-mode",
-    visibility: "private-calibration",
     reason: "Angular outside 20/21/22, ambiguous Angular 20 change detection and Angular 21/22 Zone.js overrides are refused before mutation.",
   },
   {
     id: "angular.ssr-or-workspace",
-    visibility: "private-calibration",
-    reason: "Angular SSR, prerendering, hydration, libraries, nested roots and zero or multiple application projects are outside the private client-rendered calibration.",
+    reason: "Angular SSR, prerendering, hydration, libraries, nested roots and zero or multiple application projects are outside the client-rendered support boundary.",
   },
   {
     id: "angular.builder-or-bootstrap",
-    visibility: "private-calibration",
     reason: "Alternate builders, custom output paths or build scripts, NgModule/dynamic bootstrap and non-static ApplicationConfig ownership are refused before mutation.",
   },
   {
@@ -723,6 +719,12 @@ const quickstarts = [
     families: ["nest-http"],
     skill: "volato-nestjs",
     conformance: ["pnpm smoke:nest"],
+  },
+  {
+    id: "angular",
+    families: ["browser-angular"],
+    skill: "volato-angular",
+    conformance: ["pnpm smoke:angular-calibration"],
   },
 ];
 
@@ -858,14 +860,31 @@ const supportTargets = [
       "nest.ambiguous-filter-or-application",
     ],
   },
+  {
+    id: "angular",
+    label: "Angular",
+    description: "Angular client-rendered application on the official application builder",
+    versions: [
+      `Angular ${majorVersions(versions.angular)}`,
+      `@angular/build ${majorVersions(Object.values(versions.angularBuild))}`,
+    ],
+    surfaces: [
+      "Client-rendered standalone TypeScript Angular applications on the official application builder.",
+      "Angular 20 with its fresh Zone.js default or explicit zoneless mode, and Angular 21/22 in their fresh zoneless mode.",
+      "Browser manual capture, window errors, unhandled rejections and Angular component or lifecycle failures.",
+    ],
+    refusalIds: [
+      "angular.version-or-mode",
+      "angular.ssr-or-workspace",
+      "angular.builder-or-bootstrap",
+    ],
+  },
 ];
 
 export const runtimeMatrix = {
   frozenAt: "2026-08-28",
-  publicFrozenAt: "2026-08-27",
+  publicFrozenAt: "2026-09-01",
   privateVersionKeys: [
-    "angular",
-    "angularBuild",
     "python",
     "fastapi",
     "starlette",

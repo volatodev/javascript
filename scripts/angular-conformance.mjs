@@ -607,7 +607,7 @@ try {
     "Angular integration activation was not reported for every cell",
   );
   process.stdout.write(
-    `✓ ${cells.length} private Angular cells passed packed detection, generation, production build, four capture surfaces, privacy, lifecycle, grouping, exact source and CLI retrieval\n`,
+    `✓ ${cells.length} supported Angular cells passed packed detection, generation, production build, four capture surfaces, privacy, lifecycle, grouping, exact source and CLI retrieval\n`,
   );
 } catch (error) {
   keepScratch = true;
