@@ -40,11 +40,12 @@ describe("generated documentation contract", () => {
         schema.parse(contract.reads[operation as keyof typeof resultSchemas].example),
       ).not.toThrow();
     }
-    expect(contract.support.totalCells).toBe(127);
+    expect(contract.support.totalCells).toBe(143);
     expect(contract.support.families["browser-angular"]).toBe(4);
     expect(contract.support.families["python-fastapi"]).toBe(5);
     expect(contract.support.families["nuxt-nitro"]).toBe(6);
     expect(contract.support.families["sveltekit-node"]).toBe(4);
+    expect(contract.support.families["astro-node"]).toBe(16);
     expect(contract.support.versions.angular).toEqual([
       "20.3.0",
       "21.2.0",
@@ -77,6 +78,10 @@ describe("generated documentation contract", () => {
     expect(
       contract.support.refusals.some(({ id }) => id.startsWith("sveltekit.")),
     ).toBe(true);
+    expect(contract.support.versions.astro).toEqual(["7.2.9"]);
+    expect(
+      contract.support.refusals.some(({ id }) => id.startsWith("astro.")),
+    ).toBe(true);
     expect(contract.support.families).toMatchObject({
       "browser-react": 28,
       "node-long-lived": 24,
@@ -99,6 +104,7 @@ describe("generated documentation contract", () => {
       "fastapi",
       "nuxt",
       "sveltekit",
+      "astro",
     ]);
     expect(contract.support.targets.map(({ id }) => id)).toEqual(
       contract.support.quickstarts.map(({ id }) => id),
@@ -115,6 +121,7 @@ describe("generated documentation contract", () => {
       "FastAPI",
       "Nuxt",
       "SvelteKit",
+      "Astro",
     ]);
 
     const next = contract.support.targets[0];
@@ -181,6 +188,6 @@ describe("generated documentation contract", () => {
     ) as ReturnType<typeof buildDocumentationContract>;
     expect(committed.schemaVersion).toBe(1);
     expect(committed.cli.version).toMatch(/^\d+\.\d+\.\d+/);
-    expect(committed.support.totalCells).toBe(127);
+    expect(committed.support.totalCells).toBe(143);
   });
 });

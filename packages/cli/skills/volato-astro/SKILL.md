@@ -1,13 +1,13 @@
 ---
 name: volato-astro
-description: Install and verify the private Astro 7.2.9 Errors calibration on the exact official standalone Node adapter tuple. Use only when volato-setup detects the frozen Astro, adapter, Vite and optional single-renderer versions on Node 22.23.2 or 24.19.0. Refuse static, Actions, alternate-adapter, mixed-renderer and non-client:load shapes before mutation.
+description: Generate, compose, and verify the supported Astro 7.2.9 Errors integration on the exact official standalone Node adapter tuple. Use only when volato-setup detects the frozen Astro, adapter, Vite and optional single-renderer versions on Node 22.23.2 or 24.19.0. Refuse static, Actions, alternate-adapter, mixed-renderer and non-client:load shapes before mutation.
 ---
 
-# Set up the private Astro candidate
+# Set up the supported Astro integration
 
-Keep this candidate distinct from a public Astro support claim and from the
-generic Vite renderer targets. Use the CLI recipe as the only source of
-generated code.
+Keep this on-demand integration distinct from the generic Vite renderer
+targets. Use the CLI recipe as the only source of generated code and keep the
+support boundary exact.
 
 ## Workflow
 
@@ -62,11 +62,10 @@ generated code.
 
 ## Completion
 
-The private Astro candidate is locally ready only after all sixteen frozen
-cells pass the production build, capture, privacy, lifecycle, exact repository
-source, packed setup and recovery gates. Package publication, public projection,
-Platform deployment and first external production recovery remain unverified
-until separately authorized.
+The supported Astro integration is ready only after all sixteen frozen cells
+pass the production build, capture, privacy, lifecycle, exact repository
+source, packed setup and recovery gates. Production recovery remains
+unresolved until a corrected deployment is observed.
 
 Static sites, Actions, alternate adapters, mixed renderers and non-`client:load`
 hydration remain explicit refusals.

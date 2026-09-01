@@ -858,7 +858,7 @@ function exactAstroRuntimeVersions(
     const actual = resolvePackageVersion(rootRequire, name)?.version;
     if (actual !== version) {
       throw new ErrorsStackDetectionError(
-        `${name} ${actual ?? "could not be resolved"} is outside the private Astro calibration, which requires ${version}; install the exact application dependencies and no files were modified.`,
+        `${name} ${actual ?? "could not be resolved"} is outside the supported Astro boundary, which requires ${version}; install the exact application dependencies and no files were modified.`,
       );
     }
   }
@@ -873,7 +873,7 @@ function astroShape(
     if (deps[name] !== expected) {
       const label = name === "@astrojs/node" ? "@astrojs/node" : name[0]!.toUpperCase() + name.slice(1);
       throw new ErrorsStackDetectionError(
-        `${label} ${deps[name] ?? "unknown"} is outside the private Astro calibration, which requires ${expected}; no files were modified.`,
+        `${label} ${deps[name] ?? "unknown"} is outside the supported Astro boundary, which requires ${expected}; no files were modified.`,
       );
     }
   }
@@ -888,12 +888,12 @@ function astroShape(
   }
   if (pkg.type !== "module") {
     throw new ErrorsStackDetectionError(
-      "Astro calibration requires a repository-root ESM package with type: module; no files were modified.",
+      "The supported Astro integration requires a repository-root ESM package with type: module; no files were modified.",
     );
   }
   if (pkg.workspaces) {
     throw new ErrorsStackDetectionError(
-      "Astro monorepo and multi-application roots are outside the private calibration; run from one conventional application root and no files were modified.",
+      "Astro monorepo and multi-application roots are not supported; run from one conventional application root and no files were modified.",
     );
   }
   const nodeVersion = existsSync(join(cwd, ".node-version"))
@@ -901,7 +901,7 @@ function astroShape(
     : "";
   if (!(ASTRO_NODE_VERSIONS as readonly string[]).includes(nodeVersion)) {
     throw new ErrorsStackDetectionError(
-      `Node ${nodeVersion || "unknown"} is outside the private Astro calibration; .node-version must be exactly 22.23.2 or 24.19.0 and no files were modified.`,
+      `Node ${nodeVersion || "unknown"} is outside the supported Astro boundary; .node-version must be exactly 22.23.2 or 24.19.0 and no files were modified.`,
     );
   }
   const engines =
@@ -910,7 +910,7 @@ function astroShape(
       : null;
   if (engines?.node !== nodeVersion) {
     throw new ErrorsStackDetectionError(
-      `Astro calibration requires package.json engines.node = ${JSON.stringify(nodeVersion)} to match .node-version exactly; no files were modified.`,
+      `The supported Astro integration requires package.json engines.node = ${JSON.stringify(nodeVersion)} to match .node-version exactly; no files were modified.`,
     );
   }
   const scripts =
@@ -922,7 +922,7 @@ function astroShape(
     scripts?.build !== ASTRO_GENERATED_BUILD_COMMAND
   ) {
     throw new ErrorsStackDetectionError(
-      "Astro calibration requires the conventional `astro build` production command; custom build and deployment commands were not modified.",
+      "The supported Astro integration requires the conventional `astro build` production command; custom build and deployment commands were not modified.",
     );
   }
 
@@ -949,22 +949,22 @@ function astroShape(
     );
   if ((source.match(/\bexport\s+default\b/g) ?? []).length !== 1 || !staticConfig) {
     throw new ErrorsStackDetectionError(
-      "Astro calibration requires one static defineConfig object export; dynamic configuration was not modified and no files were modified.",
+      "The supported Astro integration requires one static defineConfig object export; dynamic configuration was not modified and no files were modified.",
     );
   }
   if (!/from\s*["']astro\/config["']/.test(source)) {
     throw new ErrorsStackDetectionError(
-      "Astro calibration requires the official defineConfig import; no files were modified.",
+      "The supported Astro integration requires the official defineConfig import; no files were modified.",
     );
   }
   if (!/import\s+node\s+from\s*["']@astrojs\/node["']/.test(source)) {
     throw new ErrorsStackDetectionError(
-      "Astro calibration requires one direct official @astrojs/node import; custom adapters were not modified and no files were modified.",
+      "The supported Astro integration requires one direct official @astrojs/node import; custom adapters were not modified and no files were modified.",
     );
   }
   if ((source.match(/\bnode\s*\(/g) ?? []).length !== 1) {
     throw new ErrorsStackDetectionError(
-      "Astro calibration requires exactly one official Node adapter call; no files were modified.",
+      "The supported Astro integration requires exactly one official Node adapter call; no files were modified.",
     );
   }
   if (!/adapter\s*:\s*node\s*\(\s*\{\s*mode\s*:\s*["']standalone["']\s*\}\s*\)/.test(source)) {
@@ -974,7 +974,7 @@ function astroShape(
       );
     }
     throw new ErrorsStackDetectionError(
-      "Astro calibration requires node({ mode: \"standalone\" }) as its direct adapter; custom adapter options were not modified and no files were modified.",
+      "The supported Astro integration requires node({ mode: \"standalone\" }) as its direct adapter; custom adapter options were not modified and no files were modified.",
     );
   }
   if (!/\boutput\s*:\s*["']server["']/.test(source)) {
@@ -1020,7 +1020,7 @@ function astroShape(
   );
   if (unsupportedRenderer) {
     throw new ErrorsStackDetectionError(
-      `${unsupportedRenderer} is outside the private Astro renderer calibration; no files were modified.`,
+      `${unsupportedRenderer} is outside the supported Astro renderer boundary; no files were modified.`,
     );
   }
   if (installedRenderers.length > 1) {
@@ -1034,7 +1034,7 @@ function astroShape(
     for (const [name, version] of Object.entries(expected)) {
       if (deps[name] !== version) {
         throw new ErrorsStackDetectionError(
-          `${name} ${deps[name] ?? "unknown"} is outside the private Astro ${renderer} calibration, which requires ${version}; no files were modified.`,
+          `${name} ${deps[name] ?? "unknown"} is outside the supported Astro ${renderer} boundary, which requires ${version}; no files were modified.`,
         );
       }
     }
@@ -1051,19 +1051,19 @@ function astroShape(
       /\bvue\s*\(\s*\{\s*appEntrypoint\s*:\s*["']\.\/volato-astro\/vue-app\.mjs["']\s*\}\s*\)/.test(source);
     if (calls.length !== 1 || (!optionless && !ownedVue)) {
       throw new ErrorsStackDetectionError(
-        `Astro ${renderer} calibration requires one direct optionless ${renderer}() integration; renderer options were not modified and no files were modified.`,
+        `The supported Astro ${renderer} integration requires one direct optionless ${renderer}() integration; renderer options were not modified and no files were modified.`,
       );
     }
   }
   if (!/\bintegrations\s*:\s*\[[\s\S]*\]/.test(source)) {
     throw new ErrorsStackDetectionError(
-      "Astro calibration requires one static integrations array; dynamic integration composition was not modified and no files were modified.",
+      "The supported Astro integration requires one static integrations array; dynamic integration composition was not modified and no files were modified.",
     );
   }
 
   if (!existsSync(join(cwd, "src", "pages"))) {
     throw new ErrorsStackDetectionError(
-      "Astro calibration requires the conventional src/pages application root; no files were modified.",
+      "The supported Astro integration requires the conventional src/pages application root; no files were modified.",
     );
   }
   if (existsSync(join(cwd, "src", "actions"))) {
@@ -1080,7 +1080,7 @@ function astroShape(
   }
   if (fileSources.some((value) => /client:(?:idle|visible|media|only)\b/.test(value))) {
     throw new ErrorsStackDetectionError(
-      "Astro hydration directives other than client:load are outside the private renderer calibration; no files were modified.",
+      "Astro hydration directives other than client:load are outside the supported renderer boundary; no files were modified.",
     );
   }
   const language: SourceLanguage = files.some((path) => /\.(?:ts|tsx)$/.test(path))

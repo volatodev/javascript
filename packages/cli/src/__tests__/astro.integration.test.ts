@@ -115,7 +115,7 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe("Astro private standalone-node detection", () => {
+describe("Astro standalone-node detection", () => {
   it.each([
     ["core", "ts", "22.23.2"],
     ["react", "js", "22.23.2"],
@@ -169,7 +169,7 @@ describe("Astro private standalone-node detection", () => {
     expect(() => detectErrorsStack(cwd)).toThrowError(expected);
   });
 
-  it("installs the private Astro skill only after exact detection", () => {
+  it("installs the supported Astro skill only after exact detection", () => {
     fixture({ renderer: "core" });
 
     const outcomes = installSkills({
@@ -186,11 +186,11 @@ describe("Astro private standalone-node detection", () => {
         join(cwd, ".agents", "skills", "volato-astro", "SKILL.md"),
         "utf8",
       ),
-    ).toContain("private Astro candidate");
+    ).toContain("supported Astro integration");
   });
 });
 
-describe("Astro private generated integration", () => {
+describe("Astro generated integration", () => {
   it.each(["core", "react", "vue", "svelte"] as const)(
     "generates one dependency-free %s composition and converges",
     (renderer) => {
@@ -243,7 +243,7 @@ describe("Astro private generated integration", () => {
       expect(env).toContain("VOLATO_INGEST_TOKEN=private-upload-token");
       expect(env).not.toMatch(/NEXT_PUBLIC_VOLATO/);
       const integration = readManifest(cwd)?.integrations[ERRORS_ASTRO_INTEGRATION];
-      expect(integration?.recipe).toBe("errors-astro-private");
+      expect(integration?.recipe).toBe("errors-astro");
       expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
       expect(result.generatedFiles).toHaveLength(8);
 

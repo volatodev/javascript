@@ -20,7 +20,7 @@ import {
   writeIntegration,
 } from "./manifest.js";
 
-export const ASTRO_RECIPE_VERSION = "0.1.0-private";
+export const ASTRO_RECIPE_VERSION = "0.1.0";
 const GENERATED_BUILD =
   "astro build && node volato-astro/upload-sourcemaps.mjs";
 
@@ -169,7 +169,7 @@ function patchBuild(cwd: string): PatchOutcome {
   return {
     path,
     status: "updated",
-    detail: "uploads and removes private Astro client/server maps after build",
+    detail: "uploads and removes bounded Astro client/server maps after build",
   };
 }
 
@@ -217,7 +217,7 @@ export function generateAstroIntegration(options: GenerateAstroOptions): {
   ];
   const generatedFiles = files.map(({ path }) => path);
   const integration = createGeneratedIntegration(options.cwd, {
-    recipe: "errors-astro-private",
+    recipe: "errors-astro",
     recipeVersion: ASTRO_RECIPE_VERSION,
     files: generatedFiles,
   });

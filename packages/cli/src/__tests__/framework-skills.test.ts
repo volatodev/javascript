@@ -52,6 +52,7 @@ describe("framework integration skill contracts", () => {
       "volato-fastapi",
       "volato-nuxt",
       "volato-sveltekit",
+      "volato-astro",
     ]) {
       expect(setup).toContain(`\`${name}\``);
       expect(cliReadme).toContain("\\`" + name + "\\`");
@@ -99,10 +100,10 @@ describe("framework integration skill contracts", () => {
     expect(sveltekit).toMatch(/service workers.*remote functions.*prerender/is);
     expect(setup).toContain("`volato-sveltekit`");
     expect(cliReadme).toContain("\\`volato-sveltekit\\`");
-    expect(astro).toMatch(/private Astro candidate/i);
+    expect(astro).toMatch(/supported Astro integration/i);
     expect(astro).toMatch(/static.*Actions.*alternate adapters.*mixed renderers/is);
     expect(astro).toMatch(/URL.*params.*query.*body.*cookies.*sessions/is);
     expect(setup).toContain("`volato-astro`");
-    expect(cliReadme).not.toContain("`volato-astro`");
+    expect(cliReadme).toContain("\\`volato-astro\\`");
   });
 });

@@ -2770,7 +2770,7 @@
   },
   "support": {
     "frozenAt": "2026-09-01",
-    "totalCells": 127,
+    "totalCells": 143,
     "families": {
       "browser-react": 28,
       "node-long-lived": 24,
@@ -2783,7 +2783,8 @@
       "browser-angular": 4,
       "python-fastapi": 5,
       "nuxt-nitro": 6,
-      "sveltekit-node": 4
+      "sveltekit-node": 4,
+      "astro-node": 16
     },
     "versions": {
       "next": [
@@ -2833,6 +2834,21 @@
       ],
       "svelteKitVitePlugin": [
         "7.3.0"
+      ],
+      "astro": [
+        "7.2.9"
+      ],
+      "astroNodeAdapter": [
+        "11.1.4"
+      ],
+      "astroReact": [
+        "6.0.4"
+      ],
+      "astroVue": [
+        "7.0.2"
+      ],
+      "astroSvelte": [
+        "9.0.1"
       ],
       "viteSveltePlugin": {
         "6": "6.2.4",
@@ -6564,6 +6580,650 @@
           "version-conformance",
           "agent-recovery-canary"
         ]
+      },
+      {
+        "id": "astro7.node22.ts.core",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "core",
+        "rendererVersion": null,
+        "runtimeVersion": null,
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "astro.config.mjs",
+        "language": "ts",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node22.ts.react",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "react",
+        "rendererVersion": "6.0.4",
+        "runtimeVersion": "19.2.8",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "astro.config.mjs",
+        "language": "ts",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "react-hydration"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node22.ts.vue",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "vue",
+        "rendererVersion": "7.0.2",
+        "runtimeVersion": "3.5.42",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "astro.config.mjs",
+        "language": "ts",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node22.ts.svelte",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "svelte",
+        "rendererVersion": "9.0.1",
+        "runtimeVersion": "5.56.10",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "astro.config.mjs",
+        "language": "ts",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "astro-hydration-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node22.js.core",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "core",
+        "rendererVersion": null,
+        "runtimeVersion": null,
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "astro.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node22.js.react",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "react",
+        "rendererVersion": "6.0.4",
+        "runtimeVersion": "19.2.8",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "astro.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "react-hydration"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node22.js.vue",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "vue",
+        "rendererVersion": "7.0.2",
+        "runtimeVersion": "3.5.42",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "astro.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node22.js.svelte",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "svelte",
+        "rendererVersion": "9.0.1",
+        "runtimeVersion": "5.56.10",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "astro.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "astro-hydration-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node24.ts.core",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "core",
+        "rendererVersion": null,
+        "runtimeVersion": null,
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "astro.config.mjs",
+        "language": "ts",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node24.ts.react",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "react",
+        "rendererVersion": "6.0.4",
+        "runtimeVersion": "19.2.8",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "astro.config.mjs",
+        "language": "ts",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "react-hydration"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node24.ts.vue",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "vue",
+        "rendererVersion": "7.0.2",
+        "runtimeVersion": "3.5.42",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "astro.config.mjs",
+        "language": "ts",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node24.ts.svelte",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "svelte",
+        "rendererVersion": "9.0.1",
+        "runtimeVersion": "5.56.10",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "astro.config.mjs",
+        "language": "ts",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "astro-hydration-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node24.js.core",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "core",
+        "rendererVersion": null,
+        "runtimeVersion": null,
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "astro.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node24.js.react",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "react",
+        "rendererVersion": "6.0.4",
+        "runtimeVersion": "19.2.8",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "astro.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "react-hydration"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node24.js.vue",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "vue",
+        "rendererVersion": "7.0.2",
+        "runtimeVersion": "3.5.42",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "astro.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "vue-error-handler"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "astro7.node24.js.svelte",
+        "wave": "calibration-astro",
+        "family": "astro-node",
+        "astro": "7.2.9",
+        "adapter": "@astrojs/node",
+        "adapterVersion": "11.1.4",
+        "adapterMode": "standalone",
+        "renderer": "svelte",
+        "rendererVersion": "9.0.1",
+        "runtimeVersion": "5.56.10",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "astro.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "on-demand-standalone-node",
+        "outputTopology": "dist-client-and-dist-server",
+        "hydration": [
+          "client:load"
+        ],
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "astro-middleware",
+          "render",
+          "endpoint",
+          "server-island",
+          "astro-hydration-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
       }
     ],
     "refusals": [
@@ -6686,6 +7346,22 @@
       {
         "id": "sveltekit.lifecycle-or-hooks",
         "reason": "SSR-disabled, prerendered, service-worker, remote-function, experimental rendering, ambiguous hook, streaming, WebSocket, background and process-fatal lifecycles are refused before mutation."
+      },
+      {
+        "id": "astro.version-or-config",
+        "reason": "Astro, Vite, Node or renderer dependency drift, dynamic configuration, custom roots and multi-application repositories are refused before mutation."
+      },
+      {
+        "id": "astro.output-or-adapter",
+        "reason": "Static output, prerendering, adapter middleware mode, provider, edge, Deno, Bun, custom adapters and custom output directories are outside the standalone Node calibration."
+      },
+      {
+        "id": "astro.renderer-or-hydration",
+        "reason": "Mixed renderers, renderer options and hydration directives other than client:load are refused until independently conformed."
+      },
+      {
+        "id": "astro.lifecycle-or-actions",
+        "reason": "Astro Actions, streaming-after-commit, background work and process-fatal failures are outside the middleware and island lifecycle calibration."
       }
     ],
     "quickstarts": [
@@ -6797,6 +7473,16 @@
         "skill": "volato-sveltekit",
         "conformance": [
           "pnpm smoke:sveltekit-calibration"
+        ]
+      },
+      {
+        "id": "astro",
+        "families": [
+          "astro-node"
+        ],
+        "skill": "volato-astro",
+        "conformance": [
+          "pnpm smoke:astro-calibration"
         ]
       }
     ],
@@ -7022,6 +7708,32 @@
           "SSR-disabled, prerendered, service-worker, remote-function, experimental rendering, ambiguous hook, streaming, WebSocket, background and process-fatal lifecycles are refused before mutation."
         ],
         "quickstart": "/docs/start/sveltekit"
+      },
+      {
+        "id": "astro",
+        "label": "Astro",
+        "description": "Astro 7.2 on-demand applications on standalone Node",
+        "versions": [
+          "Astro 7.2",
+          "@astrojs/node 11",
+          "React 19",
+          "Vue 3",
+          "Svelte 5",
+          "Vite 8",
+          "Node.js 22/24"
+        ],
+        "surfaces": [
+          "Astro 7.2 on-demand applications on the official standalone Node adapter with zero or one conformed renderer.",
+          "Authored browser failures, Astro rendering, endpoints and server islands, plus React 19, Vue 3 or Svelte 5 SSR and client:load hydration.",
+          "Client and final-server sourcemaps with exact Astro, JSX, Vue, Svelte, TypeScript or JavaScript source resolution."
+        ],
+        "exclusions": [
+          "Astro, Vite, Node or renderer dependency drift, dynamic configuration, custom roots and multi-application repositories are refused before mutation.",
+          "Static output, prerendering, adapter middleware mode, provider, edge, Deno, Bun, custom adapters and custom output directories are outside the standalone Node calibration.",
+          "Mixed renderers, renderer options and hydration directives other than client:load are refused until independently conformed.",
+          "Astro Actions, streaming-after-commit, background work and process-fatal failures are outside the middleware and island lifecycle calibration."
+        ],
+        "quickstart": "/docs/start/astro"
       }
     ]
   }

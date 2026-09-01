@@ -385,7 +385,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     );
   });
 
-  it("freezes Astro as sixteen private standalone-node renderer cells", () => {
+  it("publishes Astro as sixteen standalone-node renderer cells", () => {
     const matrix = readMatrix() as RuntimeMatrix & {
       quickstarts: Array<{ id: string }>;
       targets: Array<{ id: string }>;
@@ -408,7 +408,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       astro.every(
         (cell) =>
           cell.wave === "calibration-astro" &&
-          cell.visibility === "private-calibration" &&
+          cell.visibility === undefined &&
           cell.adapter === "@astrojs/node" &&
           cell.adapterMode === "standalone",
       ),
@@ -440,7 +440,11 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       ]),
     );
     expect(matrix.cells).toHaveLength(143);
-    expect(matrix.quickstarts.some(({ id }) => id === "astro")).toBe(false);
-    expect(matrix.targets.some(({ id }) => id === "astro")).toBe(false);
+    expect(matrix.quickstarts).toContainEqual(
+      expect.objectContaining({ id: "astro", skill: "volato-astro" }),
+    );
+    expect(matrix.targets).toContainEqual(
+      expect.objectContaining({ id: "astro", label: "Astro" }),
+    );
   });
 });

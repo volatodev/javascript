@@ -469,7 +469,6 @@ const astroNodeCells = versions.node.flatMap((node) =>
         id: `astro7.node${node.split(".")[0]}.${language}.${renderer}`,
         wave: "calibration-astro",
         family: "astro-node",
-        visibility: "private-calibration",
         astro: versions.astro[0],
         adapter: "@astrojs/node",
         adapterVersion: versions.astroNodeAdapter[0],
@@ -642,22 +641,18 @@ const refusals = [
   },
   {
     id: "astro.version-or-config",
-    visibility: "private-calibration",
     reason: "Astro, Vite, Node or renderer dependency drift, dynamic configuration, custom roots and multi-application repositories are refused before mutation.",
   },
   {
     id: "astro.output-or-adapter",
-    visibility: "private-calibration",
     reason: "Static output, prerendering, adapter middleware mode, provider, edge, Deno, Bun, custom adapters and custom output directories are outside the standalone Node calibration.",
   },
   {
     id: "astro.renderer-or-hydration",
-    visibility: "private-calibration",
     reason: "Mixed renderers, renderer options and hydration directives other than client:load are refused until independently conformed.",
   },
   {
     id: "astro.lifecycle-or-actions",
-    visibility: "private-calibration",
     reason: "Astro Actions, streaming-after-commit, background work and process-fatal failures are outside the middleware and island lifecycle calibration.",
   },
 ];
@@ -731,6 +726,12 @@ const quickstarts = [
     families: ["sveltekit-node"],
     skill: "volato-sveltekit",
     conformance: ["pnpm smoke:sveltekit-calibration"],
+  },
+  {
+    id: "astro",
+    families: ["astro-node"],
+    skill: "volato-astro",
+    conformance: ["pnpm smoke:astro-calibration"],
   },
 ];
 
@@ -948,18 +949,37 @@ const supportTargets = [
       "sveltekit.lifecycle-or-hooks",
     ],
   },
+  {
+    id: "astro",
+    label: "Astro",
+    description: "Astro 7.2 on-demand applications on standalone Node",
+    versions: [
+      "Astro 7.2",
+      `@astrojs/node ${majorVersions(versions.astroNodeAdapter)}`,
+      "React 19",
+      `Vue ${majorVersions(versions.vue)}`,
+      `Svelte ${majorVersions(versions.svelte)}`,
+      `Vite ${majorVersions(versions.vite.slice(-1))}`,
+      `Node.js ${majorVersions(versions.node)}`,
+    ],
+    surfaces: [
+      "Astro 7.2 on-demand applications on the official standalone Node adapter with zero or one conformed renderer.",
+      "Authored browser failures, Astro rendering, endpoints and server islands, plus React 19, Vue 3 or Svelte 5 SSR and client:load hydration.",
+      "Client and final-server sourcemaps with exact Astro, JSX, Vue, Svelte, TypeScript or JavaScript source resolution.",
+    ],
+    refusalIds: [
+      "astro.version-or-config",
+      "astro.output-or-adapter",
+      "astro.renderer-or-hydration",
+      "astro.lifecycle-or-actions",
+    ],
+  },
 ];
 
 export const runtimeMatrix = {
   frozenAt: "2026-08-28",
   publicFrozenAt: "2026-09-01",
-  privateVersionKeys: [
-    "astro",
-    "astroNodeAdapter",
-    "astroReact",
-    "astroVue",
-    "astroSvelte",
-  ],
+  privateVersionKeys: [],
   versions,
   supportGates,
   cells: [

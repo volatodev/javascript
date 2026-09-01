@@ -565,7 +565,7 @@ async function exerciseCell(cli, root, cell, apiOrigin) {
   );
   assert(
     existsSync(join(root, ".agents", "skills", "volato-astro", "SKILL.md")),
-    `${cell.id} did not select the private Astro skill`,
+    `${cell.id} did not select the supported Astro skill`,
   );
   const config = readFileSync(join(root, "astro.config.mjs"), "utf8");
   assert(
@@ -782,7 +782,7 @@ try {
     "Astro activation was not reported after both convergent setup runs",
   );
   process.stdout.write(
-    `✓ ${cells.length} private Astro cells passed packed detection, convergent composition, exact-Node standalone production build, browser/server/island/renderer capture, privacy, lifecycle, direct source resolution and unresolved recovery boundaries\n`,
+    `✓ ${cells.length} supported Astro cells passed packed detection, convergent composition, exact-Node standalone production build, browser/server/island/renderer capture, privacy, lifecycle, direct source resolution and unresolved recovery boundaries\n`,
   );
 } catch (error) {
   keepScratch = true;

@@ -120,7 +120,7 @@ const targets = {
     release: "2082082082082082082082082082082082082082",
   },
   astroCore: {
-    label: "Astro 7.2 standalone Node core private calibration",
+    label: "Astro 7.2 standalone Node core supported integration",
     projectId: "10000000-0000-4000-8000-000000000209",
     groupId: "20000000-0000-4000-8000-000000000209",
     integrationId: "errors-astro",
@@ -133,7 +133,7 @@ const targets = {
     release: "2092092092092092092092092092092092092092",
   },
   astroReact: {
-    label: "Astro 7.2 + React 19 hydration private calibration",
+    label: "Astro 7.2 + React 19 hydration supported integration",
     projectId: "10000000-0000-4000-8000-000000000210",
     groupId: "20000000-0000-4000-8000-000000000210",
     integrationId: "errors-astro",
@@ -146,7 +146,7 @@ const targets = {
     release: "2102102102102102102102102102102102102102",
   },
   astroVue: {
-    label: "Astro 7.2 + Vue 3 hydration private calibration",
+    label: "Astro 7.2 + Vue 3 hydration supported integration",
     projectId: "10000000-0000-4000-8000-000000000211",
     groupId: "20000000-0000-4000-8000-000000000211",
     integrationId: "errors-astro",
@@ -159,7 +159,7 @@ const targets = {
     release: "2112112112112112112112112112112112112112",
   },
   astroSvelte: {
-    label: "Astro 7.2 + Svelte 5 hydration private calibration",
+    label: "Astro 7.2 + Svelte 5 hydration supported integration",
     projectId: "10000000-0000-4000-8000-000000000212",
     groupId: "20000000-0000-4000-8000-000000000212",
     integrationId: "errors-astro",
