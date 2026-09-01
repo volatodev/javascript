@@ -105,7 +105,7 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe("Nuxt/Nitro private generated integration", () => {
+describe("Nuxt/Nitro generated integration", () => {
   it.each([
     ["nuxt.config.ts", "ts"],
     ["nuxt.config.js", "js"],
@@ -158,7 +158,7 @@ describe("Nuxt/Nitro private generated integration", () => {
     expect(env).toContain("VOLATO_INGEST_TOKEN=private-upload-token");
     expect(env).not.toMatch(/(?:NEXT_PUBLIC|NUXT_PUBLIC)_VOLATO/);
     const integration = readManifest(cwd)?.integrations[ERRORS_NUXT_INTEGRATION];
-    expect(integration?.recipe).toBe("errors-nuxt-private");
+    expect(integration?.recipe).toBe("errors-nuxt");
     expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
     expect(result.generatedFiles).toHaveLength(8);
   });

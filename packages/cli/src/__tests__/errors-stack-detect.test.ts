@@ -305,7 +305,7 @@ describe("detectErrorsStack", () => {
     ["nuxt.config.js", "js", "24.19.0"],
     ["nuxt.config.mjs", "mjs", "24.19.0"],
   ] as const)(
-    "selects the private Nuxt recipe before Vite + Vue for %s",
+    "selects the Nuxt recipe before Vite + Vue for %s",
     (config, format, node) => {
       writeNuxtFixture(config, node);
 

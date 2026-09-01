@@ -96,7 +96,7 @@ const targets = {
     release: "2062062062062062062062062062062062062062",
   },
   nuxt: {
-    label: "Nuxt 4.5/Nitro 2.13 private calibration",
+    label: "Nuxt 4.5/Nitro 2.13 supported integration",
     projectId: "10000000-0000-4000-8000-000000000207",
     groupId: "20000000-0000-4000-8000-000000000207",
     integrationId: "errors-nuxt",

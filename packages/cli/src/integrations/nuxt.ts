@@ -20,7 +20,7 @@ import {
   writeIntegration,
 } from "./manifest.js";
 
-export const NUXT_RECIPE_VERSION = "0.1.0-private";
+export const NUXT_RECIPE_VERSION = "0.1.0";
 const GENERATED_BUILD =
   "nuxt build && node volato-nuxt/upload-sourcemaps.mjs .output";
 
@@ -260,7 +260,7 @@ export function generateNuxtIntegration(options: GenerateNuxtOptions): {
   ];
   const generatedFiles = files.map(({ path }) => path);
   const integration = createGeneratedIntegration(options.cwd, {
-    recipe: "errors-nuxt-private",
+    recipe: "errors-nuxt",
     recipeVersion: NUXT_RECIPE_VERSION,
     files: generatedFiles,
   });

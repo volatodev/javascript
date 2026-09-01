@@ -290,7 +290,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     );
   });
 
-  it("freezes Nuxt/Nitro as six private full-stack cells", () => {
+  it("publishes Nuxt/Nitro as six full-stack cells", () => {
     const matrix = readMatrix() as RuntimeMatrix & {
       quickstarts: Array<{ id: string }>;
       targets: Array<{ id: string }>;
@@ -308,8 +308,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     expect(
       nuxt.every(
         (cell) =>
-          cell.wave === "calibration-nuxt" &&
-          cell.visibility === "private-calibration",
+          cell.wave === "calibration-nuxt" && cell.visibility === undefined,
       ),
     ).toBe(true);
     expect(nuxt.map((cell) => cell.id)).toEqual([
@@ -332,8 +331,12 @@ describe("Errors JavaScript runtime conformance matrix", () => {
         (cell) => cell.family !== "sveltekit-node" && cell.family !== "astro-node",
       ),
     ).toHaveLength(123);
-    expect(matrix.quickstarts.some(({ id }) => id === "nuxt")).toBe(false);
-    expect(matrix.targets.some(({ id }) => id === "nuxt")).toBe(false);
+    expect(matrix.quickstarts).toContainEqual(
+      expect.objectContaining({ id: "nuxt", skill: "volato-nuxt" }),
+    );
+    expect(matrix.targets).toContainEqual(
+      expect.objectContaining({ id: "nuxt", label: "Nuxt" }),
+    );
   });
 
   it("freezes SvelteKit as four private adapter-node cells", () => {

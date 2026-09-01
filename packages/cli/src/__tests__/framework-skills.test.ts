@@ -50,6 +50,7 @@ describe("framework integration skill contracts", () => {
       "volato-nestjs",
       "volato-angular",
       "volato-fastapi",
+      "volato-nuxt",
     ]) {
       expect(setup).toContain(`\`${name}\``);
       expect(cliReadme).toContain("\\`" + name + "\\`");
@@ -88,6 +89,9 @@ describe("framework integration skill contracts", () => {
     expect(fastapi).toMatch(/body.*cookies.*authorization.*query/is);
     expect(setup).toContain("`volato-fastapi`");
     expect(cliReadme).toContain("\\`volato-fastapi\\`");
+    const nuxt = skill("volato-nuxt");
+    expect(nuxt).toMatch(/supported Nuxt integration/i);
+    expect(cliReadme).toContain("\\`volato-nuxt\\`");
     expect(sveltekit).toMatch(/private SvelteKit candidate/i);
     expect(sveltekit).toMatch(/handleError.*return value/is);
     expect(sveltekit).toMatch(/expected.*error.*emit nothing/is);

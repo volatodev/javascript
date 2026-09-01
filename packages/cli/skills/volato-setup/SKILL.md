@@ -30,9 +30,9 @@ data path. Do not invent capture code from scratch.
    - NestJS 11/12 HTTP over Express 5 or Fastify 5: follow `volato-nestjs`.
    - FastAPI 0.141 HTTP applications on maintained Python 3.10-3.14: follow
      `volato-fastapi`.
-   - Private Nuxt 4.5.2 SSR calibration on the exact Vite + Nitro node-server
-     tuple: follow `volato-nuxt`, retain its private/publication boundary, and
-     never fall back to the Vite + Vue SPA skill after a Nuxt refusal.
+   - Nuxt 4.5.2 SSR on the exact Vite + Nitro node-server tuple: follow
+     `volato-nuxt` and never fall back to the Vite + Vue SPA skill after a Nuxt
+     refusal.
    - Private SvelteKit 2.70.3 full-stack calibration on the exact official
      adapter-node tuple: follow `volato-sveltekit`, retain its private/publication
      boundary, and never fall back to the Vite + Svelte SPA skill after a

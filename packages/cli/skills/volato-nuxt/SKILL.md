@@ -1,12 +1,12 @@
 ---
 name: volato-nuxt
-description: Generate, compose, and verify dependency-free Volato Errors browser, SSR, and Nitro capture for the private Nuxt 4.5.2 calibration. Use only when volato-setup detects the exact Nuxt/Nitro/Vue/Vite tuple, Node 22.23.2 or 24.19.0, SSR with the default Vite builder, and the long-lived node-server preset. Refuse static, client-only, hybrid, edge, serverless, provider, layer, multi-app, dynamic-config, and edited-generated-file shapes before mutation.
+description: Generate, compose, and verify dependency-free Volato Errors browser, SSR, and Nitro capture for the supported Nuxt 4.5.2 integration. Use only when volato-setup detects the exact Nuxt/Nitro/Vue/Vite tuple, Node 22.23.2 or 24.19.0, SSR with the default Vite builder, and the long-lived node-server preset. Refuse static, client-only, hybrid, edge, serverless, provider, layer, multi-app, dynamic-config, and edited-generated-file shapes before mutation.
 ---
 
-# Set up Volato for the Nuxt/Nitro private calibration
+# Set up Volato for Nuxt/Nitro
 
-Keep this calibration distinct from a public Nuxt support claim. Use the CLI
-recipe as the only source of generated code.
+Use the CLI recipe as the only source of generated code and keep the public
+support boundary exact.
 
 ## Workflow
 
@@ -53,8 +53,7 @@ recipe as the only source of generated code.
 
 ## Completion
 
-The private candidate is locally ready only after setup converges, all six
-frozen cells build and capture, privacy and exact client/server source
-resolution pass, and packed setup/recovery canaries leave production
-unresolved. Package publication, Platform deployment and first external
-recovery remain unverified until separately authorized.
+The supported Nuxt integration is ready only after setup converges, the
+selected frozen cell builds and captures, privacy and exact client/server
+source resolution pass, and production recovery remains unresolved until the
+fix is deployed and verified.

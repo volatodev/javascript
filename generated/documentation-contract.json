@@ -2770,7 +2770,7 @@
   },
   "support": {
     "frozenAt": "2026-09-01",
-    "totalCells": 117,
+    "totalCells": 123,
     "families": {
       "browser-react": 28,
       "node-long-lived": 24,
@@ -2781,7 +2781,8 @@
       "fastify": 16,
       "nest-http": 8,
       "browser-angular": 4,
-      "python-fastapi": 5
+      "python-fastapi": 5,
+      "nuxt-nitro": 6
     },
     "versions": {
       "next": [
@@ -2877,6 +2878,21 @@
       ],
       "anyio": [
         "4.14.2"
+      ],
+      "nuxt": [
+        "4.5.2"
+      ],
+      "nuxtNitroServer": [
+        "4.5.2"
+      ],
+      "nuxtViteBuilder": [
+        "4.5.2"
+      ],
+      "nitro": [
+        "2.13.4"
+      ],
+      "nuxtVueRouter": [
+        "5.2.0"
       ],
       "typescript": [
         "5.9.3"
@@ -6186,6 +6202,210 @@
           "version-conformance",
           "agent-recovery-canary"
         ]
+      },
+      {
+        "id": "nuxt4.node22.ts",
+        "wave": "calibration-nuxt",
+        "family": "nuxt-nitro",
+        "nuxt": "4.5.2",
+        "nitro": "2.13.4",
+        "vue": "3.5.42",
+        "vueRouter": "5.2.0",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "nuxt.config.ts",
+        "language": "ts",
+        "module": "esm",
+        "topology": "ssr-vite-node-server",
+        "outputTopology": "output-public-nuxt-and-output-server",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "vue-error",
+          "nuxt-app-error",
+          "ssr",
+          "nitro-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nuxt4.node22.js",
+        "wave": "calibration-nuxt",
+        "family": "nuxt-nitro",
+        "nuxt": "4.5.2",
+        "nitro": "2.13.4",
+        "vue": "3.5.42",
+        "vueRouter": "5.2.0",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "nuxt.config.js",
+        "language": "js",
+        "module": "esm",
+        "topology": "ssr-vite-node-server",
+        "outputTopology": "output-public-nuxt-and-output-server",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "vue-error",
+          "nuxt-app-error",
+          "ssr",
+          "nitro-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nuxt4.node22.mjs",
+        "wave": "calibration-nuxt",
+        "family": "nuxt-nitro",
+        "nuxt": "4.5.2",
+        "nitro": "2.13.4",
+        "vue": "3.5.42",
+        "vueRouter": "5.2.0",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "nuxt.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "ssr-vite-node-server",
+        "outputTopology": "output-public-nuxt-and-output-server",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "vue-error",
+          "nuxt-app-error",
+          "ssr",
+          "nitro-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nuxt4.node24.ts",
+        "wave": "calibration-nuxt",
+        "family": "nuxt-nitro",
+        "nuxt": "4.5.2",
+        "nitro": "2.13.4",
+        "vue": "3.5.42",
+        "vueRouter": "5.2.0",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "nuxt.config.ts",
+        "language": "ts",
+        "module": "esm",
+        "topology": "ssr-vite-node-server",
+        "outputTopology": "output-public-nuxt-and-output-server",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "vue-error",
+          "nuxt-app-error",
+          "ssr",
+          "nitro-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nuxt4.node24.js",
+        "wave": "calibration-nuxt",
+        "family": "nuxt-nitro",
+        "nuxt": "4.5.2",
+        "nitro": "2.13.4",
+        "vue": "3.5.42",
+        "vueRouter": "5.2.0",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "nuxt.config.js",
+        "language": "js",
+        "module": "esm",
+        "topology": "ssr-vite-node-server",
+        "outputTopology": "output-public-nuxt-and-output-server",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "vue-error",
+          "nuxt-app-error",
+          "ssr",
+          "nitro-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "nuxt4.node24.mjs",
+        "wave": "calibration-nuxt",
+        "family": "nuxt-nitro",
+        "nuxt": "4.5.2",
+        "nitro": "2.13.4",
+        "vue": "3.5.42",
+        "vueRouter": "5.2.0",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "nuxt.config.mjs",
+        "language": "js",
+        "module": "esm",
+        "topology": "ssr-vite-node-server",
+        "outputTopology": "output-public-nuxt-and-output-server",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "vue-error",
+          "nuxt-app-error",
+          "ssr",
+          "nitro-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
       }
     ],
     "refusals": [
@@ -6284,6 +6504,18 @@
       {
         "id": "fastapi.lifespan-or-background",
         "reason": "Lifespan and post-response background-task failures remain explicit refusals until their independent propagation and flush lifecycles are proven."
+      },
+      {
+        "id": "nuxt.version-or-config",
+        "reason": "Nuxt, Nitro, Vue, Vue Router or Vite dependency drift, dynamic config, custom builders, layers and multi-app roots are refused before mutation."
+      },
+      {
+        "id": "nuxt.render-or-preset",
+        "reason": "Static generation, ssr:false, edge, serverless, provider, Deno and Bun presets are outside the long-lived Node calibration."
+      },
+      {
+        "id": "nuxt.hybrid-or-lifecycle",
+        "reason": "Hybrid route rules, prerendering, ISR and unproven streaming or alternate Nitro lifecycles are refused before mutation."
       }
     ],
     "quickstarts": [
@@ -6375,6 +6607,16 @@
         "skill": "volato-fastapi",
         "conformance": [
           "pnpm smoke:fastapi-calibration"
+        ]
+      },
+      {
+        "id": "nuxt",
+        "families": [
+          "nuxt-nitro"
+        ],
+        "skill": "volato-nuxt",
+        "conformance": [
+          "VOLATO_NUXT_EXACT_NODE=1 pnpm smoke:nuxt-calibration"
         ]
       }
     ],
@@ -6554,6 +6796,29 @@
           "Lifespan and post-response background-task failures remain explicit refusals until their independent propagation and flush lifecycles are proven."
         ],
         "quickstart": "/docs/start/fastapi"
+      },
+      {
+        "id": "nuxt",
+        "label": "Nuxt",
+        "description": "Nuxt 4.5 SSR on Vite and long-lived Nitro Node",
+        "versions": [
+          "Nuxt 4.5",
+          "Nitro 2.13",
+          "Vue 3",
+          "Vite 8",
+          "Node.js 22/24"
+        ],
+        "surfaces": [
+          "Conventional Nuxt 4.5 SSR applications on Vite with the long-lived Nitro node-server preset.",
+          "Browser globals, unhandled rejections, client Vue and application hooks, SSR, Nitro routes and startup failures.",
+          "Client and server sourcemaps with exact Vue, TypeScript or JavaScript source resolution under one release."
+        ],
+        "exclusions": [
+          "Nuxt, Nitro, Vue, Vue Router or Vite dependency drift, dynamic config, custom builders, layers and multi-app roots are refused before mutation.",
+          "Static generation, ssr:false, edge, serverless, provider, Deno and Bun presets are outside the long-lived Node calibration.",
+          "Hybrid route rules, prerendering, ISR and unproven streaming or alternate Nitro lifecycles are refused before mutation."
+        ],
+        "quickstart": "/docs/start/nuxt"
       }
     ]
   }

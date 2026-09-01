@@ -324,7 +324,7 @@ function exactNuxtRuntimeVersions(cwd: string): typeof NUXT_DEPENDENCIES {
   const nuxt = resolvePackageVersion(rootRequire, "nuxt");
   if (!nuxt) {
     throw new ErrorsStackDetectionError(
-      "Nuxt dependencies are not installed, so the exact private calibration tuple cannot be verified; install the application dependencies and no files were modified.",
+      "Nuxt dependencies are not installed, so the exact supported tuple cannot be verified; install the application dependencies and no files were modified.",
     );
   }
   const nuxtRequire = createRequire(nuxt.path);
@@ -364,7 +364,7 @@ function exactNuxtRuntimeVersions(cwd: string): typeof NUXT_DEPENDENCIES {
     const actual = resolved[name]?.version;
     if (actual !== expected) {
       throw new ErrorsStackDetectionError(
-        `${labels[name]} ${actual ?? "could not be resolved"} is outside the private Nuxt calibration, which requires ${expected}; no files were modified.`,
+        `${labels[name]} ${actual ?? "could not be resolved"} is outside the supported Nuxt tuple, which requires ${expected}; no files were modified.`,
       );
     }
   }
@@ -404,7 +404,7 @@ function nuxtShape(
   for (const name of ["vue", "vue-router"] as const) {
     if (deps[name] !== NUXT_DEPENDENCIES[name]) {
       throw new ErrorsStackDetectionError(
-        `${name === "vue" ? "Vue" : "Vue Router"} must be pinned exactly to ${NUXT_DEPENDENCIES[name]} for the private Nuxt calibration; found ${deps[name] ?? "no exact pin"} and no files were modified.`,
+        `${name === "vue" ? "Vue" : "Vue Router"} must be pinned exactly to ${NUXT_DEPENDENCIES[name]} for the supported Nuxt integration; found ${deps[name] ?? "no exact pin"} and no files were modified.`,
       );
     }
   }
@@ -429,7 +429,7 @@ function nuxtShape(
     : "";
   if (!(NUXT_NODE_VERSIONS as readonly string[]).includes(nodeVersion)) {
     throw new ErrorsStackDetectionError(
-      `Node ${nodeVersion || "unknown"} is outside the private Nuxt calibration; .node-version must be exactly 22.23.2 or 24.19.0 and no files were modified.`,
+      `Node ${nodeVersion || "unknown"} is outside the supported Nuxt integration; .node-version must be exactly 22.23.2 or 24.19.0 and no files were modified.`,
     );
   }
   const engines =
@@ -448,7 +448,7 @@ function nuxtShape(
   }
   if (pkg.workspaces) {
     throw new ErrorsStackDetectionError(
-      "Nuxt monorepo and multi-application roots are not supported by the private calibration; run from one conventional application root and no files were modified.",
+      "Nuxt monorepo and multi-application roots are outside the supported integration; run from one conventional application root and no files were modified.",
     );
   }
 
@@ -510,7 +510,7 @@ function nuxtShape(
   }
   if (configProperty(source, "routeRules").test(source)) {
     throw new ErrorsStackDetectionError(
-      "Nuxt route rules and hybrid rendering are outside the private calibration; no files were modified.",
+      "Nuxt route rules and hybrid rendering are outside the supported integration; no files were modified.",
     );
   }
   if (configProperty(source, "ssr").test(source) && /\bssr\s*:\s*false\b/.test(source)) {
@@ -531,7 +531,7 @@ function nuxtShape(
     existsSync(join(cwd, "layers"))
   ) {
     throw new ErrorsStackDetectionError(
-      "Nuxt layers, custom source roots and multi-app layouts are not supported by the private calibration; no files were modified.",
+      "Nuxt layers, custom source roots and multi-app layouts are not supported by the bounded integration; no files were modified.",
     );
   }
   if (
@@ -558,7 +558,7 @@ function nuxtShape(
     )
   ) {
     throw new ErrorsStackDetectionError(
-      "Nuxt islands and server-component modes are outside the private calibration; no files were modified.",
+      "Nuxt islands and server-component modes are outside the supported integration; no files were modified.",
     );
   }
   const preset = /\bpreset\s*:\s*["']([^"']+)["']/.exec(source)?.[1];

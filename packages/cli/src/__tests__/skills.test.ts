@@ -244,7 +244,7 @@ describe("installSkills", () => {
     ).toBe("fastapi-skill");
   });
 
-  it("installs the private Nuxt skill only when the exact full-stack tuple is detected", () => {
+  it("installs the Nuxt skill only when the exact full-stack tuple is detected", () => {
     addSkill("volato-nuxt", "private-nuxt");
     mkdirSync(join(cwd, "app"), { recursive: true });
     writeFileSync(join(cwd, "app", "app.vue"), "<template><NuxtPage /></template>\n");

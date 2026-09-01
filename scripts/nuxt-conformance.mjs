@@ -538,7 +538,7 @@ async function exerciseCell(cli, root, cell, apiOrigin) {
   );
   assert(
     existsSync(join(root, ".agents", "skills", "volato-nuxt", "SKILL.md")),
-    `${cell.id} did not select the private Nuxt skill`,
+    `${cell.id} did not select the Nuxt skill`,
   );
   await buildCell(root, cell, {
     VOLATO_DSN: `${apiOrigin.replace("http://", "http://public@")}/${projectId}`,
@@ -758,7 +758,7 @@ try {
     "Nuxt integration activation was not reported after both convergent setup runs",
   );
   process.stdout.write(
-    `✓ ${cells.length} private Nuxt cells passed packed detection, convergent generation, ${exactNode ? "exact-Node " : ""}production build, browser/SSR/Nitro capture, handled-error silence, privacy, lifecycle, client/server source resolution and CLI retrieval\n`,
+    `✓ ${cells.length} supported Nuxt cells passed packed detection, convergent generation, ${exactNode ? "exact-Node " : ""}production build, browser/SSR/Nitro capture, handled-error silence, privacy, lifecycle, client/server source resolution and CLI retrieval\n`,
   );
 } catch (error) {
   keepScratch = true;

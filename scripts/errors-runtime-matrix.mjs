@@ -407,7 +407,6 @@ const nuxtNitroCells = versions.node.flatMap((node) =>
       id: `nuxt4.node${node.split(".")[0]}.${configFormat}`,
       wave: "calibration-nuxt",
       family: "nuxt-nitro",
-      visibility: "private-calibration",
       nuxt: versions.nuxt[0],
       nitro: versions.nitro[0],
       vue: versions.vue[0],
@@ -620,17 +619,14 @@ const refusals = [
   },
   {
     id: "nuxt.version-or-config",
-    visibility: "private-calibration",
     reason: "Nuxt, Nitro, Vue, Vue Router or Vite dependency drift, dynamic config, custom builders, layers and multi-app roots are refused before mutation.",
   },
   {
     id: "nuxt.render-or-preset",
-    visibility: "private-calibration",
     reason: "Static generation, ssr:false, edge, serverless, provider, Deno and Bun presets are outside the long-lived Node calibration.",
   },
   {
     id: "nuxt.hybrid-or-lifecycle",
-    visibility: "private-calibration",
     reason: "Hybrid route rules, prerendering, ISR and unproven streaming or alternate Nitro lifecycles are refused before mutation.",
   },
   {
@@ -727,6 +723,12 @@ const quickstarts = [
     families: ["python-fastapi"],
     skill: "volato-fastapi",
     conformance: ["pnpm smoke:fastapi-calibration"],
+  },
+  {
+    id: "nuxt",
+    families: ["nuxt-nitro"],
+    skill: "volato-nuxt",
+    conformance: ["VOLATO_NUXT_EXACT_NODE=1 pnpm smoke:nuxt-calibration"],
   },
 ];
 
@@ -900,17 +902,34 @@ const supportTargets = [
       "fastapi.lifespan-or-background",
     ],
   },
+  {
+    id: "nuxt",
+    label: "Nuxt",
+    description: "Nuxt 4.5 SSR on Vite and long-lived Nitro Node",
+    versions: [
+      "Nuxt 4.5",
+      "Nitro 2.13",
+      `Vue ${majorVersions(versions.vue)}`,
+      `Vite ${majorVersions(versions.vite.slice(-1))}`,
+      `Node.js ${majorVersions(versions.node)}`,
+    ],
+    surfaces: [
+      "Conventional Nuxt 4.5 SSR applications on Vite with the long-lived Nitro node-server preset.",
+      "Browser globals, unhandled rejections, client Vue and application hooks, SSR, Nitro routes and startup failures.",
+      "Client and server sourcemaps with exact Vue, TypeScript or JavaScript source resolution under one release.",
+    ],
+    refusalIds: [
+      "nuxt.version-or-config",
+      "nuxt.render-or-preset",
+      "nuxt.hybrid-or-lifecycle",
+    ],
+  },
 ];
 
 export const runtimeMatrix = {
   frozenAt: "2026-08-28",
   publicFrozenAt: "2026-09-01",
   privateVersionKeys: [
-    "nuxt",
-    "nuxtNitroServer",
-    "nuxtViteBuilder",
-    "nitro",
-    "nuxtVueRouter",
     "svelteKit",
     "svelteKitAdapterNode",
     "svelteKitVitePlugin",
