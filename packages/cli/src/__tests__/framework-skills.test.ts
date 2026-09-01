@@ -51,6 +51,7 @@ describe("framework integration skill contracts", () => {
       "volato-angular",
       "volato-fastapi",
       "volato-nuxt",
+      "volato-sveltekit",
     ]) {
       expect(setup).toContain(`\`${name}\``);
       expect(cliReadme).toContain("\\`" + name + "\\`");
@@ -92,12 +93,12 @@ describe("framework integration skill contracts", () => {
     const nuxt = skill("volato-nuxt");
     expect(nuxt).toMatch(/supported Nuxt integration/i);
     expect(cliReadme).toContain("\\`volato-nuxt\\`");
-    expect(sveltekit).toMatch(/private SvelteKit candidate/i);
+    expect(sveltekit).toMatch(/supported SvelteKit integration/i);
     expect(sveltekit).toMatch(/handleError.*return value/is);
     expect(sveltekit).toMatch(/expected.*error.*emit nothing/is);
     expect(sveltekit).toMatch(/service workers.*remote functions.*prerender/is);
     expect(setup).toContain("`volato-sveltekit`");
-    expect(cliReadme).not.toContain("`volato-sveltekit`");
+    expect(cliReadme).toContain("\\`volato-sveltekit\\`");
     expect(astro).toMatch(/private Astro candidate/i);
     expect(astro).toMatch(/static.*Actions.*alternate adapters.*mixed renderers/is);
     expect(astro).toMatch(/URL.*params.*query.*body.*cookies.*sessions/is);

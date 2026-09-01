@@ -436,7 +436,6 @@ const svelteKitCells = versions.node.flatMap((node) =>
       id: `sveltekit2.node${node.split(".")[0]}.${language}`,
       wave: "calibration-sveltekit",
       family: "sveltekit-node",
-      visibility: "private-calibration",
       svelte: versions.svelte[0],
       svelteKit: versions.svelteKit[0],
       adapter: "adapter-node",
@@ -631,17 +630,14 @@ const refusals = [
   },
   {
     id: "sveltekit.version-or-config",
-    visibility: "private-calibration",
     reason: "Svelte, SvelteKit, adapter-node, Vite plugin, Vite or Node drift, CommonJS, legacy Svelte config, dynamic Vite config and multi-app roots are refused before mutation.",
   },
   {
     id: "sveltekit.adapter-or-output",
-    visibility: "private-calibration",
     reason: "Adapter-auto, static, provider, edge, serverless and custom adapters, adapter options, custom roots, outputs and bundle strategies are outside the standalone Node calibration.",
   },
   {
     id: "sveltekit.lifecycle-or-hooks",
-    visibility: "private-calibration",
     reason: "SSR-disabled, prerendered, service-worker, remote-function, experimental rendering, ambiguous hook, streaming, WebSocket, background and process-fatal lifecycles are refused before mutation.",
   },
   {
@@ -729,6 +725,12 @@ const quickstarts = [
     families: ["nuxt-nitro"],
     skill: "volato-nuxt",
     conformance: ["VOLATO_NUXT_EXACT_NODE=1 pnpm smoke:nuxt-calibration"],
+  },
+  {
+    id: "sveltekit",
+    families: ["sveltekit-node"],
+    skill: "volato-sveltekit",
+    conformance: ["pnpm smoke:sveltekit-calibration"],
   },
 ];
 
@@ -924,15 +926,34 @@ const supportTargets = [
       "nuxt.hybrid-or-lifecycle",
     ],
   },
+  {
+    id: "sveltekit",
+    label: "SvelteKit",
+    description: "SvelteKit 2.70 SSR on the official standalone Node adapter",
+    versions: [
+      "SvelteKit 2.70",
+      `Svelte ${majorVersions(versions.svelte)}`,
+      `adapter-node ${majorVersions(versions.svelteKitAdapterNode)}`,
+      `Vite ${majorVersions(versions.vite.slice(-1))}`,
+      `Node.js ${majorVersions(versions.node)}`,
+    ],
+    surfaces: [
+      "Conventional SvelteKit 2.70 SSR applications on Vite with the official standalone adapter-node output.",
+      "Browser globals, unhandled rejections, client navigation and load failures, SSR, server loads, actions and endpoints.",
+      "Client, final-server and intermediate-server sourcemaps with exact Svelte, TypeScript or JavaScript source resolution.",
+    ],
+    refusalIds: [
+      "sveltekit.version-or-config",
+      "sveltekit.adapter-or-output",
+      "sveltekit.lifecycle-or-hooks",
+    ],
+  },
 ];
 
 export const runtimeMatrix = {
   frozenAt: "2026-08-28",
   publicFrozenAt: "2026-09-01",
   privateVersionKeys: [
-    "svelteKit",
-    "svelteKitAdapterNode",
-    "svelteKitVitePlugin",
     "astro",
     "astroNodeAdapter",
     "astroReact",

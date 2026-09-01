@@ -302,7 +302,7 @@ describe("volato errors init", () => {
     expect(output).toContain("Svelte render error");
   });
 
-  it("installs and reports the exact private SvelteKit application", async () => {
+  it("installs and reports the exact supported SvelteKit application", async () => {
     rmSync(join(cwd, "app"), { recursive: true, force: true });
     rmSync(join(cwd, "next.config.ts"), { force: true });
     mkdirSync(join(cwd, "src", "routes"), { recursive: true });

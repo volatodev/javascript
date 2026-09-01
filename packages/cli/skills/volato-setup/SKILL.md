@@ -33,10 +33,9 @@ data path. Do not invent capture code from scratch.
    - Nuxt 4.5.2 SSR on the exact Vite + Nitro node-server tuple: follow
      `volato-nuxt` and never fall back to the Vite + Vue SPA skill after a Nuxt
      refusal.
-   - Private SvelteKit 2.70.3 full-stack calibration on the exact official
-     adapter-node tuple: follow `volato-sveltekit`, retain its private/publication
-     boundary, and never fall back to the Vite + Svelte SPA skill after a
-     SvelteKit refusal.
+   - SvelteKit 2.70.3 full-stack applications on the exact official
+     adapter-node tuple: follow `volato-sveltekit` and never fall back to the
+     Vite + Svelte SPA skill after a SvelteKit refusal.
    - Private Astro 7.2.9 on-demand calibration on the exact official standalone
      Node adapter tuple: follow `volato-astro`, retain its private/publication
      boundary, and never fall back to a generic Vite renderer skill after an

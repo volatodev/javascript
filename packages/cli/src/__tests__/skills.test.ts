@@ -295,7 +295,7 @@ describe("installSkills", () => {
     ).toBe("private-nuxt");
   });
 
-  it("installs the private SvelteKit skill only for the exact adapter-node tuple", () => {
+  it("installs the supported SvelteKit skill only for the exact adapter-node tuple", () => {
     addSkill("volato-sveltekit", "private-sveltekit");
     mkdirSync(join(cwd, "src", "routes"), { recursive: true });
     writeFileSync(join(cwd, "src", "routes", "+page.svelte"), "<h1>Ready</h1>\n");

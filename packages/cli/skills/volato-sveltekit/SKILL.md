@@ -1,13 +1,13 @@
 ---
 name: volato-sveltekit
-description: Install and verify the private SvelteKit 2.70.3 Errors calibration on the exact official adapter-node tuple. Use only when volato-setup detects the frozen Svelte, SvelteKit, adapter-node, Vite-plugin and Vite versions on Node 22.23.2 or 24.19.0. Refuse static, client-only, provider, custom-adapter, prerender, service-worker, remote-function, experimental-rendering and ambiguous-hook shapes before mutation.
+description: Generate, compose, and verify the supported SvelteKit 2.70.3 Errors integration on the exact official adapter-node tuple. Use only when volato-setup detects the frozen Svelte, SvelteKit, adapter-node, Vite-plugin and Vite versions on Node 22.23.2 or 24.19.0. Refuse static, client-only, provider, custom-adapter, prerender, service-worker, remote-function, experimental-rendering and ambiguous-hook shapes before mutation.
 ---
 
-# Set up the private SvelteKit candidate
+# Set up the supported SvelteKit integration
 
-Keep this candidate distinct from the public Vite + Svelte SPA target and from
-a public SvelteKit support claim. Use the CLI recipe as the only source of
-generated code.
+Keep this full-stack integration distinct from the Vite + Svelte SPA target.
+Use the CLI recipe as the only source of generated code and keep the support
+boundary exact.
 
 ## Workflow
 
@@ -62,10 +62,9 @@ generated code.
 
 ## Completion
 
-The private candidate is locally ready only after setup converges, all four
-frozen cells build and capture, privacy and exact chained source resolution
-pass, and packed setup/recovery canaries leave production unresolved. Package
-publication, Platform deployment and first external recovery remain unverified
-until separately authorized.
+The supported SvelteKit integration is ready only after setup converges, all
+four frozen cells build and capture, privacy and exact chained source
+resolution pass, and packed setup/recovery canaries leave production
+unresolved until a corrected deployment is observed.
 
 Service workers, remote functions and prerender remain explicit refusals.

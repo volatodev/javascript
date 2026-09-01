@@ -143,7 +143,7 @@ describe("detectErrorsStack", () => {
     ["vite.config.ts", "ts", "22.23.2"],
     ["vite.config.js", "js", "24.19.0"],
   ] as const)(
-    "selects the private SvelteKit recipe before Vite + Svelte for %s",
+    "selects the supported SvelteKit recipe before Vite + Svelte for %s",
     (config, language, node) => {
       writeSvelteKitFixture(config, node);
 
@@ -200,7 +200,7 @@ describe("detectErrorsStack", () => {
         pkg.dependencies["@sveltejs/kit"] = "2.69.0";
         writeFileSync(join(cwd, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
       },
-      /SvelteKit 2\.69\.0.*frozen 2\.70\.3 calibration.*no files were modified/i,
+      /SvelteKit 2\.69\.0.*requires 2\.70\.3.*no files were modified/i,
     ],
     [
       "installed adapter drift",
@@ -271,7 +271,7 @@ describe("detectErrorsStack", () => {
         writeSvelteKitFixture();
         writeFileSync(join(cwd, "src", "service-worker.ts"), "self.addEventListener('install', () => {});\n");
       },
-      /service workers.*outside.*no files were modified/i,
+      /service workers.*not supported.*no files were modified/i,
     ],
     [
       "remote function",
@@ -279,7 +279,7 @@ describe("detectErrorsStack", () => {
         writeSvelteKitFixture();
         writeFileSync(join(cwd, "src", "account.remote.ts"), "export const account = {};\n");
       },
-      /remote functions.*outside.*no files were modified/i,
+      /remote functions.*not supported.*no files were modified/i,
     ],
     [
       "Bun runtime marker",

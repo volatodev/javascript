@@ -339,7 +339,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
     );
   });
 
-  it("freezes SvelteKit as four private adapter-node cells", () => {
+  it("publishes SvelteKit as four adapter-node cells", () => {
     const matrix = readMatrix() as RuntimeMatrix & {
       quickstarts: Array<{ id: string }>;
       targets: Array<{ id: string }>;
@@ -360,7 +360,7 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       sveltekit.every(
         (cell) =>
           cell.wave === "calibration-sveltekit" &&
-          cell.visibility === "private-calibration",
+          cell.visibility === undefined,
       ),
     ).toBe(true);
     expect(sveltekit.map((cell) => cell.id)).toEqual([
@@ -377,8 +377,12 @@ describe("Errors JavaScript runtime conformance matrix", () => {
       ]),
     );
     expect(matrix.cells.filter((cell) => cell.family !== "astro-node")).toHaveLength(127);
-    expect(matrix.quickstarts.some(({ id }) => id === "sveltekit")).toBe(false);
-    expect(matrix.targets.some(({ id }) => id === "sveltekit")).toBe(false);
+    expect(matrix.quickstarts).toContainEqual(
+      expect.objectContaining({ id: "sveltekit", skill: "volato-sveltekit" }),
+    );
+    expect(matrix.targets).toContainEqual(
+      expect.objectContaining({ id: "sveltekit", label: "SvelteKit" }),
+    );
   });
 
   it("freezes Astro as sixteen private standalone-node renderer cells", () => {

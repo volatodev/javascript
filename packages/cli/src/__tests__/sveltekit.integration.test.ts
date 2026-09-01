@@ -109,7 +109,7 @@ afterEach(() => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
-describe("SvelteKit private generated integration", () => {
+describe("SvelteKit generated integration", () => {
   it.each([
     ["vite.config.ts", "ts"],
     ["vite.config.js", "js"],
@@ -166,7 +166,7 @@ describe("SvelteKit private generated integration", () => {
       expect(env).not.toMatch(/NEXT_PUBLIC_VOLATO/);
       const integration =
         readManifest(cwd)?.integrations[ERRORS_SVELTEKIT_INTEGRATION];
-      expect(integration?.recipe).toBe("errors-sveltekit-private");
+      expect(integration?.recipe).toBe("errors-sveltekit");
       expect(modifiedGeneratedFiles(cwd, integration!)).toEqual([]);
       expect(result.generatedFiles).toHaveLength(6);
     },

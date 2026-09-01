@@ -17,7 +17,7 @@ import {
   writeIntegration,
 } from "./manifest.js";
 
-export const SVELTEKIT_RECIPE_VERSION = "0.1.0-private";
+export const SVELTEKIT_RECIPE_VERSION = "0.1.0";
 const GENERATED_BUILD =
   "vite build && node volato-sveltekit/upload-sourcemaps.mjs";
 
@@ -346,7 +346,7 @@ export function generateSvelteKitIntegration(options: GenerateSvelteKitOptions):
   ];
   const generatedFiles = files.map(({ path }) => path);
   const integration = createGeneratedIntegration(options.cwd, {
-    recipe: "errors-sveltekit-private",
+    recipe: "errors-sveltekit",
     recipeVersion: SVELTEKIT_RECIPE_VERSION,
     files: generatedFiles,
   });

@@ -37,7 +37,8 @@ Headless / CI — skip \`login\` and set the token in the environment:
 
 \`volato init\` verifies access and installs \`volato-setup\`, \`volato-errors\`,
 \`volato-nextjs\`, \`volato-vite-react\`, \`volato-vite-vue\`,
-\`volato-vite-svelte\`, \`volato-angular\`, \`volato-fastapi\`, \`volato-nuxt\`, \`volato-node\`,
+\`volato-vite-svelte\`, \`volato-angular\`, \`volato-fastapi\`, \`volato-nuxt\`,
+\`volato-sveltekit\`, \`volato-node\`,
 \`volato-fastify\` and \`volato-nestjs\`, then links the repository through
 \`.volato/manifest.json\`. It does not detect a framework, write credentials or
 instrument the app.
@@ -47,8 +48,9 @@ the applicable independent adapters: Next.js 15/16 App Router or Pages Router;
 React browser capture with Vite, Webpack, or Rspack; Vue 3 and Svelte 5 browser
 capture with Vite 6/7/8; Angular 20/21/22 client-rendered applications on the
 official application builder; conventional FastAPI 0.141 HTTP applications on
-Python 3.10-3.14; Nuxt 4.5 SSR on Vite with long-lived Nitro Node; and Node.js
-runtime capture for conventional servers,
+Python 3.10-3.14; Nuxt 4.5 SSR on Vite with long-lived Nitro Node; SvelteKit
+2.70 SSR on the official standalone Node adapter; and Node.js runtime capture
+for conventional servers,
 jobs, and scripts on Node 22/24 across TypeScript/JavaScript and
 package-declared ESM/CommonJS. Express 4/5 and standalone Fastify 5 own bounded
 HTTP adapters. NestJS 11/12 owns one HTTP exception filter above Express 5 or

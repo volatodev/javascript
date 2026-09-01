@@ -108,7 +108,7 @@ const targets = {
     release: "2072072072072072072072072072072072072072",
   },
   sveltekit: {
-    label: "SvelteKit 2.70/adapter-node 5 private calibration",
+    label: "SvelteKit 2.70/adapter-node 5 supported integration",
     projectId: "10000000-0000-4000-8000-000000000208",
     groupId: "20000000-0000-4000-8000-000000000208",
     integrationId: "errors-sveltekit",

@@ -621,7 +621,7 @@ async function exerciseCell(cli, root, cell, apiOrigin) {
   );
   assert(
     existsSync(join(root, ".agents", "skills", "volato-sveltekit", "SKILL.md")),
-    `${cell.id} did not select the private SvelteKit skill`,
+    `${cell.id} did not select the supported SvelteKit skill`,
   );
   await buildCell(root, cell, {
     VOLATO_DSN: dsn,
@@ -916,7 +916,7 @@ try {
     "SvelteKit activation was not reported after both convergent setup runs",
   );
   process.stdout.write(
-    `✓ ${cells.length} private SvelteKit cells passed packed detection, convergent hook composition, exact-Node production build, browser/client/server capture, expected-error silence, privacy, lifecycle, chained source resolution and CLI retrieval\n`,
+    `✓ ${cells.length} supported SvelteKit cells passed packed detection, convergent hook composition, exact-Node production build, browser/client/server capture, expected-error silence, privacy, lifecycle, chained source resolution and CLI retrieval\n`,
   );
 } catch (error) {
   keepScratch = true;

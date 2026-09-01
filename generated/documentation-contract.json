@@ -2770,7 +2770,7 @@
   },
   "support": {
     "frozenAt": "2026-09-01",
-    "totalCells": 123,
+    "totalCells": 127,
     "families": {
       "browser-react": 28,
       "node-long-lived": 24,
@@ -2782,7 +2782,8 @@
       "nest-http": 8,
       "browser-angular": 4,
       "python-fastapi": 5,
-      "nuxt-nitro": 6
+      "nuxt-nitro": 6,
+      "sveltekit-node": 4
     },
     "versions": {
       "next": [
@@ -2823,6 +2824,15 @@
       ],
       "svelte": [
         "5.56.10"
+      ],
+      "svelteKit": [
+        "2.70.3"
+      ],
+      "svelteKitAdapterNode": [
+        "5.5.7"
+      ],
+      "svelteKitVitePlugin": [
+        "7.3.0"
       ],
       "viteSveltePlugin": {
         "6": "6.2.4",
@@ -6406,6 +6416,154 @@
           "version-conformance",
           "agent-recovery-canary"
         ]
+      },
+      {
+        "id": "sveltekit2.node22.ts",
+        "wave": "calibration-sveltekit",
+        "family": "sveltekit-node",
+        "svelte": "5.56.10",
+        "svelteKit": "2.70.3",
+        "adapter": "adapter-node",
+        "adapterVersion": "5.5.7",
+        "vitePlugin": "7.3.0",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "vite.config.ts",
+        "language": "ts",
+        "module": "esm",
+        "topology": "ssr-vite-adapter-node",
+        "outputTopology": "build-client-server-and-sveltekit-intermediate",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "sveltekit-client-handle-error",
+          "ssr",
+          "server-load",
+          "action",
+          "endpoint",
+          "sveltekit-server-handle-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "sveltekit2.node22.js",
+        "wave": "calibration-sveltekit",
+        "family": "sveltekit-node",
+        "svelte": "5.56.10",
+        "svelteKit": "2.70.3",
+        "adapter": "adapter-node",
+        "adapterVersion": "5.5.7",
+        "vitePlugin": "7.3.0",
+        "vite": "8.2.2",
+        "node": "22.23.2",
+        "config": "vite.config.js",
+        "language": "js",
+        "module": "esm",
+        "topology": "ssr-vite-adapter-node",
+        "outputTopology": "build-client-server-and-sveltekit-intermediate",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "sveltekit-client-handle-error",
+          "ssr",
+          "server-load",
+          "action",
+          "endpoint",
+          "sveltekit-server-handle-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "sveltekit2.node24.ts",
+        "wave": "calibration-sveltekit",
+        "family": "sveltekit-node",
+        "svelte": "5.56.10",
+        "svelteKit": "2.70.3",
+        "adapter": "adapter-node",
+        "adapterVersion": "5.5.7",
+        "vitePlugin": "7.3.0",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "vite.config.ts",
+        "language": "ts",
+        "module": "esm",
+        "topology": "ssr-vite-adapter-node",
+        "outputTopology": "build-client-server-and-sveltekit-intermediate",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "sveltekit-client-handle-error",
+          "ssr",
+          "server-load",
+          "action",
+          "endpoint",
+          "sveltekit-server-handle-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
+      },
+      {
+        "id": "sveltekit2.node24.js",
+        "wave": "calibration-sveltekit",
+        "family": "sveltekit-node",
+        "svelte": "5.56.10",
+        "svelteKit": "2.70.3",
+        "adapter": "adapter-node",
+        "adapterVersion": "5.5.7",
+        "vitePlugin": "7.3.0",
+        "vite": "8.2.2",
+        "node": "24.19.0",
+        "config": "vite.config.js",
+        "language": "js",
+        "module": "esm",
+        "topology": "ssr-vite-adapter-node",
+        "outputTopology": "build-client-server-and-sveltekit-intermediate",
+        "capture": [
+          "browser-global",
+          "unhandled-rejection",
+          "sveltekit-client-handle-error",
+          "ssr",
+          "server-load",
+          "action",
+          "endpoint",
+          "sveltekit-server-handle-error"
+        ],
+        "gates": [
+          "exact-detection",
+          "deterministic-installation",
+          "promised-capture",
+          "bounded-privacy",
+          "lifecycle-correctness",
+          "source-correctness",
+          "version-conformance",
+          "agent-recovery-canary"
+        ]
       }
     ],
     "refusals": [
@@ -6516,6 +6674,18 @@
       {
         "id": "nuxt.hybrid-or-lifecycle",
         "reason": "Hybrid route rules, prerendering, ISR and unproven streaming or alternate Nitro lifecycles are refused before mutation."
+      },
+      {
+        "id": "sveltekit.version-or-config",
+        "reason": "Svelte, SvelteKit, adapter-node, Vite plugin, Vite or Node drift, CommonJS, legacy Svelte config, dynamic Vite config and multi-app roots are refused before mutation."
+      },
+      {
+        "id": "sveltekit.adapter-or-output",
+        "reason": "Adapter-auto, static, provider, edge, serverless and custom adapters, adapter options, custom roots, outputs and bundle strategies are outside the standalone Node calibration."
+      },
+      {
+        "id": "sveltekit.lifecycle-or-hooks",
+        "reason": "SSR-disabled, prerendered, service-worker, remote-function, experimental rendering, ambiguous hook, streaming, WebSocket, background and process-fatal lifecycles are refused before mutation."
       }
     ],
     "quickstarts": [
@@ -6617,6 +6787,16 @@
         "skill": "volato-nuxt",
         "conformance": [
           "VOLATO_NUXT_EXACT_NODE=1 pnpm smoke:nuxt-calibration"
+        ]
+      },
+      {
+        "id": "sveltekit",
+        "families": [
+          "sveltekit-node"
+        ],
+        "skill": "volato-sveltekit",
+        "conformance": [
+          "pnpm smoke:sveltekit-calibration"
         ]
       }
     ],
@@ -6819,6 +6999,29 @@
           "Hybrid route rules, prerendering, ISR and unproven streaming or alternate Nitro lifecycles are refused before mutation."
         ],
         "quickstart": "/docs/start/nuxt"
+      },
+      {
+        "id": "sveltekit",
+        "label": "SvelteKit",
+        "description": "SvelteKit 2.70 SSR on the official standalone Node adapter",
+        "versions": [
+          "SvelteKit 2.70",
+          "Svelte 5",
+          "adapter-node 5",
+          "Vite 8",
+          "Node.js 22/24"
+        ],
+        "surfaces": [
+          "Conventional SvelteKit 2.70 SSR applications on Vite with the official standalone adapter-node output.",
+          "Browser globals, unhandled rejections, client navigation and load failures, SSR, server loads, actions and endpoints.",
+          "Client, final-server and intermediate-server sourcemaps with exact Svelte, TypeScript or JavaScript source resolution."
+        ],
+        "exclusions": [
+          "Svelte, SvelteKit, adapter-node, Vite plugin, Vite or Node drift, CommonJS, legacy Svelte config, dynamic Vite config and multi-app roots are refused before mutation.",
+          "Adapter-auto, static, provider, edge, serverless and custom adapters, adapter options, custom roots, outputs and bundle strategies are outside the standalone Node calibration.",
+          "SSR-disabled, prerendered, service-worker, remote-function, experimental rendering, ambiguous hook, streaming, WebSocket, background and process-fatal lifecycles are refused before mutation."
+        ],
+        "quickstart": "/docs/start/sveltekit"
       }
     ]
   }

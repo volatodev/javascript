@@ -605,7 +605,7 @@ function exactSvelteKitRuntimeVersions(
     const actual = resolvePackageVersion(rootRequire, name)?.version;
     if (actual !== expected) {
       throw new ErrorsStackDetectionError(
-        `${labels[name]} ${actual ?? "could not be resolved"} is outside the private SvelteKit calibration, which requires ${expected}; install the exact application dependencies and no files were modified.`,
+        `${labels[name]} ${actual ?? "could not be resolved"} is outside the supported SvelteKit boundary, which requires ${expected}; install the exact application dependencies and no files were modified.`,
       );
     }
   }
@@ -629,7 +629,7 @@ function svelteKitShape(
   const kit = deps["@sveltejs/kit"];
   if (kit !== SVELTEKIT_DEPENDENCIES["@sveltejs/kit"]) {
     throw new ErrorsStackDetectionError(
-      `SvelteKit ${kit ?? "unknown"} is not supported by the frozen 2.70.3 calibration; pin SvelteKit exactly and no files were modified.`,
+      `SvelteKit ${kit ?? "unknown"} is not supported; the bounded integration requires 2.70.3 exactly and no files were modified.`,
     );
   }
   if (
@@ -655,7 +655,7 @@ function svelteKitShape(
               ? "SvelteKit"
               : name[0]!.toUpperCase() + name.slice(1);
       throw new ErrorsStackDetectionError(
-        `${label} ${declared ?? "unknown"} is outside the private SvelteKit calibration, which requires ${expected}; no files were modified.`,
+        `${label} ${declared ?? "unknown"} is outside the supported SvelteKit boundary, which requires ${expected}; no files were modified.`,
       );
     }
   }
@@ -670,12 +670,12 @@ function svelteKitShape(
   }
   if (pkg.type !== "module") {
     throw new ErrorsStackDetectionError(
-      "SvelteKit calibration requires a package with type: module; CommonJS was not modified.",
+      "The supported SvelteKit integration requires a package with type: module; CommonJS was not modified.",
     );
   }
   if (pkg.workspaces) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit monorepo and multi-application roots are outside the private calibration; run from one conventional application root and no files were modified.",
+      "SvelteKit monorepo and multi-application roots are not supported; run from one conventional application root and no files were modified.",
     );
   }
 
@@ -684,7 +684,7 @@ function svelteKitShape(
     : "";
   if (!(SVELTEKIT_NODE_VERSIONS as readonly string[]).includes(nodeVersion)) {
     throw new ErrorsStackDetectionError(
-      `Node ${nodeVersion || "unknown"} is outside the private SvelteKit calibration; .node-version must be exactly 22.23.2 or 24.19.0 and no files were modified.`,
+      `Node ${nodeVersion || "unknown"} is outside the supported SvelteKit boundary; .node-version must be exactly 22.23.2 or 24.19.0 and no files were modified.`,
     );
   }
   const engines =
@@ -693,7 +693,7 @@ function svelteKitShape(
       : null;
   if (engines?.node !== nodeVersion) {
     throw new ErrorsStackDetectionError(
-      `SvelteKit calibration requires package.json engines.node = ${JSON.stringify(nodeVersion)} to match .node-version exactly; no files were modified.`,
+      `The supported SvelteKit integration requires package.json engines.node = ${JSON.stringify(nodeVersion)} to match .node-version exactly; no files were modified.`,
     );
   }
   const scripts =
@@ -705,7 +705,7 @@ function svelteKitShape(
     scripts?.build !== SVELTEKIT_GENERATED_BUILD_COMMAND
   ) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit calibration requires the conventional `vite build` production command; custom build and deployment commands were not modified.",
+      "The supported SvelteKit integration requires the conventional `vite build` production command; custom build and deployment commands were not modified.",
     );
   }
 
@@ -726,7 +726,7 @@ function svelteKitShape(
   ].filter((name) => existsSync(join(cwd, name)));
   if (legacyConfigs.length > 0) {
     throw new ErrorsStackDetectionError(
-      `SvelteKit legacy svelte.config authority (${legacyConfigs.join(", ")}) is outside the inline Vite calibration; no files were modified.`,
+      `SvelteKit legacy svelte.config authority (${legacyConfigs.join(", ")}) is outside the supported inline Vite boundary; no files were modified.`,
     );
   }
   if (supportedConfigs.length !== 1 || unsupportedConfigs.length > 0) {
@@ -747,17 +747,17 @@ function svelteKitShape(
     !staticConfig
   ) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit calibration requires one static defineConfig object export; dynamic configuration was not modified and no files were modified.",
+      "The supported SvelteKit integration requires one static defineConfig object export; dynamic configuration was not modified and no files were modified.",
     );
   }
   if (!/from\s*["']@sveltejs\/adapter-node["']/.test(source)) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit calibration requires the official adapter-node import; custom adapters were not modified and no files were modified.",
+      "The supported SvelteKit integration requires the official adapter-node import; custom adapters were not modified and no files were modified.",
     );
   }
   if (!/from\s*["']@sveltejs\/kit\/vite["']/.test(source)) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit calibration requires the official sveltekit Vite plugin; no files were modified.",
+      "The supported SvelteKit integration requires the official sveltekit Vite plugin; no files were modified.",
     );
   }
   if (
@@ -765,17 +765,17 @@ function svelteKitShape(
     !/adapter\s*:\s*adapter\s*\(\s*\)/.test(source)
   ) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit calibration requires one optionless adapter-node instance; adapter options and custom output were not modified and no files were modified.",
+      "The supported SvelteKit integration requires one optionless adapter-node instance; adapter options and custom output were not modified and no files were modified.",
     );
   }
   if (!/plugins\s*:\s*\[\s*sveltekit\s*\(\s*\{[\s\S]*adapter\s*:\s*adapter\s*\(\s*\)[\s\S]*\}\s*\)\s*\]/.test(source)) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit calibration requires one statically composable sveltekit plugin with adapter-node; no files were modified.",
+      "The supported SvelteKit integration requires one statically composable sveltekit plugin with adapter-node; no files were modified.",
     );
   }
   if (/\bssr\s*:\s*false\b/.test(source)) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit `ssr: false` is outside the private full-stack calibration; no files were modified.",
+      "SvelteKit `ssr: false` is outside the supported full-stack boundary; no files were modified.",
     );
   }
   if (/\bhandleRenderingErrors\s*:/.test(source)) {
@@ -789,23 +789,23 @@ function svelteKitShape(
     )
   ) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit custom source, output, bundle or service-worker configuration is outside the private calibration; no files were modified.",
+      "SvelteKit custom source, output, bundle or service-worker configuration is not supported; no files were modified.",
     );
   }
   if (!existsSync(join(cwd, "src", "routes"))) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit calibration requires the conventional src/routes application root; no files were modified.",
+      "The supported SvelteKit integration requires the conventional src/routes application root; no files were modified.",
     );
   }
   const files = svelteKitSourceFiles(join(cwd, "src"));
   if (files.some((path) => /(?:^|\/)service-worker\.[cm]?[jt]s$/.test(path))) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit service workers are outside the private calibration; no files were modified.",
+      "SvelteKit service workers are not supported; no files were modified.",
     );
   }
   if (files.some((path) => /\.remote\.[cm]?[jt]s$/.test(path))) {
     throw new ErrorsStackDetectionError(
-      "SvelteKit remote functions are outside the private calibration; no files were modified.",
+      "SvelteKit remote functions are not supported; no files were modified.",
     );
   }
   if (
