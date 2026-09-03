@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { linkProject } from "../integrations/manifest";
 
@@ -27,6 +28,12 @@ vi.mock("../integrations/nextjs.js", () => ({
 const { runErrorsInit } = await import("../commands/init/errors.js");
 
 let cwd: string;
+
+function capturedStdout(): string {
+  return stripVTControlCharacters(
+    vi.mocked(process.stdout.write).mock.calls.join("\n"),
+  );
+}
 
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "volato-errors-init-"));
@@ -96,7 +103,7 @@ describe("volato errors init", () => {
         ingestToken: "server-only-token",
       }),
     );
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toContain("Volato Errors files are composed.");
     expect(output).toContain(
       "Run the production build and applicable capture checks before deployment.",
@@ -117,7 +124,7 @@ describe("volato errors init", () => {
 
     await runErrorsInit({ cwd, nonInteractive: true });
 
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toContain("Wrap your proxy (proxy.ts)");
     expect(output).toContain("wrapProxy");
     expect(output).toContain('from "./volato/server"');
@@ -142,7 +149,7 @@ describe("volato errors init", () => {
       runErrorsInit({ cwd, nonInteractive: true }),
     ).rejects.toThrow(/setup is incomplete/i);
 
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toContain("Setup incomplete");
     expect(output).not.toContain("Volato Errors files are composed");
     expect(reportIntegrationInstalled).not.toHaveBeenCalled();
@@ -177,7 +184,7 @@ describe("volato errors init", () => {
 
     await runErrorsInit({ cwd, nonInteractive: true });
 
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toMatch(
       /Python backend capture is not supported.*browser capture will be installed/i,
     );
@@ -211,7 +218,7 @@ describe("volato errors init", () => {
     expect(readFileSync(join(cwd, "src", "handler.js"), "utf8")).toContain(
       "withVolatoInvocation",
     );
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toContain("Node invocation");
     expect(output).toContain("production build and applicable capture checks");
   });
@@ -250,7 +257,7 @@ describe("volato errors init", () => {
     expect(readFileSync(join(cwd, "src", "main.ts"), "utf8")).toContain(
       "installVolatoVue(app)",
     );
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toContain("Vue render error");
   });
 
@@ -298,7 +305,7 @@ describe("volato errors init", () => {
         "utf8",
       ),
     ).toContain("<svelte:boundary");
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toContain("Svelte render error");
   });
 
@@ -352,7 +359,7 @@ describe("volato errors init", () => {
     expect(readFileSync(join(cwd, "src", "hooks.server.ts"), "utf8")).toContain(
       "createVolatoSvelteKitServerHandleError",
     );
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toContain("SvelteKit browser + adapter-node");
     expect(output).toContain("SvelteKit/adapter-node");
   });
@@ -383,7 +390,7 @@ describe("volato errors init", () => {
     expect(readFileSync(join(cwd, "src", "server.js"), "utf8")).toContain(
       'app.addHook("onError", volatoFastifyErrorHook())',
     );
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toContain("controlled Fastify error");
   });
 
@@ -422,7 +429,7 @@ describe("volato errors init", () => {
     expect(readFileSync(join(cwd, "src", "main.ts"), "utf8")).toContain(
       "VolatoHttpExceptionFilter",
     );
-    const output = vi.mocked(process.stdout.write).mock.calls.join("\n");
+    const output = capturedStdout();
     expect(output).toContain("controlled NestJS error");
   });
 });
