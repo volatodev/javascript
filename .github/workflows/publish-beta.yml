@@ -52,6 +52,10 @@ jobs:
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Install Playwright Chromium
+        if: steps.candidate.outputs.should_publish == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
       - name: Run the local release gate
         if: steps.candidate.outputs.should_publish == 'true'
         run: pnpm release:check
@@ -118,6 +122,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Wait for the immutable package and latest tag
         env:

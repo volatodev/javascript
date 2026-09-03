@@ -55,6 +55,11 @@ describe("release artifact gates", () => {
   });
 
   it("gates before publishing and canaries the exact public artifact", () => {
+    expect(
+      publishWorkflow.match(
+        /pnpm exec playwright install --with-deps chromium/g,
+      ),
+    ).toHaveLength(2);
     expect(publishWorkflow.indexOf("pnpm release:check")).toBeLessThan(
       publishWorkflow.indexOf("npm publish --tag latest --access public"),
     );
