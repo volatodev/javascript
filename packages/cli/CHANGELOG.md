@@ -1,5 +1,19 @@
 # @volatodev/cli
 
+## 0.1.0-beta.21
+
+### Minor Changes
+
+- Promote the conformance-backed Angular, FastAPI, Nuxt, SvelteKit and Astro
+  integrations from private calibration to public setup, documentation and
+  support discovery. The executable support matrix now contains 143 cells
+  across twelve application targets.
+
+- 752d142: Cover Next.js 15 and 16 App Router, Pages Router and hybrid applications in
+  JavaScript and TypeScript, including native Turbopack, middleware/proxy,
+  configuration factories, lifecycle capture and exact production source
+  resolution from dependency-free generated integrations.
+
 ## 0.1.0-beta.20
 
 ### Minor Changes
