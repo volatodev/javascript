@@ -44,7 +44,7 @@
     "generate:runtimes": "pnpm generate:nextjs-js && pnpm generate:browser-js && pnpm generate:node-js",
     "bundle": "pnpm generate:runtimes && tsup",
     "build": "pnpm bundle && pnpm docs:generate",
-    "docs:bundle": "tsup --config tsup.documentation.config.ts",
+    "docs:bundle": "pnpm generate:runtimes && tsup --config tsup.documentation.config.ts",
     "docs:generate": "pnpm docs:bundle && node ../../scripts/generate-documentation-contract.mjs",
     "docs:check": "pnpm docs:bundle && node ../../scripts/generate-documentation-contract.mjs --check",
     "dev": "pnpm generate:runtimes && tsup --watch",

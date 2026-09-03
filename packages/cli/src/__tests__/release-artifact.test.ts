@@ -9,12 +9,21 @@ const releaseBeta = readFileSync(
   new URL("../../../../scripts/release-beta-local.mjs", import.meta.url),
   "utf8",
 );
+const cliPackage = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+) as { scripts: Record<string, string> };
 const publishWorkflow = readFileSync(
   new URL("../../../../.github/workflows/publish-beta.yml", import.meta.url),
   "utf8",
 );
 
 describe("release artifact gates", () => {
+  it("generates runtime modules before bundling documentation", () => {
+    expect(cliPackage.scripts["docs:bundle"]).toBe(
+      "pnpm generate:runtimes && tsup --config tsup.documentation.config.ts",
+    );
+  });
+
   it("runs clean-app conformance from the packed candidate", () => {
     expect(releaseCheck).toContain('VOLATO_CLI_SPEC: "pack"');
   });
