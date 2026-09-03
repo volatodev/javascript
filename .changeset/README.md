@@ -11,9 +11,11 @@ pnpm changeset
 See the [changesets documentation](https://github.com/changesets/changesets) for more information.
 
 The repository stays in the `beta` prerelease channel until the first stable
-release. CI validates commits and release candidates, but it never versions or
-publishes a package. Versioning and publishing are explicit local operations by
-the maintainer.
+release. Versioning remains an explicit maintainer operation. Publishing is
+automatic and tokenless: a change to `packages/cli/package.json` on `main`
+starts `.github/workflows/publish-beta.yml`, which gates the candidate, publishes
+it through npm trusted publishing, downloads the immutable registry artifact
+and runs the standard public canaries.
 
 From a clean `main` synchronized with `origin/main`:
 
@@ -25,23 +27,30 @@ git commit -m "chore: version packages"
 git push origin main
 ```
 
-After CI passes, publish from the same clean commit with an npm account that
-can publish `@volatodev/cli`:
+The npm package must trust this exact GitHub Actions identity:
+
+- owner: `volatodev`;
+- repository: `javascript`;
+- workflow filename: `publish-beta.yml`;
+- environment: `npm-beta`;
+- allowed action: `npm publish`.
+
+The workflow publishes the prerelease directly under `latest`, which is the tag
+used by the public unqualified install command. npm OIDC authorizes the publish
+operation itself, not later dist-tag mutations, so `beta` is not a release
+authority. The immutable version and `latest` must agree before the canaries
+run.
+
+`workflow_dispatch` safely rechecks the version currently present in
+`package.json`. If it is already published, the mutation is skipped and the
+public canaries are replayed.
+
+For emergency local recovery only, the authenticated maintainer path remains:
 
 ```bash
 npm whoami
 pnpm release:beta
 ```
 
-`release:beta` reruns the complete local gate, publishes the immutable version
-under `beta`, installs and exercises that exact registry artifact, then moves
-`latest`. If publication succeeds but the registry smoke is interrupted, rerun
-only the safe promotion half:
-
-```bash
-pnpm release:promote
-```
-
-Until the first stable release, `beta` and `latest` both point to the current
-alpha so the documented unqualified install command cannot resolve to an older
-prerelease.
+It requires npm's interactive write authentication and is not the normal
+release path.
