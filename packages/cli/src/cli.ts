@@ -7,6 +7,7 @@
  *
  *   volato login [token]              — write the workspace bearer to disk
  *   volato whoami                     — confirm a token is loaded
+ *   volato feedback <message>          — send explicitly human-approved feedback
  *   volato readme                     — print full command surface (markdown)
  *   volato init                       — link this repository to a Volato project
  *   volato errors init                — install detected Errors capture adapters
@@ -28,6 +29,7 @@ import { Command } from "commander";
 import { runInit } from "./commands/init/init.js";
 import { runErrorsInit } from "./commands/init/errors.js";
 import { runLogin, runLogout, runWhoami } from "./commands/login.js";
+import { runFeedback } from "./commands/feedback.js";
 import {
   runErrorSamples,
   runErrorsList,
@@ -134,6 +136,21 @@ program
   .action(async () => {
     await runLogout();
   });
+
+program
+  .command("feedback")
+  .argument("<message>", "the exact feedback text approved by the human")
+  .option(
+    "--yes",
+    "confirm the human explicitly approved this exact message",
+  )
+  .option("--json", "emit the structured response instead of markdown")
+  .description("Send explicitly human-approved feedback to Volato")
+  .action(
+    async (message: string, opts: { yes?: boolean; json?: boolean }) => {
+      await runFeedback({ message, ...opts });
+    },
+  );
 
 program
   .command("readme")

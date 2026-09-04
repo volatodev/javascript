@@ -247,6 +247,62 @@
       {
         "path": [
           "volato",
+          "feedback"
+        ],
+        "aliases": [],
+        "description": "Send explicitly human-approved feedback to Volato",
+        "arguments": [
+          {
+            "name": "message",
+            "description": "the exact feedback text approved by the human",
+            "required": true,
+            "variadic": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ],
+        "options": [
+          {
+            "flags": "--yes",
+            "short": null,
+            "long": "--yes",
+            "description": "confirm the human explicitly approved this exact message",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "--json",
+            "short": null,
+            "long": "--json",
+            "description": "emit the structured response instead of markdown",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          },
+          {
+            "flags": "-h, --help",
+            "short": "-h",
+            "long": "--help",
+            "description": "display help for command",
+            "required": false,
+            "optional": false,
+            "variadic": false,
+            "mandatory": false,
+            "choices": null,
+            "defaultValue": null
+          }
+        ]
+      },
+      {
+        "path": [
+          "volato",
           "readme"
         ],
         "aliases": [],

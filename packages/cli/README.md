@@ -26,6 +26,16 @@ code leaves the original prompt ready for a fresh code.
 
 The token is stored at `~/.config/volato/credentials` (mode `0600`). Override the location with `VOLATO_CREDENTIALS_FILE` or the standard `XDG_CONFIG_HOME`.
 
+## Send feedback
+
+```bash
+volato feedback "The exact message approved by the human" --yes
+```
+
+An agent may run this only after its human explicitly approves the exact
+message. The command attaches no code, repository data, logs, errors, prompts,
+or environment details.
+
 ## Commands
 
 ```bash

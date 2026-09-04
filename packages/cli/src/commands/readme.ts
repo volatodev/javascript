@@ -33,6 +33,15 @@ Headless / CI — skip \`login\` and set the token in the environment:
     export VOLATO_TOKEN=...        # the API client reads it directly
     echo "$VOLATO_TOKEN" | volato login --stdin   # or store it once
 
+## Send feedback
+
+    volato feedback "The exact message approved by the human" --yes
+
+An agent must never infer permission to send feedback. It may run this command
+only after the human explicitly approves the exact message. Volato sends only
+that text plus the authenticated account identity; it does not attach source
+code, repository data, logs, errors, prompts, or environment details.
+
 ## Install Errors capture
 
     volato init --project "<project_id>" --yes
