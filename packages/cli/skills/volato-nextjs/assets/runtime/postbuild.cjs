@@ -27,6 +27,17 @@ function sleep(ms) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
 
+function hasUsableMappings(parsed) {
+  const regularMap =
+    Array.isArray(parsed.sources) &&
+    parsed.sources.length > 0 &&
+    typeof parsed.mappings === "string" &&
+    parsed.mappings.length > 0;
+  const indexedMap =
+    Array.isArray(parsed.sections) && parsed.sections.length > 0;
+  return regularMap || indexedMap;
+}
+
 function* walkMaps(root) {
   let entries;
   try {
@@ -131,6 +142,10 @@ async function uploadMap({
   let sanitized;
   try {
     const parsed = JSON.parse(await readFile(mapPath, "utf8"));
+    if (!hasUsableMappings(parsed)) {
+      warn(`Skipping ${displayPath} — empty sourcemap has no mappings.`);
+      return "skipped";
+    }
     delete parsed.sourcesContent;
     delete parsed[REPOSITORY_PREFIX_FIELD];
     if (prefix) parsed[REPOSITORY_PREFIX_FIELD] = prefix;

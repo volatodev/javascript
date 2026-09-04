@@ -349,6 +349,38 @@ describe("__uploadOneForTests — skip cases", () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toMatch(/not valid JSON/);
   });
+
+  it("structurally empty sourcemap → 'skipped' + warning, no fetch", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "volato-upload-"));
+    const mapPath = join(dir, "page-abc12345.js.map");
+    writeFileSync(
+      mapPath,
+      JSON.stringify({
+        version: 3,
+        sources: [],
+        names: [],
+        mappings: "",
+      }),
+    );
+
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const warn = vi.fn();
+    const outcome = await __uploadOneForTests({
+      mapPath,
+      jsRelative: ".next/static/chunks/page-abc12345.js",
+      release: "sha",
+      endpoint: "https://api.volato.dev",
+      token: "t",
+      fetchImpl,
+      warn,
+    });
+
+    expect(outcome).toBe("skipped");
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/empty sourcemap/i),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------

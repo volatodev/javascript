@@ -165,6 +165,17 @@ const sleep = (ms: number): Promise<void> =>
 
 type UploadOutcome = "uploaded" | "updated" | "skipped" | "failed";
 
+function hasUsableMappings(parsed: Record<string, unknown>): boolean {
+  const regularMap =
+    Array.isArray(parsed.sources) &&
+    parsed.sources.length > 0 &&
+    typeof parsed.mappings === "string" &&
+    parsed.mappings.length > 0;
+  const indexedMap =
+    Array.isArray(parsed.sections) && parsed.sections.length > 0;
+  return regularMap || indexedMap;
+}
+
 // Next creates several webpack compilers for one production build. Their
 // output roots overlap, so each afterEmit hook can discover maps already seen
 // by another compiler. Share in-flight and successful work across plugin
@@ -224,6 +235,10 @@ async function uploadOne(args: {
   try {
     const raw = await readFile(args.mapPath, "utf8");
     const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!hasUsableMappings(parsed)) {
+      args.warn(`Skipping ${args.jsRelative} — empty sourcemap has no mappings.`);
+      return "skipped";
+    }
     delete parsed.sourcesContent;
     delete parsed[REPOSITORY_PREFIX_FIELD];
     const repositoryPrefix = normalizeRepositoryPrefix(args.repositoryPrefix);
