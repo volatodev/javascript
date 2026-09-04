@@ -286,14 +286,33 @@ async function runPostbuild(options = {}) {
   };
 }
 
-module.exports = { runPostbuild };
+async function runPostbuildCli(options = {}) {
+  const warn =
+    options.warn ??
+    ((message) => {
+      console.error(`[Volato] ${message}`);
+    });
+  try {
+    const { failed } = await runPostbuild({ ...options, warn });
+    if (failed === 0) return 0;
+    warn(
+      `${failed} final browser sourcemap(s) could not be uploaded; refusing a green production build.`,
+    );
+    return 1;
+  } catch (error) {
+    warn(
+      `Final browser sourcemap upload failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return 1;
+  }
+}
+
+module.exports = { runPostbuild, runPostbuildCli };
 
 if (require.main === module) {
-  runPostbuild().then(({ failed }) => {
-    if (failed > 0) {
-      console.warn(
-        `[Volato] ${failed} final browser sourcemap(s) remain public because upload did not complete.`,
-      );
-    }
+  runPostbuildCli().then((exitCode) => {
+    process.exitCode = exitCode;
   });
 }

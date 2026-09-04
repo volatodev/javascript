@@ -11,13 +11,19 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
-const { runPostbuild } = require("../postbuild.cjs") as {
+const { runPostbuild, runPostbuildCli } = require("../postbuild.cjs") as {
   runPostbuild(options: {
     cwd: string;
     env: Record<string, string>;
     fetchImpl: typeof fetch;
     warn: (message: string) => void;
   }): Promise<{ uploaded: number; failed: number }>;
+  runPostbuildCli(options: {
+    cwd: string;
+    env: Record<string, string>;
+    fetchImpl: typeof fetch;
+    warn: (message: string) => void;
+  }): Promise<number>;
 };
 
 const roots: string[] = [];
@@ -110,5 +116,36 @@ describe("Next.js 16 postbuild sourcemaps", () => {
     expect(warn).toHaveBeenCalledWith(
       expect.stringMatching(/empty sourcemap/i),
     );
+  });
+
+  it("returns a non-zero CLI exit when final browser maps cannot be uploaded", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "volato-next-postbuild-"));
+    roots.push(cwd);
+    const chunks = join(cwd, ".next", "static", "chunks");
+    mkdirSync(chunks, { recursive: true });
+    writeFileSync(
+      join(chunks, "0cz1d0mv5g_q7.js.map"),
+      JSON.stringify({
+        version: 3,
+        sources: ["app/page.tsx"],
+        names: [],
+        mappings: "AAAA",
+      }),
+    );
+
+    const warn = vi.fn();
+    const exitCode = await runPostbuildCli({
+      cwd,
+      env: {
+        NEXT_PUBLIC_VOLATO_DSN: "",
+        VOLATO_INGEST_TOKEN: "",
+        VOLATO_RELEASE: "release-1",
+      },
+      fetchImpl: vi.fn() as unknown as typeof fetch,
+      warn,
+    });
+
+    expect(exitCode).toBe(1);
+    expect(warn.mock.calls.flat().join(" ")).toMatch(/both required/i);
   });
 });

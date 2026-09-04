@@ -609,12 +609,12 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     const plugin = new __VolatoSourceMapsPlugin({}, { fetchImpl, cwd: root });
     const { compiler, trigger } = makeFakeCompiler(root);
     plugin.apply(compiler);
-    await trigger();
+    await expect(trigger()).rejects.toThrow(/sourcemap.*failed/i);
 
     expect(existsSync(mapPath)).toBe(true);
   });
 
-  it("missing token → no fetch, no double warning (top-level already warned)", async () => {
+  it("missing token → fails the production upload hook", async () => {
     delete process.env.VOLATO_INGEST_TOKEN;
     const { root } = makeBuildDir();
     const fetchImpl = vi.fn() as unknown as typeof fetch;
@@ -622,16 +622,12 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     const plugin = new __VolatoSourceMapsPlugin({}, { fetchImpl, cwd: root });
     const { compiler, trigger } = makeFakeCompiler(root);
     plugin.apply(compiler);
-    await trigger();
+    await expect(trigger()).rejects.toThrow(/VOLATO_INGEST_TOKEN/);
 
     expect(fetchImpl).not.toHaveBeenCalled();
-    // The load-time warning fires from withVolato() itself, not from
-    // the afterEmit hook. The plugin stays silent here on purpose to
-    // avoid doubling the warning on every build.
-    expect(warnSpy).not.toHaveBeenCalled();
   });
 
-  it("missing DSN → loud warning + no fetch", async () => {
+  it("missing DSN → fails the production upload hook", async () => {
     delete process.env.NEXT_PUBLIC_VOLATO_DSN;
     const { root } = makeBuildDir();
     const fetchImpl = vi.fn() as unknown as typeof fetch;
@@ -639,14 +635,12 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     const plugin = new __VolatoSourceMapsPlugin({}, { fetchImpl, cwd: root });
     const { compiler, trigger } = makeFakeCompiler(root);
     plugin.apply(compiler);
-    await trigger();
+    await expect(trigger()).rejects.toThrow(/NEXT_PUBLIC_VOLATO_DSN/);
 
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0]?.[0]).toMatch(/NEXT_PUBLIC_VOLATO_DSN/);
   });
 
-  it("invalid DSN → loud warning + no fetch", async () => {
+  it("invalid DSN → fails the production upload hook", async () => {
     process.env.NEXT_PUBLIC_VOLATO_DSN = "garbage";
     const { root } = makeBuildDir();
     const fetchImpl = vi.fn() as unknown as typeof fetch;
@@ -654,14 +648,12 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     const plugin = new __VolatoSourceMapsPlugin({}, { fetchImpl, cwd: root });
     const { compiler, trigger } = makeFakeCompiler(root);
     plugin.apply(compiler);
-    await trigger();
+    await expect(trigger()).rejects.toThrow(/valid DSN/);
 
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0]?.[0]).toMatch(/not a valid DSN/);
   });
 
-  it("missing build identity → loud warning + no fetch", async () => {
+  it("missing build identity → fails the production upload hook", async () => {
     delete process.env.VOLATO_RELEASE;
     __resetReleaseCacheForTests();
     const { root } = makeBuildDir();
@@ -670,11 +662,9 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     const plugin = new __VolatoSourceMapsPlugin({}, { fetchImpl, cwd: root });
     const { compiler, trigger } = makeFakeCompiler(root);
     plugin.apply(compiler);
-    await trigger();
+    await expect(trigger()).rejects.toThrow(/build commit/);
 
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0]?.[0]).toMatch(/no build commit/);
   });
 
   it("explicit uploadUrl overrides DSN-derived endpoint", async () => {
@@ -713,7 +703,7 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     const plugin = new __VolatoSourceMapsPlugin({}, { fetchImpl, cwd: root });
     const { compiler, trigger } = makeFakeCompiler(root);
     plugin.apply(compiler);
-    await trigger();
+    await expect(trigger()).rejects.toThrow(/sourcemap.*failed/i);
 
     // Per-failure warning (the 401) + summary warning at the end.
     const summary = warnSpy.mock.calls.find((c) =>
@@ -733,7 +723,7 @@ describe("__VolatoSourceMapsPlugin — env-var gating", () => {
     const plugin = new __VolatoSourceMapsPlugin({}, { fetchImpl, cwd: root });
     const { compiler, trigger } = makeFakeCompiler(root);
     plugin.apply(compiler);
-    await trigger();
+    await expect(trigger()).rejects.toThrow(/sourcemap.*failed/i);
 
     expect(warnSpy.mock.calls.length).toBeGreaterThan(0);
   });

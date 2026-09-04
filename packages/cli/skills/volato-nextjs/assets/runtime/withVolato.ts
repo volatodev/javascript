@@ -440,44 +440,39 @@ export class __VolatoSourceMapsPlugin {
       try {
         endpoint = new URL(this.opts.uploadUrl).origin;
       } catch {
-        warn(
-          `uploadUrl "${this.opts.uploadUrl}" is not a valid URL — sourcemaps will not be uploaded.`,
+        throw new Error(
+          `[Volato] uploadUrl "${this.opts.uploadUrl}" is not a valid URL; production sourcemaps cannot be uploaded.`,
         );
-        return;
       }
     } else {
       const dsn = this.opts.dsn ?? process.env.NEXT_PUBLIC_VOLATO_DSN;
       if (!dsn) {
-        warn(
-          "no DSN configured (NEXT_PUBLIC_VOLATO_DSN) — sourcemaps will not be uploaded.",
+        throw new Error(
+          "[Volato] NEXT_PUBLIC_VOLATO_DSN is required for the production sourcemap upload. Configure it or set disableUpload: true explicitly.",
         );
-        return;
       }
       try {
         parseDSN(dsn);
         endpoint = dsnToIngestUrl(dsn).replace(/\/api\/ingest$/, "");
       } catch {
-        warn(
-          "NEXT_PUBLIC_VOLATO_DSN is not a valid DSN — sourcemaps will not be uploaded.",
+        throw new Error(
+          "[Volato] NEXT_PUBLIC_VOLATO_DSN is not a valid DSN; production sourcemaps cannot be uploaded.",
         );
-        return;
       }
     }
 
     const token = process.env.VOLATO_INGEST_TOKEN;
     if (!token) {
-      // Already warned at withVolato() load-time; staying silent
-      // here avoids doubling the noise on every build.
-      return;
+      throw new Error(
+        "[Volato] VOLATO_INGEST_TOKEN is required for the production sourcemap upload. Configure it or set disableUpload: true explicitly.",
+      );
     }
 
     const release = this.opts.release ?? detectRelease();
     if (!release) {
-      warn(
-        "no build commit could be detected — sourcemaps will not be uploaded. " +
-          "Ensure the build receives the checkout commit SHA.",
+      throw new Error(
+        "[Volato] no build commit could be detected; production sourcemaps cannot be uploaded. Ensure the build receives the checkout commit SHA.",
       );
-      return;
     }
 
     const cwd = this.internals.cwd ?? process.cwd();
@@ -556,9 +551,9 @@ export class __VolatoSourceMapsPlugin {
 
     const failed = outcomes.filter((o) => o === "failed").length;
     if (failed > 0) {
-      warn(
-        `${failed}/${outcomes.length} sourcemap(s) failed to upload — the agent will see minified frames for those releases until a re-deploy lands the maps.`,
-      );
+      const message = `${failed}/${outcomes.length} sourcemap(s) failed to upload; refusing a green production build with incomplete source resolution.`;
+      warn(message);
+      throw new Error(`[Volato] ${message}`);
     }
   }
 }
