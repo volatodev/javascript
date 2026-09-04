@@ -61,6 +61,15 @@ describe("framework integration skill contracts", () => {
     expect(setup).toMatch(/frontend and backend independently/i);
   });
 
+  it("keeps the built-in Next.js verifier narrower than surface conformance", () => {
+    const nextjs = skill("volato-nextjs");
+
+    expect(nextjs).toContain("volato errors init --send-test-event");
+    expect(nextjs).toMatch(/only one temporary Route Handler/i);
+    expect(nextjs).toMatch(/repository-specific ephemeral harness/i);
+    expect(nextjs).toMatch(/report each surface\s+independently/i);
+  });
+
   it("keeps target-specific privacy and refusal boundaries explicit", () => {
     const vue = skill("volato-vite-vue");
     const svelte = skill("volato-vite-svelte");

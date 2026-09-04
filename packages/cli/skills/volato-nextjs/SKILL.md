@@ -25,8 +25,15 @@ judgment only to hook that code into an existing application.
    config and public app/auth URL variables. If the result is unambiguous, run
    `volato projects origins set <id> <origin...>`; otherwise leave the existing
    policy unchanged and report the ambiguity rather than guessing.
-7. Run the project build and the CLI verification.
-8. Exercise each capture surface used by the application.
+7. Run the project build and `volato errors init --send-test-event`. This
+   built-in check proves only one temporary Route Handler delivery path; it is
+   not evidence for browser, render, Server Action, middleware or proxy
+   capture.
+8. Exercise each capture surface used by the application with a
+   repository-specific ephemeral harness. Keep it outside the delivered diff
+   unless the application owner explicitly wants a permanent regression test,
+   remove every temporary route or trigger afterwards, and report each surface
+   independently.
 
 Next.js 16 keeps Turbopack as its default bundler. The recipe uses
 `compiler.runAfterProductionCompile` for server maps and appends the generated
