@@ -79,6 +79,19 @@ volato errors resolve <id> --note "verified in deployed release abc123"
 
 Run `volato readme` for the complete agent-facing command contract.
 
+## Feedback
+
+An authenticated agent may send feedback only after its human explicitly
+approves the exact text:
+
+```bash
+volato feedback "The exact message approved by the human" --yes
+```
+
+The command sends that message and the authenticated account identity. It does
+not attach source code, repository data, logs, errors, prompts, or environment
+details.
+
 ## Development
 
 ```bash
