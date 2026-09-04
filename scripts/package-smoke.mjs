@@ -189,15 +189,26 @@ try {
     ".agents/skills/volato-setup/SKILL.md",
     ".agents/skills/volato-errors/SKILL.md",
     ".agents/skills/volato-nextjs/SKILL.md",
-    ".agents/skills/volato-vite-react/SKILL.md",
-    ".agents/skills/volato-vite-vue/SKILL.md",
-    ".agents/skills/volato-vite-svelte/SKILL.md",
-    ".agents/skills/volato-node/SKILL.md",
-    ".agents/skills/volato-fastify/SKILL.md",
-    ".agents/skills/volato-nestjs/SKILL.md",
   ]) {
     assert(existsSync(join(fixture, required)), `packed CLI did not create ${required}`);
   }
+  for (const unrelated of [
+    "volato-vite-react",
+    "volato-vite-vue",
+    "volato-vite-svelte",
+    "volato-node",
+    "volato-fastify",
+    "volato-nestjs",
+  ]) {
+    assert(
+      !existsSync(join(fixture, ".agents", "skills", unrelated)),
+      `packed CLI installed unrelated skill ${unrelated}`,
+    );
+  }
+  assert(
+    !existsSync(join(fixture, ".agents", "skills", "volato-nextjs", "assets")),
+    "packed CLI installed runtime assets with the Next.js agent skill",
+  );
   for (const retired of ["monitor-product-usage", "volato-product"]) {
     assert(
       !existsSync(join(fixture, ".agents", "skills", retired)),
