@@ -18,6 +18,7 @@
  *                                lines — the walker stops at
  *                                the right statement boundary)
  *   - `patchErrorBoundary`       create `app/error.tsx`
+ *   - `patchProxy`               wrap one parseable Next.js 16 default proxy
  *   - `buildMiddlewareSnippet`   the only one that doesn't write
  *                                — middleware shapes vary too
  *                                much for a regex patch to be
@@ -527,6 +528,51 @@ export function buildProxySnippet(modulePath = "./volato/server"): string {
 export const proxy = wrapProxy(async (request) => {
   // your existing proxy logic
 });`;
+}
+
+/**
+ * Compose a parseable default-exported Next.js 16 proxy without changing the
+ * auth or routing expression it already owns. Named exports and ambiguous
+ * syntax remain manual: changing their binding shape can affect framework
+ * discovery or imports elsewhere in the application.
+ */
+export function patchProxy(
+  path: string,
+  modulePath = "./volato/server",
+): PatchOutcome {
+  const existing = readIfExists(path);
+  if (existing === null) {
+    return { path, status: "manual", detail: "proxy file not found" };
+  }
+  if (/\bwrapProxy\s*\(/.test(existing)) {
+    return {
+      path,
+      status: "skipped",
+      detail: "wrapProxy is already composed",
+    };
+  }
+
+  const located = findExportDefaultExpression(existing);
+  if (!located) {
+    return {
+      path,
+      status: "manual",
+      detail:
+        "existing proxy has no parseable default export — compose it with wrapProxy manually",
+    };
+  }
+
+  const importLine = `import { wrapProxy } from "${modulePath}";\n`;
+  const replaced =
+    existing.slice(0, located.startIndex) +
+    `export default wrapProxy(${located.expression.trim()})` +
+    existing.slice(located.endIndex);
+  writeFileSync(path, insertAfterLastImport(replaced, importLine), "utf8");
+  return {
+    path,
+    status: "updated",
+    detail: "preserved and wrapped the existing default proxy",
+  };
 }
 
 /**

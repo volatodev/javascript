@@ -21,6 +21,7 @@ import {
   patchNextConfig,
   patchPagesApp,
   patchPagesError,
+  patchProxy,
   type PatchOutcome,
 } from "../commands/init/patch";
 import {
@@ -222,11 +223,17 @@ export function generateNextjsIntegration(
     "wrapMiddleware",
   );
   if (middlewareOutcome) outcomes.push(middlewareOutcome);
-  const proxyOutcome = runtimeBoundaryOutcome(
-    options.project.proxyPath,
-    "wrapProxy",
-  );
-  if (proxyOutcome) outcomes.push(proxyOutcome);
+  if (options.project.proxyPath) {
+    outcomes.push(
+      patchProxy(
+        options.project.proxyPath,
+        modulePath(
+          options.project.proxyPath,
+          join(runtimeRoot, `server${runtimeExtension}`),
+        ),
+      ),
+    );
+  }
   const configPath =
     options.project.nextConfigPath ?? join(options.cwd, "next.config.mjs");
   outcomes.push(

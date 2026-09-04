@@ -291,6 +291,48 @@ describe("Next.js generated integration", () => {
     },
   );
 
+  it("composes a parseable existing Next.js 16 default proxy", () => {
+    writeFileSync(
+      join(cwd, "package.json"),
+      JSON.stringify({
+        name: "fixture",
+        scripts: { build: "next build" },
+        dependencies: { next: "16.2.12", react: "19.2.8" },
+      }),
+    );
+    writeFileSync(
+      join(cwd, "src", "proxy.ts"),
+      [
+        'import { withAuth } from "@acme/auth";',
+        "",
+        "export default withAuth(async function proxy(request) {",
+        "  return request;",
+        "});",
+        "",
+      ].join("\n"),
+    );
+    const project = detectProject(cwd);
+
+    const result = generateNextjsIntegration({
+      cwd,
+      dsn: "https://pk@api.volato.dev/project",
+      project,
+      sourceRoot,
+    });
+
+    expect(result.outcomes).toContainEqual(
+      expect.objectContaining({
+        path: join(cwd, "src", "proxy.ts"),
+        status: "updated",
+      }),
+    );
+    const proxy = readFileSync(join(cwd, "src", "proxy.ts"), "utf8");
+    expect(proxy).toContain('import { wrapProxy } from "./volato/server";');
+    expect(proxy).toContain(
+      "export default wrapProxy(withAuth(async function proxy(request)",
+    );
+  });
+
   it("is idempotent while generated files remain untouched", () => {
     const project = detectProject(cwd);
     generateNextjsIntegration({
