@@ -21,7 +21,10 @@ performs explicit lifecycle mutations from any terminal.
     volato login            # opens app.volato.dev/cli, paste the code it shows
 
 Browser code flow: \`login\` sends you to a page that shows a one-time
-code; paste it back and the CLI exchanges it for the workspace token.
+code; keep that command running and paste the current code into the same
+prompt. A second \`volato login\` refuses to open another browser flow while
+the first is waiting. If a pasted code has expired or was already used, the
+original prompt stays open for the fresh code.
 The token is workspace-scoped (covers every project) and stored at
 ~/.config/volato/credentials (mode 0600).
 

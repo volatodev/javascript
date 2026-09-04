@@ -204,7 +204,7 @@
           "whoami"
         ],
         "aliases": [],
-        "description": "Confirm a token is loaded",
+        "description": "Confirm the current token is accepted by the API",
         "arguments": [],
         "options": [
           {

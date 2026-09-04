@@ -123,7 +123,7 @@ program
 
 program
   .command("whoami")
-  .description("Confirm a token is loaded")
+  .description("Confirm the current token is accepted by the API")
   .action(async () => {
     await runWhoami();
   });

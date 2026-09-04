@@ -17,8 +17,12 @@ npm install -g @volatodev/cli
 
 ```bash
 volato login              # browser code flow through app.volato.dev
-volato whoami             # confirm the local credential exists
+volato whoami             # confirm the current credential is accepted
 ```
+
+Keep the first `volato login` process running and paste the browser's current
+code into that same prompt. A concurrent login is refused; an expired or used
+code leaves the original prompt ready for a fresh code.
 
 The token is stored at `~/.config/volato/credentials` (mode `0600`). Override the location with `VOLATO_CREDENTIALS_FILE` or the standard `XDG_CONFIG_HOME`.
 
