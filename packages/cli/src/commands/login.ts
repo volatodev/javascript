@@ -15,14 +15,14 @@
  */
 import { spawn } from "node:child_process";
 import prompts from "prompts";
-import { postJsonPublic } from "../lib/api-client.js";
+import { getJson, postJsonPublic } from "../lib/api-client.js";
 import {
   credentialsLocation,
   deleteToken,
   readToken,
   writeToken,
 } from "../lib/credentials.js";
-import { EXIT } from "../lib/exit.js";
+import { EXIT, exitCodeForStatus } from "../lib/exit.js";
 import { printApiError, printLocalError, printOk } from "../lib/output.js";
 
 const DEFAULT_APP_URL = "https://app.volato.dev";
@@ -127,11 +127,6 @@ export async function runLogin(args: {
 }
 
 export async function runWhoami(): Promise<void> {
-  // Day 1 we don't round-trip to the API to verify — the token shape
-  // is opaque and there's no /me endpoint yet. We just confirm a
-  // token is present and where it lives. A real /whoami endpoint
-  // (user email + workspace name) lands when we add the API call
-  // in a follow-up.
   const environmentToken = process.env.VOLATO_TOKEN?.trim();
   const token = environmentToken || (await readToken());
   if (!token) {
@@ -142,6 +137,17 @@ export async function runWhoami(): Promise<void> {
     process.exit(1);
     return;
   }
+
+  // Reuse the smallest existing authenticated read rather than maintaining a
+  // second identity endpoint. The response body is deliberately ignored:
+  // `whoami` proves the bearer is live without exposing project data.
+  const response = await getJson("/v1/projects", { limit: 1 });
+  if (!response.ok) {
+    printApiError(response);
+    process.exit(exitCodeForStatus(response.status));
+    return;
+  }
+
   process.stdout.write(
     environmentToken
       ? "Authenticated with VOLATO_TOKEN.\n"
