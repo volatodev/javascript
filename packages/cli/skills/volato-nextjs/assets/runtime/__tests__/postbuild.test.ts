@@ -118,6 +118,51 @@ describe("Next.js 16 postbuild sourcemaps", () => {
     );
   });
 
+  it("skips an indexed Turbopack runtime map without sending it", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "volato-next-postbuild-"));
+    roots.push(cwd);
+    const chunks = join(cwd, ".next", "static", "chunks");
+    mkdirSync(chunks, { recursive: true });
+    const mapPath = join(chunks, "0cz1d0mv5g_q7.js.map");
+    writeFileSync(
+      mapPath,
+      JSON.stringify({
+        version: 3,
+        sections: [
+          {
+            offset: { line: 0, column: 0 },
+            map: {
+              version: 3,
+              sources: ["turbopack/runtime.ts"],
+              names: [],
+              mappings: "AAAA",
+            },
+          },
+        ],
+      }),
+    );
+    const fetchImpl = vi.fn();
+    const warn = vi.fn();
+
+    const result = await runPostbuild({
+      cwd,
+      env: {
+        NEXT_PUBLIC_VOLATO_DSN:
+          "https://public@api.volato.dev/11111111-1111-4111-8111-111111111111",
+        VOLATO_INGEST_TOKEN: "server-token",
+        VOLATO_RELEASE: "release-1",
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      warn,
+    });
+
+    expect(result).toEqual({ uploaded: 0, failed: 0 });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/indexed sourcemaps.*not resolvable/i),
+    );
+  });
+
   it("returns a non-zero CLI exit when final browser maps cannot be uploaded", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "volato-next-postbuild-"));
     roots.push(cwd);

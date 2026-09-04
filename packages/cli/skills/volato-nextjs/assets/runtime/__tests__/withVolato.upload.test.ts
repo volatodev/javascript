@@ -381,6 +381,41 @@ describe("__uploadOneForTests — skip cases", () => {
       expect.stringMatching(/empty sourcemap/i),
     );
   });
+
+  it("indexed sourcemap → 'skipped' + warning, no fetch", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "volato-upload-"));
+    const mapPath = join(dir, "page-abc12345.js.map");
+    writeFileSync(
+      mapPath,
+      JSON.stringify({
+        version: 3,
+        sections: [
+          {
+            offset: { line: 0, column: 0 },
+            map: JSON.parse(SAMPLE_MAP),
+          },
+        ],
+      }),
+    );
+
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const warn = vi.fn();
+    const outcome = await __uploadOneForTests({
+      mapPath,
+      jsRelative: ".next/server/chunks/[turbopack]_runtime.js",
+      release: "sha",
+      endpoint: "https://api.volato.dev",
+      token: "t",
+      fetchImpl,
+      warn,
+    });
+
+    expect(outcome).toBe("skipped");
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/indexed sourcemaps.*not resolvable/i),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------

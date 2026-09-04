@@ -166,14 +166,12 @@ const sleep = (ms: number): Promise<void> =>
 type UploadOutcome = "uploaded" | "updated" | "skipped" | "failed";
 
 function hasUsableMappings(parsed: Record<string, unknown>): boolean {
-  const regularMap =
+  return (
     Array.isArray(parsed.sources) &&
     parsed.sources.length > 0 &&
     typeof parsed.mappings === "string" &&
-    parsed.mappings.length > 0;
-  const indexedMap =
-    Array.isArray(parsed.sections) && parsed.sections.length > 0;
-  return regularMap || indexedMap;
+    parsed.mappings.length > 0
+  );
 }
 
 // Next creates several webpack compilers for one production build. Their
@@ -235,6 +233,12 @@ async function uploadOne(args: {
   try {
     const raw = await readFile(args.mapPath, "utf8");
     const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (Array.isArray(parsed.sections) && parsed.sections.length > 0) {
+      args.warn(
+        `Skipping ${args.jsRelative} — indexed sourcemaps are not resolvable by Volato.`,
+      );
+      return "skipped";
+    }
     if (!hasUsableMappings(parsed)) {
       args.warn(`Skipping ${args.jsRelative} — empty sourcemap has no mappings.`);
       return "skipped";

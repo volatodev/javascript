@@ -28,14 +28,12 @@ function sleep(ms) {
 }
 
 function hasUsableMappings(parsed) {
-  const regularMap =
+  return (
     Array.isArray(parsed.sources) &&
     parsed.sources.length > 0 &&
     typeof parsed.mappings === "string" &&
-    parsed.mappings.length > 0;
-  const indexedMap =
-    Array.isArray(parsed.sections) && parsed.sections.length > 0;
-  return regularMap || indexedMap;
+    parsed.mappings.length > 0
+  );
 }
 
 function* walkMaps(root) {
@@ -142,6 +140,12 @@ async function uploadMap({
   let sanitized;
   try {
     const parsed = JSON.parse(await readFile(mapPath, "utf8"));
+    if (Array.isArray(parsed.sections) && parsed.sections.length > 0) {
+      warn(
+        `Skipping ${displayPath} — indexed sourcemaps are not resolvable by Volato.`,
+      );
+      return "skipped";
+    }
     if (!hasUsableMappings(parsed)) {
       warn(`Skipping ${displayPath} — empty sourcemap has no mappings.`);
       return "skipped";
