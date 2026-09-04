@@ -12,23 +12,23 @@ import pc from "picocolors";
 import prompts from "prompts";
 import { detectErrorsStack } from "./init/detect-errors.js";
 
-const PUBLIC_SKILLS = [
+const GENERIC_SKILLS = [
   "volato-setup",
   "volato-errors",
-  "volato-nextjs",
-  "volato-vite-react",
-  "volato-vite-vue",
-  "volato-vite-svelte",
-  "volato-node",
-  "volato-fastify",
-  "volato-nestjs",
 ] as const;
 const RETIRED_SKILLS = ["monitor-product-usage", "volato-product"] as const;
 
 function selectedSkills(cwd: string): readonly string[] {
-  const selected: string[] = [...PUBLIC_SKILLS];
+  const selected: string[] = [...GENERIC_SKILLS];
   try {
     const stack = detectErrorsStack(cwd);
+    if (stack.nextjs) selected.push("volato-nextjs");
+    if (stack.browserReact) selected.push("volato-vite-react");
+    if (stack.browserVue) selected.push("volato-vite-vue");
+    if (stack.browserSvelte) selected.push("volato-vite-svelte");
+    if (stack.node || stack.nodeInvocation) selected.push("volato-node");
+    if (stack.fastify) selected.push("volato-fastify");
+    if (stack.nest) selected.push("volato-nestjs");
     if (stack.angular) selected.push("volato-angular");
     if (stack.fastapi) selected.push("volato-fastapi");
     if (stack.nuxt) selected.push("volato-nuxt");
@@ -80,9 +80,10 @@ function listFiles(root: string, prefix = ""): string[] {
 }
 
 function listInstallableFiles(root: string): string[] {
-  return listFiles(root).filter(
-    (file) => !file.split(/[\\/]/).includes("__tests__"),
-  );
+  return listFiles(root).filter((file) => {
+    const segments = file.split(/[\\/]/);
+    return !segments.includes("__tests__") && !segments.includes("assets");
+  });
 }
 
 function directoriesMatch(source: string, target: string): boolean {

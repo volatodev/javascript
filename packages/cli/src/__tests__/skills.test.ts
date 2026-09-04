@@ -22,6 +22,17 @@ function addSkill(name: string, body: string): void {
   writeFileSync(join(root, "agents", "openai.yaml"), "interface: {}\n");
 }
 
+function configureNextjs(): void {
+  writeFileSync(
+    join(cwd, "package.json"),
+    JSON.stringify({
+      dependencies: { next: "16.0.0", react: "19.0.0" },
+    }),
+  );
+  mkdirSync(join(cwd, "app"), { recursive: true });
+  writeFileSync(join(cwd, "app", "layout.tsx"), "export default function Layout() {}\n");
+}
+
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "volato-skills-"));
   sourceRoot = join(cwd, "bundled");
@@ -41,29 +52,35 @@ afterEach(() => {
 });
 
 describe("installSkills", () => {
-  it("installs the generic and detected-framework skill set", () => {
+  it("installs only the generic and applicable skill set for Next.js", () => {
+    configureNextjs();
+
+    const outcomes = installSkills({ cwd, sourceRoot });
+
+    expect(outcomes.map(({ skill }) => skill)).toEqual([
+      "volato-setup",
+      "volato-errors",
+      "volato-nextjs",
+    ]);
+  });
+
+  it("installs only generic skills when no supported stack is detected", () => {
     const outcomes = installSkills({ cwd, sourceRoot });
 
     expect(outcomes.map(({ skill, status }) => ({ skill, status }))).toEqual([
       { skill: "volato-setup", status: "created" },
       { skill: "volato-errors", status: "created" },
-      { skill: "volato-nextjs", status: "created" },
-      { skill: "volato-vite-react", status: "created" },
-      { skill: "volato-vite-vue", status: "created" },
-      { skill: "volato-vite-svelte", status: "created" },
-      { skill: "volato-node", status: "created" },
-      { skill: "volato-fastify", status: "created" },
-      { skill: "volato-nestjs", status: "created" },
     ]);
     expect(
       readFileSync(
-        join(cwd, ".agents", "skills", "volato-nextjs", "SKILL.md"),
+        join(cwd, ".agents", "skills", "volato-setup", "SKILL.md"),
         "utf8",
       ),
-    ).toBe("next");
+    ).toBe("generic");
   });
 
-  it("does not install bundled runtime tests into the target repository", () => {
+  it("does not install bundled runtime assets into the target repository", () => {
+    configureNextjs();
     const runtime = join(
       sourceRoot,
       "volato-nextjs",
@@ -87,17 +104,11 @@ describe("installSkills", () => {
       "assets",
       "runtime",
     );
-    expect(existsSync(join(installedRuntime, "client.tsx"))).toBe(true);
+    expect(existsSync(installedRuntime)).toBe(false);
     expect(existsSync(join(installedRuntime, "__tests__"))).toBe(false);
     expect(
       installSkills({ cwd, sourceRoot }).map((outcome) => outcome.status),
     ).toEqual([
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
       "unchanged",
       "unchanged",
       "unchanged",
@@ -110,13 +121,6 @@ describe("installSkills", () => {
     expect(
       installSkills({ cwd, sourceRoot }).map((outcome) => outcome.status),
     ).toEqual([
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
-      "unchanged",
       "unchanged",
       "unchanged",
     ]);
