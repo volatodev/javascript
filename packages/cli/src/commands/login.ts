@@ -18,7 +18,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { dirname } from "node:path";
 import prompts from "prompts";
-import { getJson, postJsonPublic } from "../lib/api-client.js";
+import { CliError, getJson, postJsonPublic, revokeToken } from "../lib/api-client.js";
 import {
   credentialsLocation,
   deleteToken,
@@ -284,11 +284,28 @@ export async function runWhoami(): Promise<void> {
 }
 
 export async function runLogout(): Promise<void> {
-  const removed = await deleteToken();
-  if (removed) {
-    printOk(`Logged out. Token removed from ${credentialsLocation()}.`);
-  } else {
-    // Nothing to remove is success, not failure — `logout` is idempotent.
+  const environmentToken = process.env.VOLATO_TOKEN?.trim();
+  const storedToken = await readToken();
+  const token = environmentToken || storedToken;
+  if (!token) {
     printOk(`No token was stored (${credentialsLocation()}).`);
+    return;
+  }
+  let response;
+  try {
+    response = await revokeToken(token);
+  } catch {
+    throw new CliError("Token revocation could not be confirmed. The local credential was kept; retry logout when the API is reachable.");
+  }
+  const alreadyInvalid = response.status === 401 && response.error === "invalid_token";
+  if (!(response.ok && response.data?.revoked === true) && !alreadyInvalid) {
+    throw new CliError(`Token revocation could not be confirmed (HTTP ${response.status}). The local credential was kept; retry logout.`, exitCodeForStatus(response.status));
+  }
+  // A concurrent login or an environment override must not erase a different
+  // credential. Only remove the matching local copy after server confirmation.
+  if (storedToken === token && await readToken() === token) await deleteToken();
+  printOk("Logged out. The active token is revoked or already invalid.");
+  if (environmentToken) {
+    process.stderr.write("  Unset VOLATO_TOKEN in your shell. Any different stored credential has been kept.\n");
   }
 }

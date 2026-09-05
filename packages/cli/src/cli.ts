@@ -132,7 +132,7 @@ program
 
 program
   .command("logout")
-  .description("Remove the stored workspace token")
+  .description("Revoke the active workspace token and remove its matching local copy")
   .action(async () => {
     await runLogout();
   });

@@ -75,7 +75,7 @@ async function request<T>(
   method: "GET" | "POST",
   path: string,
   body?: unknown,
-  opts?: { auth?: boolean; idempotencyKey?: string },
+  opts?: { auth?: boolean; idempotencyKey?: string; token?: string },
 ): Promise<ApiResponse<T>> {
   const url = `${resolveApiBase()}${path}`;
   const headers: Record<string, string> = {
@@ -84,7 +84,7 @@ async function request<T>(
   // The login exchange is pre-auth (the caller has no token yet); every
   // other call attaches the bearer.
   if (opts?.auth !== false) {
-    headers.Authorization = `Bearer ${await loadToken()}`;
+    headers.Authorization = `Bearer ${opts?.token ?? await loadToken()}`;
   }
   if (opts?.idempotencyKey) {
     headers["Idempotency-Key"] = opts.idempotencyKey;
@@ -181,6 +181,11 @@ export function postJsonPublic<T = unknown>(
   body: unknown,
 ): Promise<ApiResponse<T>> {
   return request<T>("POST", path, body, { auth: false });
+}
+
+/** Revoke the exact credential selected when logout began, including env input. */
+export function revokeToken(token: string): Promise<ApiResponse<{ revoked: boolean }>> {
+  return request("POST", "/v1/auth/cli-logout", undefined, { token });
 }
 
 export class CliError extends Error {

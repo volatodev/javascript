@@ -16,7 +16,7 @@
  * Override the location with `VOLATO_CREDENTIALS_FILE` (tests, CI,
  * sandboxes that don't have a real $HOME).
  */
-import { promises as fs } from "node:fs";
+import { constants, promises as fs } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -45,11 +45,24 @@ export async function readToken(): Promise<string | null> {
 export async function writeToken(token: string): Promise<string> {
   const file = credentialsPath();
   await fs.mkdir(dirname(file), { recursive: true, mode: 0o700 });
-  // `fs.writeFile` does not honour `mode` when the file already
-  // exists. Open with explicit flags so a re-login forces 0600 even
-  // if the user previously created the file with looser perms.
-  const handle = await fs.open(file, "w", 0o600);
+  // Only the default Volato directory is ours to chmod. An explicit override
+  // may live directly in a shared directory such as /tmp or the user's home.
+  if (!process.env.VOLATO_CREDENTIALS_FILE) {
+    if (!(await fs.lstat(dirname(file))).isDirectory()) {
+      throw new Error("The Volato credentials directory must not be a symlink.");
+    }
+    await fs.chmod(dirname(file), 0o700);
+  }
+  // Creation mode does not repair existing files. Refuse links, then chmod
+  // the opened file before truncating it or writing any new credential bytes.
+  const handle = await fs.open(file, constants.O_WRONLY | constants.O_CREAT | constants.O_NOFOLLOW | constants.O_NONBLOCK, 0o600);
   try {
+    const info = await handle.stat();
+    if (!info.isFile() || info.nlink !== 1) {
+      throw new Error("Credentials must be stored in a regular, unlinked file.");
+    }
+    await handle.chmod(0o600);
+    await handle.truncate(0);
     await handle.writeFile(`${token}\n`);
   } finally {
     await handle.close();

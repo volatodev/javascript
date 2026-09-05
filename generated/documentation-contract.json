@@ -227,7 +227,7 @@
           "logout"
         ],
         "aliases": [],
-        "description": "Remove the stored workspace token",
+        "description": "Revoke the active workspace token and remove its matching local copy",
         "arguments": [],
         "options": [
           {
