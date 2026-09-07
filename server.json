@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "dev.volato/errors",
+  "title": "Volato Errors",
+  "description": "Read-only production error evidence for coding agents investigating failures.",
+  "version": "1.0.0",
+  "websiteUrl": "https://volato.dev/docs/reference/mcp",
+  "icons": [
+    {
+      "src": "https://volato.dev/icon.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": ["any"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.volato.dev/mcp"
+    }
+  ]
+}
