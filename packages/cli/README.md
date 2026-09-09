@@ -42,9 +42,14 @@ To test a checkout before its marketplace release, run these commands from the
 repository root:
 
 ```bash
-mkdir -p ~/.cursor/plugins/local
-ln -s "$PWD/packages/cli" ~/.cursor/plugins/local/volato
+mkdir -p ~/.cursor/plugins/local/volato
+cp -R packages/cli/plugin.json packages/cli/mcp.json packages/cli/skills \
+  packages/cli/assets packages/cli/README.md packages/cli/LICENSE \
+  ~/.cursor/plugins/local/volato/
 ```
+
+Use a real copy here: Cursor rejects a local plugin symlink when its target is
+outside `~/.cursor/plugins/local`.
 
 Restart Cursor or run `Developer: Reload Window`, then open **Customize** and
 enable Volato. Authenticate the `volato` MCP server when prompted. For a first

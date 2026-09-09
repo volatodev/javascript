@@ -56,6 +56,15 @@ test("indexes the portable Volato plugin from the Cursor marketplace root", () =
   }
 });
 
+test("documents a Cursor-compatible local plugin copy", () => {
+  const readme = readFileSync(
+    join(repositoryRoot, "packages", "cli", "README.md"),
+    "utf8",
+  );
+  assert.match(readme, /cp -R packages\/cli\/plugin\.json/);
+  assert.doesNotMatch(readme, /ln -s/);
+});
+
 test("keeps Cursor, Agent Plugins and Claude metadata aligned", () => {
   const marketplace = readJson(marketplacePath);
   const entry = marketplace.plugins[0];
