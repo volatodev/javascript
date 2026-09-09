@@ -7,6 +7,31 @@ Install it once. Your AI coding agent shells out to `volato` from any terminal
 to install the Errors workflow and resolve production errors with source-aware
 context.
 
+## Claude Code plugin
+
+This directory is also the Volato plugin root for Claude Code. It bundles the
+read-only Volato MCP connection with the same Errors and integration skills
+distributed by the CLI.
+
+The Volato CLI is required for repository setup and status mutations:
+
+```bash
+npm install -g @volatodev/cli
+```
+
+To load a checkout for local review:
+
+```bash
+claude --plugin-dir ./packages/cli
+```
+
+Run `/mcp` in Claude Code and authenticate the `volato` server. Then ask, for
+example, `Fix the latest production error.` Claude selects the project linked
+in `.volato/manifest.json` when available, retrieves bounded production
+evidence through Volato, inspects the local source, and verifies a minimal
+patch. MCP access remains read-only; resolving, reopening, or ignoring a group
+is always a separate explicit CLI action.
+
 ## Install
 
 ```bash

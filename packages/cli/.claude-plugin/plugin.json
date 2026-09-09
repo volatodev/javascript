@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "volato",
+  "displayName": "Volato",
+  "version": "0.1.0",
+  "description": "Investigate and fix production errors with source-aware Volato evidence, release comparisons, and verified repair workflows.",
+  "author": {
+    "name": "Wrenchy SASU",
+    "url": "https://volato.dev"
+  },
+  "homepage": "https://volato.dev/docs/reference/mcp",
+  "repository": "https://github.com/volatodev/javascript",
+  "license": "MIT",
+  "keywords": [
+    "volato",
+    "production-errors",
+    "observability",
+    "mcp"
+  ]
+}

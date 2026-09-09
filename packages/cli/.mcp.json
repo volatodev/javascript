@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "volato": {
+      "type": "http",
+      "url": "https://mcp.volato.dev/mcp"
+    }
+  }
+}
