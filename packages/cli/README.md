@@ -32,6 +32,27 @@ evidence through Volato, inspects the local source, and verifies a minimal
 patch. MCP access remains read-only; resolving, reopening, or ignoring a group
 is always a separate explicit CLI action.
 
+## Cursor Agent Plugin
+
+This directory is also a portable Agent Plugin for Cursor. It exposes the same
+skills and the hosted read-only Volato MCP server; Cursor manages the OAuth
+connection directly.
+
+To test a checkout before its marketplace release, run these commands from the
+repository root:
+
+```bash
+mkdir -p ~/.cursor/plugins/local
+ln -s "$PWD/packages/cli" ~/.cursor/plugins/local/volato
+```
+
+Restart Cursor or run `Developer: Reload Window`, then open **Customize** and
+enable Volato. Authenticate the `volato` MCP server when prompted. For a first
+read-only check, ask `List the active Volato projects I can investigate.`
+
+The Volato CLI remains required for repository setup and explicit status
+mutations.
+
 ## Install
 
 ```bash

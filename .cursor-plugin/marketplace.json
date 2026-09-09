@@ -1,0 +1,38 @@
+{
+  "name": "volato",
+  "owner": {
+    "name": "Wrenchy SASU"
+  },
+  "metadata": {
+    "description": "Official Volato plugins for coding agents.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "volato",
+      "source": "./packages/cli",
+      "description": "Investigate production errors with read-only Volato evidence, source context, samples, and release comparisons.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Wrenchy SASU"
+      },
+      "homepage": "https://volato.dev/docs/reference/mcp",
+      "repository": "https://github.com/volatodev/javascript",
+      "license": "MIT",
+      "keywords": [
+        "volato",
+        "production-errors",
+        "observability",
+        "mcp"
+      ],
+      "logo": "./packages/cli/assets/volato.svg",
+      "category": "Developer Tools",
+      "tags": [
+        "debugging",
+        "errors",
+        "releases",
+        "read-only"
+      ]
+    }
+  ]
+}

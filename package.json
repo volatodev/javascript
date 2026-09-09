@@ -17,7 +17,7 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
+    "test": "node --test scripts/plugin-manifests.test.mjs && turbo run test",
     "smoke:package": "pnpm --filter @volatodev/cli build && node scripts/package-smoke.mjs",
     "eval:errors-agent": "node scripts/errors-agent-eval.mjs",
     "eval:errors-regression-agent": "node scripts/errors-regression-agent-eval.mjs",
